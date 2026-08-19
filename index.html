@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MudaBrasil - Voto Contínuo e Revogável</title>
+  <meta name="description" content="Plataforma cívica de voto contínuo e revogável com transparência total. Compare candidatos com dados públicos e participe da democracia.">
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="navbar">
+    <div class="logo">
+      <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+        <defs>
+          <linearGradient id="gradLogo" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#7fb0f5"/>
+            <stop offset="100%" stop-color="#FFD700"/>
+          </linearGradient>
+        </defs>
+        <circle cx="20" cy="20" r="18" stroke="url(#gradLogo)" stroke-width="4" fill="none"/>
+        <path d="M12 20 L20 12 L28 20 L20 28 Z" fill="url(#gradLogo)"/>
+      </svg>
+      <span>MudaBrasil</span>
+    </div>
+
+    <nav>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="index.html" class="active">Início</a></li>
+        <li><a href="pages/proposta.html">Proposta</a></li>
+        <li><a href="pages/candidatos.html">Candidatos</a></li>
+        <li><a href="pages/termometro.html">Termômetro</a></li>
+        <li><a href="pages/status.html">Status</a></li>
+        <li><a href="pages/revogar.html">Revogar</a></li>
+        <li><a href="pages/comunidade.html">Comunidade</a></li>
+      </ul>
+    </nav>
+
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button class="btn btn-primary btn-sm" id="login-btn" onclick="showLoginForm()">Login</button>
+      <div class="mobile-toggle" id="mobile-menu">☰</div>
+    </div>
+  </header>
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <ul>
+      <li><a href="index.html" style="color:var(--accent-500);">🏠 Início</a></li>
+      <li><a href="pages/proposta.html">📖 Proposta</a></li>
+      <li><a href="pages/candidatos.html">🗳️ Candidatos</a></li>
+      <li><a href="pages/termometro.html">🌡️ Termômetro</a></li>
+      <li><a href="pages/status.html">📊 Status</a></li>
+      <li><a href="pages/revogar.html">⚠️ Revogar</a></li>
+      <li><a href="pages/comunidade.html">👥 Comunidade</a></li>
+    </ul>
+    <div class="login-area">
+      <button class="btn btn-secondary btn-sm" onclick="showLoginForm()">Entrar na sua conta</button>
+    </div>
+  </aside>
+
+  <!-- ===================== CONTEÚDO ===================== -->
+  <main class="main-content">
+
+    <!-- HERO -->
+    <section class="hero reveal show">
+      <h1>Democracia Contínua, Transparente e Revogável</h1>
+      <p>
+        O MudaBrasil transforma o voto em um direito contínuo. Acompanhe propostas,
+        compare candidatos com <strong>dados públicos reais</strong> e revogue decisões
+        que não cumpriram seu compromisso.
+      </p>
+      <div style="display:flex; gap:var(--space-md); justify-content:center; flex-wrap:wrap;">
+        <button class="btn btn-accent" onclick="location.href='pages/termometro.html'">🌡️ Termômetro ao vivo</button>
+        <button class="btn btn-primary" onclick="location.href='pages/candidatos.html'">🗳️ Comparar Candidatos</button>
+        <button class="btn btn-secondary" onclick="location.href='pages/proposta.html'">📖 Ver Proposta</button>
+      </div>
+    </section>
+
+    <!-- PAINEL AO VIVO (termômetro de confiança) -->
+    <section class="action-panel live-panel reveal">
+      <div class="live-panel-head">
+        <h2>🌡️ Plataforma ao vivo</h2>
+        <span class="source-badge-pill demo" id="live-badge">⏳ carregando…</span>
+      </div>
+      <p style="font-size:var(--text-sm);">
+        <strong>Seu voto coloca, seu voto tira.</strong> O índice de confiança dos
+        513 deputados federais, atualizado em tempo real a cada voto, revogação ou
+        manutenção — anônimo, sem cadastro.
+      </p>
+      <div class="live-metrics">
+        <div class="live-metric">
+          <span class="live-metric-num" id="live-ativos">—</span>
+          <span class="live-metric-label">Votos ativos</span>
+        </div>
+        <div class="live-metric">
+          <span class="live-metric-num" id="live-revogados">—</span>
+          <span class="live-metric-label">Votos revogados</span>
+        </div>
+        <div class="live-metric">
+          <span class="live-metric-num" id="live-participantes">—</span>
+          <span class="live-metric-label">Participações</span>
+        </div>
+        <div class="live-metric">
+          <span class="live-metric-num" id="live-top">—</span>
+          <span class="live-metric-label">Índice no topo</span>
+        </div>
+      </div>
+      <div class="score-bar-container">
+        <div class="score-label">
+          <span id="live-top-name">Liderança do índice de confiança</span>
+          <span><strong id="live-top-valor">—</strong></span>
+        </div>
+        <div class="score-bar">
+          <div class="score-fill" id="live-top-fill" style="width:0%"></div>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <button class="btn btn-accent" onclick="location.href='pages/termometro.html'">🌡️ Ver Termômetro completo</button>
+      </div>
+      <p class="note" style="text-align:center;">
+        Voto anônimo por código (R4) · sem cadastro · protótipo de pesquisa — sem valor legal.
+      </p>
+    </section>
+
+    <!-- CARDS DE NAVEGAÇÃO -->
+    <h2 style="text-align:center; margin-top:var(--space-2xl);">Explore o MudaBrasil</h2>
+    <p style="text-align:center; color:var(--text-secondary); max-width:600px; margin:0 auto var(--space-lg);">
+      Tudo o que você precisa para uma participação cívica informada e ativa.
+    </p>
+    <div class="cards-grid">
+      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/candidatos.html'">
+        <h3>🗳️ Candidatos</h3>
+        <p>Compare candidatos com dados públicos: transparência, processos judiciais, votação nominal e patrimônio.</p>
+        <span class="badge score">Novo</span>
+      </div>
+      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/proposta.html'">
+        <h3>📖 Proposta</h3>
+        <p>Leia o manifesto, adicione novas metas e proporcione consenso coletivo.</p>
+      </div>
+      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/status.html'">
+        <h3>📊 Status</h3>
+        <p>Acompanhe o progresso das métricas, cronograma e relatórios em tempo real.</p>
+      </div>
+      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/revogar.html'">
+        <h3>⚠️ Revogar</h3>
+        <p>Inicie uma revogação, forneça justificativa e colete assinaturas para reverter decisões.</p>
+      </div>
+      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/comunidade.html'">
+        <h3>👥 Comunidade</h3>
+        <p>Veja quem assinou, contribuições destacadas e estatísticas da comunidade.</p>
+      </div>
+      <div class="card reveal">
+        <h3>🔍 Transparência</h3>
+        <p>Dados estruturados a partir de TSE, Portal da Transparência, CNJ e votação nominal.</p>
+      </div>
+    </div>
+
+    <!-- DESTAQUE: FONTES PÚBLICAS -->
+    <div class="contribution-section reveal">
+      <h2>🔍 Dados 100% Públicos e Verificáveis</h2>
+      <p>Nossa plataforma de comparação de candidatos é alimentada exclusivamente por fontes oficiais, garantindo total transparência e rastreabilidade.</p>
+      <table class="data-table">
+        <thead>
+          <tr><th>Fonte</th><th>Dados Disponíveis</th><th>Link</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>TSE</strong></td>
+            <td class="value-neutral">Registro de candidatura, histórico eleitoral, condenações, votos</td>
+            <td><a href="https://www.tse.jus.br" target="_blank" rel="noopener">tse.jus.br</a></td>
+          </tr>
+          <tr>
+            <td><strong>Portal da Transparência</strong></td>
+            <td class="value-neutral">Rendimentos, patrimônio declarado, gastos</td>
+            <td><a href="https://portaldatransparencia.gov.br" target="_blank" rel="noopener">portaldatransparencia.gov.br</a></td>
+          </tr>
+          <tr>
+            <td><strong>Câmara / Senado</strong></td>
+            <td class="value-neutral">Proposituras autorais, votação nominal, presença em sessões</td>
+            <td><a href="https://www.camara.leg.br" target="_blank" rel="noopener">camara.leg.br</a></td>
+          </tr>
+          <tr>
+            <td><strong>CNJ</strong></td>
+            <td class="value-neutral">Processos judiciais, status de ações, condenações</td>
+            <td><a href="https://www.cnj.jus.br" target="_blank" rel="noopener">cnj.jus.br</a></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:var(--text-xs); color:var(--text-muted);">
+        ⚖️ O índice de integridade é calculado automaticamente combinando transparência, processos judiciais e presença. Em produção, os dados são atualizados via APIs oficiais.
+      </p>
+    </div>
+
+  </main>
+
+  <!-- ===================== MODAL DE LOGIN ===================== -->
+  <div class="modal" id="login-modal">
+    <div class="modal-content">
+      <span class="close" onclick="this.closest('.modal').style.display='none'">×</span>
+      <h2>Login na Conta MudaBrasil</h2>
+      <form onsubmit="event.preventDefault(); alert('Login simulado com sucesso!'); this.closest('.modal').style.display='none';">
+        <label>Usuário</label>
+        <input type="text" placeholder="Seu usuário" required>
+        <label>Senha</label>
+        <input type="password" placeholder="Senha" required>
+        <button class="btn btn-primary" type="submit">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>Links Rápidos</h4>
+        <ul>
+          <li><a href="pages/proposta.html">Proposta</a></li>
+          <li><a href="pages/candidatos.html">Candidatos</a></li>
+          <li><a href="pages/status.html">Status</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Fontes de Dados</h4>
+        <ul>
+          <li><a href="https://www.tse.jus.br" target="_blank" rel="noopener">TSE</a></li>
+          <li><a href="https://portaldatransparencia.gov.br" target="_blank" rel="noopener">Portal da Transparência</a></li>
+          <li><a href="https://www.cnj.jus.br" target="_blank" rel="noopener">CNJ</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Score Atual</h4>
+        <div class="mini-score-bar"><div class="mini-score-fill" style="width:78%"></div></div>
+        <p>Última atualização: 2026-08-18</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 MudaBrasil. Plataforma cívica de voto contínuo e revogável.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/shared-ui.js"></script>
+  <script src="js/live-stream.js"></script>
+  <script>
+    /* Painel "Plataforma ao vivo": métricas reais do termômetro.
+       Sem servidor (file://), cai no modo demo — nunca quebra.
+       Com servidor, atualiza em tempo real via SSE (MBLive). */
+    (function () {
+      'use strict';
+      let isReal = false, liveStarted = false;
+
+      function fetchTimeout(url, ms) {
+        const c = new AbortController();
+        const t = setTimeout(() => c.abort(), ms);
+        return fetch(url, { signal: c.signal }).finally(() => clearTimeout(t));
+      }
+      function fmt(n) { return new Intl.NumberFormat('pt-BR').format(n || 0); }
+
+      const DEMO = {
+        totalVotosAtivos: 132, totalRevogados: 27, totalRegistros: 159,
+        topN: [{ name: 'Ana Beatriz Souza', party: 'PT', state: 'SP', indice: 87 }]
+      };
+
+      function render(data, real) {
+        isReal = real;
+        const b = document.getElementById('live-badge');
+        if (real) { b.className = 'source-badge-pill real'; b.textContent = '📡 Ao vivo · votos anônimos'; }
+        else { b.className = 'source-badge-pill demo'; b.textContent = '🧪 Modo demo — dados sintéticos'; }
+        document.getElementById('live-ativos').textContent = fmt(data.totalVotosAtivos);
+        document.getElementById('live-revogados').textContent = fmt(data.totalRevogados);
+        document.getElementById('live-participantes').textContent = fmt(data.totalRegistros);
+        const top = (data.topN && data.topN[0]) || null;
+        document.getElementById('live-top').textContent = top ? top.indice.toFixed(1) : '—';
+        document.getElementById('live-top-name').textContent = top
+          ? '🥇 ' + top.name + ' (' + (top.party || '—') + ' · ' + (top.state || '—') + ')'
+          : 'Ainda não há votos registrados';
+        document.getElementById('live-top-valor').textContent = top ? top.indice.toFixed(1) + ' / 100' : '—';
+        document.getElementById('live-top-fill').style.width = (top ? top.indice : 0) + '%';
+      }
+
+      function refresh() {
+        return fetchTimeout('/api/termometro', 6000)
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(data => { render(data, true); return true; })
+          .catch(() => false);
+      }
+
+      function startLive() {
+        if (liveStarted || !isReal || !window.MBLive) return;
+        liveStarted = true;
+        MBLive.initLiveUpdate(function () { refresh(); }, { enabled: true, intervalMs: 15000 });
+      }
+
+      render(DEMO, false); // demo imediato (sem flash)
+      refresh().then(ok => { if (ok) startLive(); });
+    })();
+  </script>
+</body>
+</html>
