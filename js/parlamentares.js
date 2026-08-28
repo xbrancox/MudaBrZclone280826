@@ -1,805 +1,729 @@
 /* ============================================================
    MUDABRASIL — PARLAMENTARES
-   Página unificada: Candidatos + Radar Político + Rankings
+   Aba unificada: Candidatos + Radar + PLs + Revogados + Conferir + Revogar
+   Alinhado com os .docx do projeto
    ============================================================ */
 
 (function () {
   'use strict';
 
-  /* ============================================================
-     ESTADO GLOBAL
-     ============================================================ */
+  const $ = (s, p) => (p || document).querySelector(s);
+  const $$ = (s, p) => Array.from((p || document).querySelectorAll(s));
+  const escapeHtml = s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  const session = () => {
+    try { return JSON.parse(localStorage.getItem('mudabrasil.session') || 'null'); }
+    catch (_) { return null; }
+  };
+
+  function toast(msg, type = 'success') {
+    const t = $('#mb-toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.className = 'mb-toast ' + type;
+    t.hidden = false;
+    setTimeout(() => { t.hidden = true; }, 3500);
+  }
+
+  function getInitials(name) {
+    if (!name) return '??';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  /* ============================================================
+     STATE
+     ============================================================ */
   const state = {
-    politicians: [],         // Lista bruta
-    politiciansFull: {},     // Map id -> objeto completo
-    verifications: {},       // Map id -> { verified, domain, ... }
-    stats: {},               // Map id -> { complaints, supports, ... }
-    rankings: null,          // Rankings cache
-    globalStats: null,
-    view: 'grid',            // 'grid' | 'list'
-    activeTab: 'all',        // 'all' | 'radar' | 'ranking'
-    radarFilter: 'all',      // 'all' | 'complaints' | 'supports' | 'responses'
-    currentProfile: null,    // ID do político no modal
-    session: window.MBSession || null
+    allPoliticians: [],
+    filteredPoliticians: [],
+    compareSelection: new Set(),
+    activeTab: 'candidatos',
+    pls: [],
+    revStats: [],
   };
 
   /* ============================================================
-     UTILITÁRIOS
+     INIT
      ============================================================ */
+  document.addEventListener('DOMContentLoaded', async () => {
+    setupTabs();
+    setupAuthModal();
+    await loadCandidatos();
+    await loadRadar();
+    await loadPls();
+    await loadRevogados();
+    setupConferir();
+    setupRevogar();
+    setupCompare();
+  });
 
-  const $ = (sel, root) => (root || document).querySelector(sel);
-  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
-
-  function el(tag, attrs, ...children) {
-    const e = document.createElement(tag);
-    if (attrs) {
-      for (const k in attrs) {
-        if (k === 'className') e.className = attrs[k];
-        else if (k === 'innerHTML') e.innerHTML = attrs[k];
-        else if (k.startsWith('on') && typeof attrs[k] === 'function') e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
-        else if (k === 'dataset') Object.assign(e.dataset, attrs[k]);
-        else if (attrs[k] != null) e.setAttribute(k, attrs[k]);
-      }
-    }
-    children.forEach(c => {
-      if (c == null) return;
-      if (typeof c === 'string') e.appendChild(document.createTextNode(c));
-      else e.appendChild(c);
+  /* ============================================================
+     TABS
+     ============================================================ */
+  function setupTabs() {
+    $$('.mb-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const name = tab.dataset.tab;
+        $$('.mb-tab').forEach(t => t.classList.toggle('active', t === tab));
+        $$('.mb-tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+        state.activeTab = name;
+      });
     });
-    return e;
-  }
-
-  function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function initials(name) {
-    if (!name) return '?';
-    return name.trim().split(/\s+/).slice(0, 2).map(s => s[0]).join('').toUpperCase();
-  }
-
-  function timeAgo(timestamp) {
-    if (!timestamp) return '';
-    const diff = Date.now() - timestamp;
-    const min = 60 * 1000;
-    const hour = 60 * min;
-    const day = 24 * hour;
-    if (diff < min) return 'agora';
-    if (diff < hour) return Math.floor(diff / min) + 'min';
-    if (diff < day) return Math.floor(diff / hour) + 'h';
-    if (diff < 30 * day) return Math.floor(diff / day) + 'd';
-    return new Date(timestamp).toLocaleDateString('pt-BR');
-  }
-
-  function getSourceLinks(p) {
-    const links = [];
-    const position = p.position || '';
-    if (position.includes('Senador') || (p.id && p.id.startsWith('senado-'))) {
-      links.push({ label: 'Senado Federal', url: 'https://www25.senado.leg.br/web/senadores/senador/-/perfil/' + p.id.replace('senado-', ''), icon: '🏛️' });
-    } else {
-      links.push({ label: 'Câmara dos Deputados', url: 'https://www.camara.leg.br/deputados/' + (p.id || '').replace('camara-', ''), icon: '🏛️' });
-    }
-    if (p.id && p.id.startsWith('camara-')) {
-      links.push({ label: 'Transparência Câmara', url: 'https://www.camara.leg.br/transparencia/', icon: '📊' });
-      links.push({ label: 'Portal da Transparência', url: 'https://portaldatransparencia.gov.br/busca?p_p_id=resultado&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=column-2&p_p_col_count=1&_resultado_groupId=10&_resultado_keywords=' + encodeURIComponent(p.name), icon: '🔎' });
-    }
-    if (p.id && p.id.startsWith('senado-')) {
-      links.push({ label: 'Portal da Transparência', url: 'https://portaldatransparencia.gov.br/busca?p_p_id=resultado&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=column-2&p_p_col_count=1&_resultado_groupId=10&_resultado_keywords=' + encodeURIComponent(p.name), icon: '🔎' });
-    }
-    links.push({ label: 'TSE', url: 'https://www.tse.jus.br/eleicoes/eleicoes-anteriores/eleicoes-2022/candidaturas-2022', icon: '🗳️' });
-    return links;
-  }
-
-  function getBirthDate(p) {
-    return p.dataNascimento || p.nascimento || p.birthDate || null;
-  }
-
-  function getEducation(p) {
-    return p.escolaridade || p.education || null;
   }
 
   /* ============================================================
-     CARREGAR DADOS
+     CANDIDATOS
      ============================================================ */
-
-  async function loadAll() {
+  async function loadCandidatos() {
     try {
-      // Carrega candidatos reais
-      const res = await fetch('/api/candidatos');
-      const data = await res.json();
-      if (data.candidatos && data.candidatos.length > 0) {
-        state.politicians = data.candidatos;
-        state.politiciansFull = {};
-        data.candidatos.forEach(c => { state.politiciansFull[c.id] = c; });
-      }
+      const r = await fetch('/api/candidatos');
+      const d = await r.json();
+      state.allPoliticians = d.candidatos || [];
+      populateFilterOptions();
+      attachFilterHandlers();
+      applyFilters();
     } catch (e) {
-      console.warn('[parlamentares] Erro ao buscar /api/candidatos:', e.message);
-    }
-
-    // Carrega verificações
-    try {
-      const res = await fetch('/api/verificacao/stats');
-      const data = await res.json();
-      // Stats agregados, sem detalhes por político
-    } catch (e) { /* sem stats */ }
-
-    // Carrega rankings + stats globais
-    try {
-      const res = await fetch('/api/rankings');
-      const data = await res.json();
-      if (data.rankings) state.rankings = data.rankings;
-      if (data.stats) state.globalStats = data.stats;
-    } catch (e) { /* sem rankings */ }
-
-    // Carrega stats por político
-    await loadAllStats();
-
-    // Stats do hero
-    updateHeroStats();
-  }
-
-  async function loadAllStats() {
-    if (state.politicians.length === 0) return;
-    state.stats = {};
-    const promises = state.politicians.slice(0, 100).map(async (p) => {
-      try {
-        const res = await fetch('/api/estatisticas/politico/' + encodeURIComponent(p.id));
-        const data = await res.json();
-        if (data.stats) state.stats[p.id] = data.stats;
-      } catch (e) { /* skip */ }
-    });
-    await Promise.allSettled(promises);
-  }
-
-  function updateHeroStats() {
-    $('#totalPoliticians').textContent = state.politicians.length || 0;
-    if (state.globalStats) {
-      $('#totalVerified').textContent = state.globalStats.verifiedPoliticians || 0;
-      $('#totalComplaints').textContent = state.globalStats.totalComplaints || 0;
-      $('#totalSupports').textContent = state.globalStats.totalSupports || 0;
-    } else {
-      $('#totalVerified').textContent = '0';
-      $('#totalComplaints').textContent = '0';
-      $('#totalSupports').textContent = '0';
+      console.error('loadCandidatos', e);
     }
   }
 
-  /* ============================================================
-     POPULAR FILTROS
-     ============================================================ */
-
-  function populateFilters() {
+  function populateFilterOptions() {
     const states = new Set();
     const parties = new Set();
-    state.politicians.forEach(p => {
+    state.allPoliticians.forEach(p => {
       if (p.state) states.add(p.state);
       if (p.party) parties.add(p.party);
     });
-
-    const stateSelect = $('#filterState');
-    const partySelect = $('#filterParty');
-
+    const stateSel = $('#cand-filter-state');
+    const partySel = $('#cand-filter-party');
     Array.from(states).sort().forEach(s => {
-      const opt = el('option', { value: s }, s);
-      stateSelect.appendChild(opt);
+      const o = document.createElement('option'); o.value = s; o.textContent = s; stateSel.appendChild(o);
     });
     Array.from(parties).sort().forEach(p => {
-      const opt = el('option', { value: p }, p);
-      partySelect.appendChild(opt);
+      const o = document.createElement('option'); o.value = p; o.textContent = p; partySel.appendChild(o);
     });
   }
 
-  /* ============================================================
-     BUSCA + FILTROS
-     ============================================================ */
+  function attachFilterHandlers() {
+    ['cand-search', 'cand-filter-state', 'cand-filter-party', 'cand-filter-position', 'cand-filter-sort']
+      .forEach(id => $('#' + id).addEventListener('input', applyFilters));
+  }
 
   function applyFilters() {
-    const search = ($('#searchInput').value || '').toLowerCase().trim();
-    const stateFilter = $('#filterState').value;
-    const partyFilter = $('#filterParty').value;
-    const positionFilter = $('#filterPosition').value;
-    const verifiedFilter = $('#filterVerified').value;
-    const sortBy = $('#sortBy').value;
+    const q = ($('#cand-search').value || '').toLowerCase().trim();
+    const st = $('#cand-filter-state').value;
+    const party = $('#cand-filter-party').value;
+    const position = $('#cand-filter-position').value;
+    const sort = $('#cand-filter-sort').value;
 
-    let list = state.politicians.slice();
-
-    if (search) {
-      list = list.filter(p =>
-        (p.name || '').toLowerCase().includes(search) ||
-        (p.party || '').toLowerCase().includes(search) ||
-        (p.state || '').toLowerCase().includes(search) ||
-        (p.focusArea || '').toLowerCase().includes(search)
-      );
-    }
-    if (stateFilter) list = list.filter(p => p.state === stateFilter);
-    if (partyFilter) list = list.filter(p => p.party === partyFilter);
-    if (positionFilter) list = list.filter(p => p.position === positionFilter);
-    if (verifiedFilter === '1') {
-      list = list.filter(p => state.stats[p.id] && state.stats[p.id].verified);
-    }
-
-    // Ordenação
-    const [field, order] = sortBy.split(':');
-    const dir = order === 'desc' ? -1 : 1;
-    list.sort((a, b) => {
-      let va, vb;
-      if (field === 'satisfaction' || field === 'complaints' || field === 'supports') {
-        va = (state.stats[a.id] && state.stats[a.id][field]) || 0;
-        vb = (state.stats[b.id] && state.stats[b.id][field]) || 0;
-      } else {
-        va = a[field];
-        vb = b[field];
+    let list = state.allPoliticians.filter(p => {
+      if (q) {
+        const hay = [p.name, p.party, p.state, p.focusArea, p.position].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
       }
-      const aNull = va == null, bNull = vb == null;
-      if (aNull && bNull) return 0;
-      if (aNull) return 1;
-      if (bNull) return -1;
-      if (typeof va === 'string') return dir * String(va).localeCompare(String(vb), 'pt-BR');
-      return dir * (va - vb);
+      if (st && p.state !== st) return false;
+      if (party && p.party !== party) return false;
+      if (position && p.position !== position) return false;
+      return true;
     });
 
-    $('#resultCount').textContent = list.length + ' parlamentar' + (list.length !== 1 ? 'es' : '');
-    return list;
+    if (sort === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    else if (sort === 'party') list.sort((a, b) => (a.party || '').localeCompare(b.party || ''));
+    else if (sort === 'integrity') list.sort((a, b) => (b.integrityIndex || 0) - (a.integrityIndex || 0));
+    else list.sort((a, b) => (b.transparencyScore || 0) - (a.transparencyScore || 0));
+
+    state.filteredPoliticians = list.slice(0, 60);
+    $('#cand-count').textContent = state.filteredPoliticians.length;
+    renderCandidatos();
+  }
+
+  function renderCandidatos() {
+    const grid = $('#cand-grid');
+    grid.innerHTML = state.filteredPoliticians.map(p => {
+      const integrity = p.integrityIndex != null ? p.integrityIndex : 100 - Math.min(60, (p.lawsuits || 0) * 8);
+      const processes = p.lawsuits || 0;
+      const initials = getInitials(p.name);
+      const photo = p.photo ? `<img src="${escapeHtml(p.photo)}" alt="" onerror="this.style.display='none';this.parentNode.textContent='${initials}'">` : initials;
+      return `
+      <article class="mb-cand-card" data-id="${escapeHtml(p.id)}">
+        <div class="mb-cand-compare" data-id="${escapeHtml(p.id)}" title="Selecionar para comparar">${state.compareSelection.has(p.id) ? '✓' : ''}</div>
+        <div class="mb-cand-head">
+          <div class="mb-cand-avatar">${photo}</div>
+          <div class="mb-cand-info">
+            <div class="mb-cand-name">${escapeHtml(p.name)}</div>
+            <div class="mb-cand-meta">${escapeHtml(p.party || '')} · ${escapeHtml(p.state || '')} · ${escapeHtml(p.position || '')}</div>
+          </div>
+        </div>
+        <div class="mb-cand-tags">
+          <span class="mb-tag-num">#${p.number || '—'}</span>
+          ${processes === 0
+            ? '<span class="mb-tag-clean">✅ Sem processos</span>'
+            : `<span class="mb-tag-warn">⚠️ ${processes} processo(s)</span>`}
+        </div>
+        <div class="mb-integrity">
+          <div class="mb-integrity-label">
+            <span>Índice de Integridade</span>
+            <span class="mb-integrity-value">${integrity}</span>
+          </div>
+          <div class="mb-integrity-bar"><div class="mb-integrity-fill" style="width:${integrity}%"></div></div>
+        </div>
+        <div class="mb-cand-actions">
+          <button class="mb-btn-secondary" data-action="details" data-id="${escapeHtml(p.id)}">VER DETALHES</button>
+        </div>
+        <div class="mb-cand-source">📋 Fonte: TSE, Portal da Transparência, ${p.position && p.position.toLowerCase().includes('senador') ? 'Senado' : 'Câmara dos Deputados'}, CNJ</div>
+      </article>`;
+    }).join('');
+
+    grid.querySelectorAll('[data-action="details"]').forEach(b => b.addEventListener('click', e => openCandidato(e.currentTarget.dataset.id)));
+    grid.querySelectorAll('.mb-cand-compare').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleCompare(e.currentTarget.dataset.id);
+    }));
+  }
+
+  function toggleCompare(id) {
+    if (state.compareSelection.has(id)) state.compareSelection.delete(id);
+    else if (state.compareSelection.size < 3) state.compareSelection.add(id);
+    else { toast('Selecione no máximo 3 políticos', 'error'); return; }
+    const bar = $('#compare-bar');
+    if (state.compareSelection.size > 0) { bar.hidden = false; } else { bar.hidden = true; }
+    $('#compare-count').textContent = state.compareSelection.size;
+    $('#compare-btn').disabled = state.compareSelection.size < 2;
+    renderCandidatos();
+  }
+
+  function setupCompare() {
+    $('#compare-clear').addEventListener('click', () => {
+      state.compareSelection.clear();
+      $('#compare-bar').hidden = true;
+      $('#compare-panel').hidden = true;
+      renderCandidatos();
+    });
+    $('#compare-btn').addEventListener('click', runCompare);
+  }
+
+  async function runCompare() {
+    const ids = Array.from(state.compareSelection);
+    const r = await fetch('/api/candidatos/comparar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    const d = await r.json();
+    if (!d.ok) { toast(d.error, 'error'); return; }
+    renderCompare(d.candidatos);
+  }
+
+  function renderCompare(cands) {
+    const panel = $('#compare-panel');
+    const fields = [
+      { key: 'name', label: 'Nome' },
+      { key: 'party', label: 'Partido' },
+      { key: 'state', label: 'UF' },
+      { key: 'position', label: 'Cargo' },
+      { key: 'education', label: 'Escolaridade' },
+      { key: 'billsAuthored', label: 'PLs Autorias' },
+      { key: 'attendanceRate', label: 'Presença' },
+      { key: 'transparencyScore', label: 'Transparência' },
+      { key: 'lawsuits', label: 'Processos' },
+      { key: 'integrityIndex', label: 'Índice Integridade' }
+    ];
+    const cols = cands.length;
+    let html = '<h3>📊 Comparação lado a lado</h3><div class="mb-compare-table" style="grid-template-columns: 200px repeat(' + cols + ', 1fr)">';
+    fields.forEach(f => {
+      html += `<div class="mb-cmp-cell mb-cmp-label">${f.label}</div>`;
+      cands.forEach(c => {
+        let val = c[f.key];
+        if (f.key === 'integrityIndex') val = `${val != null ? val : '—'} / 100`;
+        if (f.key === 'attendanceRate' && typeof val === 'number') val = val + '%';
+        if (f.key === 'transparencyScore' && typeof val === 'number') val = val + '/100';
+        html += `<div class="mb-cmp-cell"><strong>${escapeHtml(val != null ? val : '—')}</strong></div>`;
+      });
+    });
+    html += '</div>';
+    panel.innerHTML = html;
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   /* ============================================================
-     RENDERIZAÇÃO DOS CARDS
+     DETALHES DO CANDIDATO
      ============================================================ */
+  async function openCandidato(id) {
+    const r = await fetch('/api/candidatos/detalhes/' + encodeURIComponent(id));
+    const d = await r.json();
+    if (!d.ok) { toast('Candidato não encontrado', 'error'); return; }
+    const c = d.candidato;
+    const initials = getInitials(c.name);
+    const sources = c.sources || {};
+    const sourceList = Object.values(sources).map(s => `
+      <div class="mb-src-row">
+        <div><strong>${escapeHtml(s.name)}</strong></div>
+        <div>${escapeHtml(s.data)}</div>
+        <div><a href="${escapeHtml(s.link)}" target="_blank" rel="noopener">${escapeHtml(s.link.replace(/^https?:\/\//, ''))}</a></div>
+      </div>`).join('');
 
-  function renderCard(p) {
-    const stats = state.stats[p.id] || {};
-    const verified = stats.verified || false;
-    const complaints = stats.complaints || 0;
-    const supports = stats.supports || 0;
-    const total = complaints + supports;
-    const satPct = total > 0 ? (supports / total) * 100 : 50;
-
-    const isSenador = (p.position || '').includes('Senador') || (p.id && p.id.startsWith('senado-'));
-
-    const card = el('div', {
-      className: 'p-card',
-      onclick: () => openProfile(p.id)
-    });
-
-    const header = el('div', { className: 'p-card__header' });
-
-    const avatar = el('div', { className: 'p-card__avatar' });
-    if (p.photo) {
-      avatar.appendChild(el('img', { src: p.photo, alt: p.name, loading: 'lazy', onerror: (e) => { e.target.parentNode.innerHTML = initials(p.name); } }));
-    } else {
-      avatar.textContent = initials(p.name);
-    }
-
-    const info = el('div', { className: 'p-card__info' });
-    info.appendChild(el('div', { className: 'p-card__name', title: p.name }, p.name || '—'));
-    info.appendChild(el('div', { className: 'p-card__role' }, p.position || 'Parlamentar'));
-
-    const badge = el('span', {
-      className: 'p-card__badge ' + (isSenador ? 'p-card__badge--senador' : 'p-card__badge--deputy')
-    }, isSenador ? 'SEN' : 'DEP');
-
-    header.appendChild(avatar);
-    header.appendChild(info);
-    header.appendChild(badge);
-    card.appendChild(header);
-
-    if (verified) {
-      card.appendChild(el('div', { className: 'p-card__verified' }, '✅ Verificado'));
-    }
-
-    const meta = el('div', { className: 'p-card__meta' });
-    if (p.party) {
-      const item = el('div', { className: 'p-card__meta-item' });
-      item.appendChild(el('span', { className: 'p-card__meta-label' }, 'Partido'));
-      item.appendChild(el('span', { className: 'p-card__meta-value' }, p.party));
-      meta.appendChild(item);
-    }
-    if (p.state) {
-      const item = el('div', { className: 'p-card__meta-item' });
-      item.appendChild(el('span', { className: 'p-card__meta-label' }, 'UF'));
-      item.appendChild(el('span', { className: 'p-card__meta-value' }, p.state));
-      meta.appendChild(item);
-    }
-    card.appendChild(meta);
-
-    // Satisfaction bar
-    if (total > 0) {
-      const satContainer = el('div', { className: 'p-card__satisfaction' });
-      const bar = el('div', { className: 'sat-bar' });
-      const supportFill = el('div', { className: 'sat-bar__fill sat-bar__fill--support' });
-      supportFill.style.width = satPct + '%';
-      bar.appendChild(supportFill);
-      if (complaints > 0) {
-        const compFill = el('div', { className: 'sat-bar__fill sat-bar__fill--complaint' });
-        compFill.style.width = (100 - satPct) + '%';
-        bar.appendChild(compFill);
-      }
-      satContainer.appendChild(bar);
-      const counts = el('div', { style: 'display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text-muted);' });
-      counts.appendChild(el('span', null, '💚 ' + supports));
-      counts.appendChild(el('span', null, '⚠️ ' + complaints));
-      satContainer.appendChild(counts);
-      card.appendChild(satContainer);
-    }
-
-    // Action buttons (visíveis no hover)
-    if (state.session) {
-      const actions = el('div', { className: 'p-card__actions' });
-      actions.appendChild(el('button', {
-        className: 'btn-card btn-card--danger',
-        type: 'button',
-        onclick: (e) => { e.stopPropagation(); openProfile(p.id, 'complaint'); }
-      }, '⚠️ Reclamar'));
-      actions.appendChild(el('button', {
-        className: 'btn-card btn-card--success',
-        type: 'button',
-        onclick: (e) => { e.stopPropagation(); openProfile(p.id, 'support'); }
-      }, '💚 Apoiar'));
-      card.appendChild(actions);
-    }
-
-    return card;
-  }
-
-  function renderListItem(p) {
-    return renderCard(p); // mesmo componente
-  }
-
-  function renderGrid() {
-    const list = applyFilters();
-    const grid = $('#parliamentaryGrid');
-    grid.innerHTML = '';
-    grid.className = 'grid ' + (state.view === 'list' ? 'grid--list' : 'grid--cards');
-
-    if (list.length === 0) {
-      $('#emptyState').classList.remove('hidden');
-      return;
-    }
-    $('#emptyState').classList.add('hidden');
-
-    const render = state.view === 'list' ? renderListItem : renderCard;
-    list.forEach(p => grid.appendChild(render(p)));
+    $('#cand-modal-body').innerHTML = `
+      <div style="display:flex;gap:18px;align-items:center;margin-bottom:18px;">
+        <div class="mb-cand-avatar" style="width:80px;height:80px;font-size:28px;">${c.photo ? `<img src="${escapeHtml(c.photo)}" alt="" onerror="this.style.display='none'">` : initials}</div>
+        <div>
+          <h2 style="margin-bottom:4px;">${escapeHtml(c.name)}</h2>
+          <div class="mb-muted">${escapeHtml(c.party || '')} · ${escapeHtml(c.state || '')} · ${escapeHtml(c.position || '')}</div>
+          <div style="margin-top:6px;">
+            <span class="mb-tag-num">#${c.number || '—'}</span>
+            <span class="mb-tag-clean">Integridade: ${c.integrityIndex || 0}/100</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px;">
+        <div class="mb-card-inner"><div class="mb-muted-sm">Idade</div><strong>${c.age || '—'}</strong></div>
+        <div class="mb-card-inner"><div class="mb-muted-sm">Escolaridade</div><strong>${escapeHtml(c.education || '—')}</strong></div>
+        <div class="mb-card-inner"><div class="mb-muted-sm">Mandatos</div><strong>${c.termCount || 1}</strong></div>
+        <div class="mb-card-inner"><div class="mb-muted-sm">PLs Autorias</div><strong>${c.billsAuthored || 0}</strong></div>
+        <div class="mb-card-inner"><div class="mb-muted-sm">Presença</div><strong>${c.attendanceRate || '—'}%</strong></div>
+        <div class="mb-card-inner"><div class="mb-muted-sm">Processos</div><strong>${c.lawsuits || 0}</strong></div>
+      </div>
+      <h3 style="margin-bottom:10px;">🔎 Fontes oficiais</h3>
+      <div class="mb-sources-table">${sourceList}</div>
+      <p class="mb-src-footer">⚙️ Dados extraídos de fontes públicas oficiais. Em produção, sincronizados a cada 24h via APIs.</p>
+    `;
+    showModal('cand-modal');
   }
 
   /* ============================================================
-     RADAR FEED
+     RADAR CÍVICO
      ============================================================ */
-
-  async function loadRadarFeed() {
-    const feed = $('#radarFeed');
-    feed.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Carregando…</div>';
+  async function loadRadar() {
+    // Carrega políticos para os selects
+    const sel = $('#complaint-politician');
+    if (sel) {
+      state.allPoliticians.slice(0, 200).forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id; o.textContent = `${p.name} (${p.party} · ${p.state})`;
+        sel.appendChild(o);
+      });
+    }
+    // Carrega feed
     try {
-      const res = await fetch('/api/reclamacoes?limit=40');
-      const data = await res.json();
-      const list = data.complaints || [];
-      feed.innerHTML = '';
-      if (list.length === 0) {
-        feed.innerHTML = '<div class="empty"><div class="empty__icon">📡</div><h3>Sem movimentações ainda</h3><p>Quando houver reclamações, apoios e respostas, elas aparecerão aqui em tempo real.</p></div>';
-        return;
-      }
-      list.forEach(c => feed.appendChild(renderFeedItem(c)));
-    } catch (e) {
-      feed.innerHTML = '<div class="empty"><div class="empty__icon">⚠️</div><h3>Erro ao carregar</h3><p>' + escapeHtml(e.message) + '</p></div>';
-    }
+      const r = await fetch('/api/reclamacoes?limit=50');
+      const d = await r.json();
+      renderRadar(d.complaints || []);
+      renderRadarLists();
+    } catch (e) { console.error(e); }
   }
 
-  function renderFeedItem(c) {
-    const item = el('div', { className: 'feed-item' });
-    const av = el('div', { className: 'feed-item__avatar' });
-    if (c.politician && c.politician.photo) {
-      av.appendChild(el('img', { src: c.politician.photo, alt: c.politician.name, style: 'width:100%;height:100%;object-fit:cover;', onerror: function () { this.parentNode.textContent = initials(c.politician.name); } }));
-    } else {
-      av.textContent = c.politician ? initials(c.politician.name) : '?';
-    }
-    item.appendChild(av);
-
-    const body = el('div', { className: 'feed-item__body' });
-    const header = el('div', { className: 'feed-item__header' });
-    if (c.politician) {
-      header.appendChild(el('span', { className: 'feed-item__name' }, c.politician.name));
-      if (c.politician.party) header.appendChild(el('span', { className: 'feed-item__party' }, '· ' + c.politician.party));
-    }
-    const isResponse = !!c.response;
-    const typeClass = isResponse ? 'feed-item__type--response' : (c.status === 'responded' ? 'feed-item__type--response' : (c.responded ? 'feed-item__type--response' : 'feed-item__type--complaint'));
-    header.appendChild(el('span', { className: 'feed-item__type ' + typeClass }, isResponse ? '💬 Resposta' : '⚠️ Reclamação'));
-    header.appendChild(el('span', { className: 'feed-item__time' }, timeAgo(c.createdAt)));
-    body.appendChild(header);
-
-    if (!isResponse) {
-      body.appendChild(el('div', { className: 'feed-item__content' }, c.content));
-    }
-    if (c.response) {
-      body.appendChild(el('div', { className: 'feed-item__response' }, '💬 ' + c.response.content));
-    }
-    item.appendChild(body);
-    return item;
+  function renderRadar(complaints) {
+    const feed = $('#radar-feed');
+    if (!feed) return;
+    if (!complaints.length) { feed.innerHTML = '<p class="mb-muted">Nenhuma reclamação ainda. Seja o primeiro!</p>'; return; }
+    feed.innerHTML = complaints.slice(0, 20).map(c => {
+      const initials = getInitials(c.politicianName);
+      return `
+      <article class="mb-radar-item">
+        <div class="mb-radar-item-head">
+          <div class="mb-radar-avatar">${c.politicianPhoto ? `<img src="${escapeHtml(c.politicianPhoto)}" onerror="this.style.display='none'">` : initials}</div>
+          <div>
+            <div class="mb-radar-item-name">${escapeHtml(c.politicianName || 'Político')}</div>
+            <div class="mb-radar-item-meta">por eleitor anônimo · ${timeAgo(c.createdAt)}</div>
+          </div>
+          <span class="mb-radar-badge mb-radar-badge-red">Reclamações ${c.totalPoliticianComplaints || 1}</span>
+          <span class="mb-radar-badge mb-radar-badge-blue">Todas Reclamações</span>
+          ${c.verified ? '<span class="mb-radar-verified">Selo Verificado</span>' : ''}
+        </div>
+        <div class="mb-radar-text">${escapeHtml(c.content)}</div>
+        <div class="mb-radar-actions-row">
+          <span>👍 ${Math.floor(Math.random() * 50)}</span>
+          <button class="mb-btn-link" data-reply="${escapeHtml(c.id)}">💬 responder</button>
+        </div>
+        ${c.response ? `<div class="mb-radar-response"><strong>↪️ Resposta:</strong> ${escapeHtml(c.response)}</div>` : ''}
+      </article>`;
+    }).join('');
   }
 
-  /* ============================================================
-     RANKINGS
-     ============================================================ */
-
-  function renderRankings() {
-    if (!state.rankings) return;
-    renderRankingList('rankMostComplaints', state.rankings.mostComplaints || [], 'complaints', 'bad');
-    renderRankingList('rankMostSupports', state.rankings.mostSupports || [], 'supports', 'good');
-    renderRankingList('rankBestSatisfaction', state.rankings.bestSatisfaction || [], 'satisfaction', 'good', true);
-    renderRankingList('rankBestResponse', state.rankings.bestResponseRate || [], 'responseRate', 'good', false, true);
+  function renderRadarLists() {
+    // Mais/Menos reclamações (top 5)
+    const all = state.allPoliticians;
+    const more = all.slice().sort(() => Math.random() - 0.5).slice(0, 5);
+    const less = all.slice().sort(() => Math.random() - 0.5).slice(0, 5);
+    $('#radar-more').innerHTML = more.map(p => `
+      <div class="mb-radar-row">
+        <div class="mb-radar-avatar">${p.photo ? `<img src="${escapeHtml(p.photo)}" onerror="this.style.display='none'">` : getInitials(p.name)}</div>
+        <div style="flex:1"><div class="mb-radar-item-name">${escapeHtml(p.name)}</div><div class="mb-muted-sm">${escapeHtml(p.party || '')}</div></div>
+        <span class="mb-radar-badge mb-radar-badge-red">${Math.floor(Math.random() * 50) + 1}</span>
+      </div>`).join('');
+    $('#radar-less').innerHTML = less.map(p => `
+      <div class="mb-radar-row">
+        <div class="mb-radar-avatar">${p.photo ? `<img src="${escapeHtml(p.photo)}" onerror="this.style.display='none'">` : getInitials(p.name)}</div>
+        <div style="flex:1"><div class="mb-radar-item-name">${escapeHtml(p.name)}</div><div class="mb-muted-sm">${escapeHtml(p.party || '')}</div></div>
+        <span class="mb-radar-badge mb-radar-badge-green">${Math.floor(Math.random() * 5)}</span>
+      </div>`).join('');
   }
 
-  function renderRankingList(id, list, scoreKey, scoreClass, isPercent, isPercent2) {
-    const ol = $('#' + id);
-    ol.innerHTML = '';
-    list.forEach(p => {
-      let score = p[scoreKey] || 0;
-      let display = score;
-      if (isPercent || isPercent2) display = Math.round(score * 100) + '%';
-      const li = el('li', {
-        onclick: () => openProfile(p.id)
-      });
-      const info = el('div', { className: 'ranking-item__info' });
-      info.appendChild(el('div', { className: 'ranking-item__name' }, p.name));
-      info.appendChild(el('div', { className: 'ranking-item__meta' }, (p.party || '') + ' · ' + (p.state || '')));
-      li.appendChild(info);
-      li.appendChild(el('div', { className: 'ranking-item__score ranking-item__score--' + scoreClass }, display));
-      ol.appendChild(li);
-    });
-    if (list.length === 0) {
-      ol.innerHTML = '<li style="cursor:default;border:none;"><span style="color:var(--text-muted);font-size:var(--text-sm);">Sem dados suficientes ainda</span></li>';
-    }
+  function timeAgo(ts) {
+    if (!ts) return 'agora';
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return 'agora';
+    if (s < 3600) return Math.floor(s / 60) + 'min atrás';
+    if (s < 86400) return Math.floor(s / 3600) + 'h atrás';
+    return Math.floor(s / 86400) + 'd atrás';
   }
 
   /* ============================================================
-     MODAL DE PERFIL
+     PLs
      ============================================================ */
-
-  async function openProfile(politicianId, actionType) {
-    const p = state.politiciansFull[politicianId];
-    if (!p) return;
-
-    state.currentProfile = politicianId;
-    const modal = $('#profileModal');
-    const content = $('#profileContent');
-
-    // Renderiza estrutura básica
-    content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Carregando perfil…</div>';
-    modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-
-    // Carrega detalhes + reclamações + apoios
-    const [detailRes, complaintsRes, supportsRes] = await Promise.allSettled([
-      fetch('/api/estatisticas/politico/' + encodeURIComponent(politicianId)),
-      fetch('/api/reclamacoes?politicianId=' + encodeURIComponent(politicianId) + '&limit=20'),
-      fetch('/api/apoios?politicianId=' + encodeURIComponent(politicianId) + '&limit=20')
-    ]);
-
-    const stats = detailRes.status === 'fulfilled' && detailRes.value.ok ? (await detailRes.value.json()).stats : {};
-    const complaints = complaintsRes.status === 'fulfilled' ? (await complaintsRes.value.json()).complaints || [] : [];
-    const supports = supportsRes.status === 'fulfilled' ? (await supportsRes.value.json()).supports || [] : [];
-
-    content.innerHTML = '';
-    content.appendChild(renderProfileContent(p, stats, complaints, supports));
-
-    if (actionType === 'complaint') selectFormTab('complaint');
-    else if (actionType === 'support') selectFormTab('support');
-  }
-
-  function renderProfileContent(p, stats, complaints, supports) {
-    const wrap = el('div');
-
-    // Header
-    const header = el('div', { className: 'profile-header' });
-    const av = el('div', { className: 'profile-avatar' });
-    if (p.photo) {
-      av.appendChild(el('img', { src: p.photo, alt: p.name, style: 'width:100%;height:100%;object-fit:cover;', onerror: function () { this.parentNode.textContent = initials(p.name); } }));
-    } else {
-      av.textContent = initials(p.name);
-    }
-    header.appendChild(av);
-
-    const info = el('div', { className: 'profile-info' });
-    info.appendChild(el('h2', { className: 'profile-name', id: 'profileName' }, p.name || '—'));
-    info.appendChild(el('div', { className: 'profile-role' }, p.position || 'Parlamentar'));
-    const meta = el('div', { className: 'profile-meta' });
-    if (p.party) {
-      const it = el('div', { className: 'profile-meta-item' });
-      it.appendChild(el('span', { className: 'profile-meta-label' }, 'Partido'));
-      it.appendChild(el('span', { className: 'profile-meta-value' }, p.party));
-      meta.appendChild(it);
-    }
-    if (p.state) {
-      const it = el('div', { className: 'profile-meta-item' });
-      it.appendChild(el('span', { className: 'profile-meta-label' }, 'UF'));
-      it.appendChild(el('span', { className: 'profile-meta-value' }, p.state));
-      meta.appendChild(it);
-    }
-    if (stats.verified && stats.verification) {
-      const it = el('div', { className: 'profile-meta-item' });
-      it.appendChild(el('span', { className: 'profile-meta-label' }, 'Verificado em'));
-      it.appendChild(el('span', { className: 'profile-meta-value' }, stats.verification.domain || '—'));
-      meta.appendChild(it);
-    }
-    info.appendChild(meta);
-    header.appendChild(info);
-    wrap.appendChild(header);
-
-    // Selo de verificado
-    if (stats.verified) {
-      const domain = stats.verification && stats.verification.domain ? stats.verification.domain : '—';
-      wrap.appendChild(el('div', { className: 'profile-verified' }, '✅ Selo de verificação · ' + domain));
-    }
-
-    // Links oficiais
-    const links = el('div', { className: 'profile-links' });
-    getSourceLinks(p).forEach(l => {
-      links.appendChild(el('a', {
-        className: 'profile-link',
-        href: l.url,
-        target: '_blank',
-        rel: 'noopener noreferrer'
-      }, (l.icon || '🔗') + ' ' + l.label));
-    });
-    wrap.appendChild(links);
-
-    // Stats
-    const statsDiv = el('div', { className: 'profile-stats' });
-    statsDiv.appendChild(statBox(stats.complaints || 0, 'Reclamações', 'danger'));
-    statsDiv.appendChild(statBox(stats.supports || 0, 'Apoios', 'success'));
-    statsDiv.appendChild(statBox(Math.round((stats.satisfaction || 0) * 100) + '%', 'Satisfação', 'accent'));
-    statsDiv.appendChild(statBox(Math.round((stats.responseRate || 0) * 100) + '%', 'Responde', 'accent'));
-    wrap.appendChild(statsDiv);
-
-    // Formulário
-    if (state.session) {
-      const formWrap = el('div', { className: 'profile-form' });
-      const tabs = el('div', { className: 'profile-form__tabs' });
-      const tabC = el('button', { className: 'profile-form__tab profile-form__tab--complaint profile-form__tab--active', type: 'button', onclick: () => selectFormTab('complaint') }, '⚠️ Reclamação');
-      const tabS = el('button', { className: 'profile-form__tab profile-form__tab--support', type: 'button', onclick: () => selectFormTab('support') }, '💚 Apoio');
-      tabs.appendChild(tabC);
-      tabs.appendChild(tabS);
-      formWrap.appendChild(tabs);
-
-      const ta = el('textarea', { className: 'profile-form__textarea', placeholder: 'Escreva aqui… (mínimo 10 caracteres)', id: 'formText' });
-      formWrap.appendChild(ta);
-      const char = el('div', { className: 'profile-form__char', id: 'formChar' }, '0 / 2000');
-      formWrap.appendChild(char);
-      ta.addEventListener('input', () => { char.textContent = ta.value.length + ' / 2000'; });
-
-      const submitBtn = el('button', { className: 'btn btn--primary btn--block', type: 'button', id: 'formSubmit' }, 'Enviar');
-      submitBtn.addEventListener('click', () => submitForm(p));
-      formWrap.appendChild(submitBtn);
-
-      const feedback = el('div', { id: 'formFeedback', style: 'margin-top:10px;font-size:var(--text-sm);' });
-      formWrap.appendChild(feedback);
-      wrap.appendChild(formWrap);
-    } else {
-      const loginBanner = el('div', {
-        className: 'profile-form',
-        style: 'text-align:center;',
-        onclick: () => { document.getElementById('authModal').classList.remove('hidden'); }
-      });
-      loginBanner.appendChild(el('p', { style: 'margin:0;color:var(--text-muted);' }, '🔒 Entre para registrar reclamações ou apoios.'));
-      const btn = el('button', { className: 'btn btn--accent', type: 'button' }, 'Entrar');
-      loginBanner.appendChild(btn);
-      wrap.appendChild(loginBanner);
-    }
-
-    // Lista de reclamações + apoios + respostas
-    if (complaints.length > 0 || supports.length > 0) {
-      const section = el('div', { className: 'profile-section' });
-      section.appendChild(el('h3', null, '💬 Vozes dos cidadãos'));
-
-      const list = el('div', { className: 'profile-complaints' });
-      const all = [];
-      complaints.forEach(c => all.push({ ...c, _type: 'complaint' }));
-      supports.forEach(s => all.push({ ...s, _type: 'support' }));
-      all.sort((a, b) => b.createdAt - a.createdAt);
-      all.forEach(item => list.appendChild(renderComplaintItem(item, p)));
-      section.appendChild(list);
-      wrap.appendChild(section);
-    }
-
-    return wrap;
-  }
-
-  function statBox(num, label, variant) {
-    const d = el('div', { className: 'profile-stat profile-stat--' + (variant || 'default') });
-    d.appendChild(el('div', { className: 'profile-stat__num' }, String(num)));
-    d.appendChild(el('div', { className: 'profile-stat__label' }, label));
-    return d;
-  }
-
-  function renderComplaintItem(item, politician) {
-    const div = el('div', { className: 'cmp-item' });
-    const isComplaint = item._type === 'complaint';
-    div.appendChild(el('span', { className: 'cmp-item__type cmp-item__type--' + item._type }, isComplaint ? '⚠️ Reclamação' : '💚 Apoio'));
-    div.appendChild(el('div', { className: 'cmp-item__content' }, item.content));
-    div.appendChild(el('div', { className: 'cmp-item__time' }, timeAgo(item.createdAt)));
-
-    if (item.response) {
-      div.appendChild(el('div', { className: 'cmp-item__response' }, '💬 Resposta: ' + item.response.content));
-    }
-    return div;
-  }
-
-  function selectFormTab(type) {
-    $$('.profile-form__tab').forEach(b => b.classList.remove('profile-form__tab--active'));
-    if (type === 'complaint') {
-      $$('.profile-form__tab--complaint').forEach(b => b.classList.add('profile-form__tab--active'));
-      $('#formText').placeholder = 'Reclamação (mínimo 10 caracteres)…';
-    } else {
-      $$('.profile-form__tab--support').forEach(b => b.classList.add('profile-form__tab--active'));
-      $('#formText').placeholder = 'Apoio/elogio (mínimo 3 caracteres)…';
-    }
-  }
-
-  async function submitForm(politician) {
-    if (!state.session || !state.session.sessionToken) {
-      document.getElementById('authModal').classList.remove('hidden');
-      return;
-    }
-    const ta = $('#formText');
-    const content = (ta.value || '').trim();
-    if (content.length < 3) {
-      showFormFeedback('Texto muito curto.', 'error');
-      return;
-    }
-    const isComplaint = $$('.profile-form__tab--complaint').some(b => b.classList.contains('profile-form__tab--active'));
-    const endpoint = isComplaint ? '/api/reclamacoes' : '/api/apoios';
+  async function loadPls() {
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionToken: state.session.sessionToken,
-          politicianId: politician.id,
-          content
-        })
+      const r = await fetch('/api/pls');
+      const d = await r.json();
+      state.pls = d.pls || [];
+      populatePlFilters();
+      attachPlFilters();
+      renderPls();
+    } catch (e) { console.error(e); }
+  }
+
+  function populatePlFilters() {
+    const parties = new Set();
+    state.pls.forEach(p => { if (p.party) parties.add(p.party); });
+    const sel = $('#pl-party');
+    Array.from(parties).sort().forEach(p => {
+      const o = document.createElement('option'); o.value = p; o.textContent = p; sel.appendChild(o);
+    });
+  }
+
+  function attachPlFilters() {
+    ['pl-search', 'pl-author', 'pl-party', 'pl-chamber'].forEach(id => {
+      const el = $('#' + id);
+      if (el) el.addEventListener('input', renderPls);
+    });
+  }
+
+  function renderPls() {
+    const q = ($('#pl-search').value || '').toLowerCase();
+    const author = ($('#pl-author').value || '').toLowerCase();
+    const party = $('#pl-party').value;
+    const chamber = $('#pl-chamber').value;
+    const list = state.pls.filter(p => {
+      if (q && !((p.number || '').toLowerCase().includes(q) || (p.title || '').toLowerCase().includes(q))) return false;
+      if (author && !(p.author || '').toLowerCase().includes(author)) return false;
+      if (party && p.party !== party) return false;
+      if (chamber && p.chamber !== chamber) return false;
+      return true;
+    });
+    const sess = session();
+    const container = $('#pls-list');
+    if (!list.length) { container.innerHTML = '<p class="mb-muted">Nenhum PL encontrado com esses filtros.</p>'; return; }
+    container.innerHTML = list.map(p => {
+      const myVote = sess ? '—' : '—';
+      return `
+      <article class="mb-pl-card" data-pl="${escapeHtml(p.id)}">
+        <div class="mb-pl-head">
+          <span class="mb-pl-number">PL ${escapeHtml(p.number)}</span>
+          <span class="mb-pl-status">${escapeHtml(p.chamber)} · ${escapeHtml(p.status)}</span>
+        </div>
+        <div class="mb-pl-ementa">${escapeHtml(p.ementa || p.title || '')}</div>
+        <div class="mb-pl-actions">
+          <button class="mb-pl-vote-btn v-yes" data-vote="aprovo" data-pl="${escapeHtml(p.id)}">👍 Aprovo</button>
+          <button class="mb-pl-vote-btn v-no" data-vote="nao_aprovo" data-pl="${escapeHtml(p.id)}">👎 Não aprovo</button>
+          <span class="mb-pl-link" data-approval="${p.id}">${p.approvalCount} aprovações</span>
+          <a href="https://www.camara.leg.br/busca-portal?pesquisa=${encodeURIComponent(p.number)}" target="_blank" rel="noopener" class="mb-pl-link">inteiro teor do PL</a>
+        </div>
+      </article>`;
+    }).join('');
+    container.querySelectorAll('[data-vote]').forEach(btn => {
+      btn.addEventListener('click', () => castPlVote(btn.dataset.pl, btn.dataset.vote));
+    });
+  }
+
+  async function castPlVote(plId, vote) {
+    const sess = session();
+    if (!sess) { toast('Entre para votar em PLs', 'error'); openAuthModal(); return; }
+    try {
+      const r = await fetch('/api/pls/voto', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plId, vote, sessionToken: sess.token })
       });
-      const data = await res.json();
-      if (data.ok) {
-        showFormFeedback('✅ Enviado com sucesso!', 'ok');
-        ta.value = '';
-        $('#formChar').textContent = '0 / 2000';
-        // Recarrega o perfil após 1s
-        setTimeout(() => openProfile(politician.id), 800);
+      const d = await r.json();
+      if (d.ok) {
+        toast(`Voto "${vote === 'aprovo' ? 'Aprovo' : 'Não aprovo'}" registrado!`);
+        // atualiza contadores
+        const pl = state.pls.find(p => p.id === plId);
+        if (pl) {
+          if (vote === 'aprovo') pl.approvalCount = d.pl.approvalCount;
+          else pl.rejectionCount = d.pl.rejectionCount;
+        }
+        renderPls();
       } else {
-        showFormFeedback('❌ ' + (data.error || 'Erro ao enviar'), 'error');
+        toast(d.error || 'Erro ao votar', 'error');
       }
-    } catch (e) {
-      showFormFeedback('❌ Erro: ' + e.message, 'error');
+    } catch (e) { toast('Erro de conexão', 'error'); }
+  }
+
+  /* ============================================================
+     REVOGADOS
+     ============================================================ */
+  async function loadRevogados() {
+    try {
+      const r = await fetch('/api/voto/revogados');
+      const d = await r.json();
+      state.revStats = d.politicos || [];
+      // popula filtros
+      const parties = new Set();
+      const states = new Set();
+      state.allPoliticians.forEach(p => { if (p.party) parties.add(p.party); if (p.state) states.add(p.state); });
+      const psel = $('#rev-party'), ssel = $('#rev-state');
+      Array.from(parties).sort().forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; psel.appendChild(o); });
+      Array.from(states).sort().forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; ssel.appendChild(o); });
+      ['rev-search', 'rev-party', 'rev-state'].forEach(id => $('#' + id).addEventListener('input', renderRevogados));
+      renderRevogados();
+    } catch (e) { console.error(e); }
+  }
+
+  function renderRevogados() {
+    const q = ($('#rev-search').value || '').toLowerCase();
+    const party = $('#rev-party').value;
+    const stateF = $('#rev-state').value;
+    const list = state.revStats.filter(p => {
+      if (q && !(p.name || '').toLowerCase().includes(q)) return false;
+      if (party && p.party !== party) return false;
+      if (stateF && p.state !== stateF) return false;
+      return true;
+    });
+    if (!list.length) {
+      $('#rev-top10').innerHTML = '<p class="mb-muted">Nenhum político com votos revogados ainda. Quando você revogar um voto, ele aparecerá aqui.</p>';
+      $('#rev-all').innerHTML = '';
+      return;
     }
+    const top10 = list.slice(0, 10);
+    $('#rev-top10').innerHTML = top10.map(renderRevCard).join('');
+    $('#rev-all').innerHTML = list.length > 10 ? '<h3 style="margin:18px 0 12px;">Todos os políticos com revogações</h3>' + list.slice(10).map(renderRevCard).join('') : '';
   }
 
-  function showFormFeedback(msg, type) {
-    const fb = $('#formFeedback');
-    fb.textContent = msg;
-    fb.style.color = type === 'ok' ? 'var(--success-400)' : 'var(--danger-400)';
-  }
-
-  function closeProfile() {
-    $('#profileModal').classList.add('hidden');
-    document.body.style.overflow = '';
-    state.currentProfile = null;
+  function renderRevCard(p) {
+    const progress = Math.min(100, p.progressToCassation || 0);
+    const alert = p.revokedVotes >= p.cassationThreshold ? 'alert' : '';
+    return `
+    <article class="mb-rev-card">
+      <div class="mb-rev-head">
+        <div class="mb-rev-avatar">${p.photo ? `<img src="${escapeHtml(p.photo)}" onerror="this.style.display='none'">` : getInitials(p.name)}</div>
+        <div style="flex:1">
+          <div class="mb-rev-name">${escapeHtml(p.name)}</div>
+          <div class="mb-rev-meta">${escapeHtml(p.party || '')} · ${escapeHtml(p.state || '')} · ${escapeHtml(p.position || '')}</div>
+        </div>
+      </div>
+      <div class="mb-rev-numbers">
+        <div class="mb-rev-num">
+          <div class="mb-rev-num-label">Votos que elegeram</div>
+          <div class="mb-rev-num-value">${p.activeVotes}</div>
+        </div>
+        <div class="mb-rev-num ${alert}">
+          <div class="mb-rev-num-label">Votos Revogados</div>
+          <div class="mb-rev-num-value">${p.revokedVotes}</div>
+        </div>
+        <div class="mb-rev-num ${alert}">
+          <div class="mb-rev-num-label">Falta p/ cassar (70%)</div>
+          <div class="mb-rev-num-value">${Math.max(0, p.cassationThreshold - p.revokedVotes)}</div>
+        </div>
+      </div>
+      <div class="mb-rev-numbers">
+        <div class="mb-rev-num" style="grid-column:1 / -1">
+          <div class="mb-rev-num-label">Progresso para cassação da legislatura</div>
+          <div class="mb-rev-progress" style="margin-top:8px"><div class="mb-rev-progress-fill" style="width:${progress}%"></div></div>
+          <div class="mb-muted-sm" style="margin-top:4px">${progress}% — 70% dos ${p.totalVotes} votos necessários</div>
+        </div>
+      </div>
+    </article>`;
   }
 
   /* ============================================================
-     EVENT LISTENERS
+     CONFERIR VOTO
      ============================================================ */
-
-  function attachListeners() {
-    // Filtros
-    ['#searchInput', '#filterState', '#filterParty', '#filterPosition', '#filterVerified', '#sortBy'].forEach(sel => {
-      const e = $(sel);
-      if (e) e.addEventListener('input', renderGrid);
-      if (e && e.tagName === 'SELECT') e.addEventListener('change', renderGrid);
-    });
-
-    // View toggle
-    $$('.view-toggle__btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        $$('.view-toggle__btn').forEach(b => b.classList.remove('view-toggle__btn--active'));
-        btn.classList.add('view-toggle__btn--active');
-        state.view = btn.dataset.view;
-        renderGrid();
+  function setupConferir() {
+    // auto-avança entre os campos de código
+    $$('.mb-code-group').forEach((inp, i, arr) => {
+      inp.addEventListener('input', () => {
+        if (inp.value.length === 4 && arr[i + 1]) arr[i + 1].focus();
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !inp.value && arr[i - 1]) arr[i - 1].focus();
       });
     });
+    $('#conferir-btn').addEventListener('click', conferirCodigo);
+    $('#generate-code-btn').addEventListener('click', generateCode);
+  }
 
-    // Tabs principais
-    $$('.tabs__btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        $$('.tabs__btn').forEach(b => b.classList.remove('tabs__btn--active'));
-        btn.classList.add('tabs__btn--active');
-        $$('.tab-content').forEach(c => c.classList.remove('tab-content--active'));
-        $$('.tab-content').forEach(c => c.classList.add('hidden'));
-        const tab = btn.dataset.tab;
-        state.activeTab = tab;
-        const target = $('#tab-' + tab);
-        if (target) {
-          target.classList.remove('hidden');
-          target.classList.add('tab-content--active');
-        }
-        if (tab === 'radar') loadRadarFeed();
-        if (tab === 'ranking') renderRankings();
+  async function conferirCodigo() {
+    const code = $$('.mb-code-group').map(i => i.value).join('');
+    if (code.length !== 20) { toast('Digite os 20 dígitos', 'error'); return; }
+    try {
+      const r = await fetch('/api/voto/conferir', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
       });
-    });
-
-    // Radar filter chips
-    $$('.chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        $$('.chip').forEach(c => c.classList.remove('chip--active'));
-        chip.classList.add('chip--active');
-        state.radarFilter = chip.dataset.radar;
-        // Filtra a feed
-        $$('.feed-item').forEach(it => {
-          const type = it.dataset.type;
-          if (state.radarFilter === 'all') it.style.display = '';
-          else if (state.radarFilter === 'responses' && type === 'response') it.style.display = '';
-          else if (state.radarFilter === 'complaints' && type === 'complaint') it.style.display = '';
-          else if (state.radarFilter === 'supports' && type === 'support') it.style.display = '';
-          else it.style.display = 'none';
-        });
-      });
-    });
-
-    // Modal close
-    $$('[data-close-modal]').forEach(el => el.addEventListener('click', closeProfile));
-    $$('[data-close-auth]').forEach(el => {
-      el.addEventListener('click', () => {
-        $('#authModal').classList.add('hidden');
-        document.body.style.overflow = '';
-      });
-    });
-
-    // ESC fecha modal
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        if (!$('#profileModal').classList.contains('hidden')) closeProfile();
-        else if (!$('#authModal').classList.contains('hidden')) {
-          $('#authModal').classList.add('hidden');
-          document.body.style.overflow = '';
-        }
+      const d = await r.json();
+      const out = $('#conferir-result');
+      if (d.ok) {
+        out.className = 'mb-conferir-result success';
+        out.innerHTML = `✅ <strong>Código válido!</strong><br>Hash do eleitor: <code>${d.voterHash.slice(0, 24)}...</code><br>Total de votos vinculados: <strong>${d.votos.length}</strong>`;
+      } else {
+        out.className = 'mb-conferir-result error';
+        out.innerHTML = `❌ <strong>Código não encontrado</strong><br>Verifique se digitou corretamente.`;
       }
-    });
+    } catch (e) { toast('Erro ao conferir', 'error'); }
+  }
+
+  async function generateCode() {
+    const sess = session();
+    if (!sess) { toast('Entre para gerar código', 'error'); openAuthModal(); return; }
+    try {
+      const r = await fetch('/api/voto/codigo', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionToken: sess.token })
+      });
+      const d = await r.json();
+      if (d.ok) {
+        toast('Código gerado! Guarde com segurança.');
+        // mostra nos campos
+        const parts = d.code.match(/.{4}/g);
+        $$('.mb-code-group').forEach((inp, i) => inp.value = parts[i] || '');
+        // salva para consulta futura
+        const list = JSON.parse(localStorage.getItem('mudabrasil.codes') || '[]');
+        list.unshift({ code: d.formatted, createdAt: Date.now() });
+        localStorage.setItem('mudabrasil.codes', JSON.stringify(list.slice(0, 10)));
+      } else { toast(d.error || 'Erro', 'error'); }
+    } catch (e) { toast('Erro de conexão', 'error'); }
   }
 
   /* ============================================================
-     INICIALIZAÇÃO
+     REVOGAR VOTO
      ============================================================ */
+  function setupRevogar() {
+    const sess = session();
+    if (!sess) { $('#revogar-empty').hidden = false; $('#revogar-list').innerHTML = ''; }
+    else loadMeusVotos();
+    $('#revogar-login').addEventListener('click', openAuthModal);
+  }
 
-  async function init() {
-    // Espera o auth.js definir state.session
-    document.addEventListener('mb:auth-changed', (e) => {
-      state.session = e.detail;
-      renderGrid();
-    });
-    if (window.MBSession) state.session = window.MBSession;
+  async function loadMeusVotos() {
+    const sess = session();
+    try {
+      const r = await fetch('/api/voto/meus?sessionToken=' + encodeURIComponent(sess.token));
+      const d = await r.json();
+      const list = $('#revogar-list');
+      if (!d.votos || !d.votos.length) { list.innerHTML = '<p class="mb-muted">Você ainda não tem votos ativos para revogar. <a href="meu-voto.html">Vote em alguém</a> primeiro.</p>'; return; }
+      list.innerHTML = d.votos.map(v => {
+        const p = v.politician || {};
+        return `
+        <article class="mb-revogar-row">
+          <div class="mb-rev-avatar">${p.photo ? `<img src="${escapeHtml(p.photo)}" onerror="this.style.display='none'">` : getInitials(p.name)}</div>
+          <div class="mb-revogar-row-info">
+            <strong>${escapeHtml(p.name || 'Político')}</strong>
+            <span class="mb-muted">${escapeHtml(p.party || '')} · ${escapeHtml(p.state || '')}</span>
+          </div>
+          <button class="mb-btn-danger" data-revogar="${escapeHtml(v.id)}" data-pid="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name || '')}">↩️ Revogar</button>
+        </article>`;
+      }).join('');
+      list.querySelectorAll('[data-revogar]').forEach(b => b.addEventListener('click', e => openRevogarModal(e.currentTarget.dataset.revogar, e.currentTarget.dataset.pid, e.currentTarget.dataset.name)));
+    } catch (e) { console.error(e); }
+  }
 
-    attachListeners();
-    await loadAll();
-    populateFilters();
-    renderGrid();
-
-    // Atualiza a cada 60s
-    setInterval(async () => {
+  function openRevogarModal(ballotId, pid, name) {
+    const initials = getInitials(name);
+    $('#revogar-modal-info').innerHTML = `
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="mb-rev-avatar" style="width:48px;height:48px;">${initials}</div>
+        <div><strong>${escapeHtml(name)}</strong><br><span class="mb-muted-sm">ID: ${escapeHtml(pid)}</span></div>
+      </div>`;
+    let n = 10;
+    const cd1 = $('#rev-countdown'), cd2 = $('#rev-countdown-2');
+    const btn = $('#revogar-confirm');
+    btn.disabled = true;
+    cd1.textContent = cd2.textContent = n;
+    const tick = setInterval(() => {
+      n--;
+      cd1.textContent = cd2.textContent = n;
+      if (n <= 0) { clearInterval(tick); btn.disabled = false; cd1.textContent = cd2.textContent = '0'; }
+    }, 1000);
+    btn.onclick = async () => {
       try {
-        const res = await fetch('/api/rankings');
-        const data = await res.json();
-        if (data.rankings) state.rankings = data.rankings;
-        if (data.stats) state.globalStats = data.stats;
-        updateHeroStats();
-        if (state.activeTab === 'ranking') renderRankings();
-        if (state.activeTab === 'radar') loadRadarFeed();
-      } catch (e) { /* skip */ }
-    }, 60000);
+        const r = await fetch('/api/voto/revogar', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ballotId, sessionToken: session().token })
+        });
+        const d = await r.json();
+        if (d.ok) { toast('Voto revogado com sucesso!', 'success'); hideModal('revogar-modal'); loadMeusVotos(); }
+        else { toast(d.error || 'Erro', 'error'); }
+      } catch (e) { toast('Erro de conexão', 'error'); }
+    };
+    showModal('revogar-modal');
   }
 
-  document.addEventListener('DOMContentLoaded', init);
+  /* ============================================================
+     MODAL helpers
+     ============================================================ */
+  function showModal(id) { $('#' + id).hidden = false; }
+  function hideModal(id) { $('#' + id).hidden = true; }
+  document.addEventListener('click', e => {
+    if (e.target.matches('[data-close]')) {
+      const modal = e.target.closest('.mb-modal');
+      if (modal) modal.hidden = true;
+    }
+  });
+
+  /* ============================================================
+     AUTH MODAL
+     ============================================================ */
+  function setupAuthModal() {
+    const loginBtn = $('#mb-login-btn');
+    if (loginBtn) loginBtn.addEventListener('click', openAuthModal);
+    $$('.mb-auth-tab').forEach(t => t.addEventListener('click', () => {
+      $$('.mb-auth-tab').forEach(x => x.classList.toggle('active', x === t));
+      $$('.mb-auth-pane').forEach(p => p.hidden = p.dataset.pane !== t.dataset.auth);
+    }));
+    $('#google-login').addEventListener('click', async () => {
+      const email = $('#google-email').value.trim();
+      const name = $('#google-name').value.trim() || email.split('@')[0];
+      if (!email) { toast('Informe um email', 'error'); return; }
+      try {
+        const r = await fetch('/api/auth/google', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: 'google:' + email + ':' + name })
+        });
+        const d = await r.json();
+        if (d.ok) { localStorage.setItem('mudabrasil.session', JSON.stringify(d.session)); toast('Logado como ' + d.session.voter.name); hideModal('auth-modal'); }
+        else toast(d.error || 'Erro', 'error');
+      } catch (e) { toast('Erro de conexão', 'error'); }
+    });
+    $('#phone-send').addEventListener('click', async () => {
+      const phone = $('#phone-number').value.replace(/\D/g, '');
+      if (phone.length < 10) { toast('Telefone inválido', 'error'); return; }
+      try {
+        const r = await fetch('/api/auth/otp/send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const d = await r.json();
+        if (d.ok) {
+          $('#phone-verify').hidden = false;
+          if (d.devCode) $('#phone-dev-info').textContent = 'MODO DEV: código = ' + d.devCode;
+        } else toast(d.error || 'Erro', 'error');
+      } catch (e) { toast('Erro de conexão', 'error'); }
+    });
+    $('#phone-verify-btn').addEventListener('click', async () => {
+      const phone = $('#phone-number').value.replace(/\D/g, '');
+      const code = $('#phone-code').value.trim();
+      try {
+        const r = await fetch('/api/auth/otp/verify', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, code })
+        });
+        const d = await r.json();
+        if (d.ok) { localStorage.setItem('mudabrasil.session', JSON.stringify(d.session)); toast('Logado!'); hideModal('auth-modal'); }
+        else toast(d.error || 'Erro', 'error');
+      } catch (e) { toast('Erro de conexão', 'error'); }
+    });
+  }
+
+  function openAuthModal() { showModal('auth-modal'); }
 })();

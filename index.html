@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="css/design-system.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -18,8 +18,8 @@
       <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
         <defs>
           <linearGradient id="gradLogo" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#7fb0f5"/>
-            <stop offset="100%" stop-color="#FFD700"/>
+            <stop offset="0%" stop-color="#3465A4"/>
+            <stop offset="100%" stop-color="#AECF00"/>
           </linearGradient>
         </defs>
         <circle cx="20" cy="20" r="18" stroke="url(#gradLogo)" stroke-width="4" fill="none"/>
@@ -47,7 +47,7 @@
   <!-- ===================== SIDEBAR ===================== -->
   <aside class="sidebar" id="sidebar">
     <ul>
-      <li><a href="index.html" style="color:var(--accent-500);">🏠 Início</a></li>
+      <li><a href="index.html" style="color:var(--lime);">🏠 Início</a></li>
       <li><a href="pages/parlamentares.html">🏛️ Parlamentares</a></li>
       <li><a href="pages/meu-voto.html">✋ Meu Voto</a></li>
       <li><a href="pages/proposta.html">📖 Proposta</a></li>
@@ -61,8 +61,13 @@
   <!-- ===================== CONTEÚDO ===================== -->
   <main class="main-content">
 
-    <!-- HERO -->
+    <!-- HERO — identidade visual docs -->
     <section class="hero reveal show">
+      <div style="display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:var(--space-lg);">
+        <span style="display:inline-block; width:48px; height:3px; background:var(--lime); border-radius:2px;"></span>
+        <span style="font-family:var(--font-title); font-size:var(--text-sm); font-weight:700; color:var(--lime); letter-spacing:0.15em; text-transform:uppercase;">Plataforma Cívica</span>
+        <span style="display:inline-block; width:48px; height:3px; background:var(--lime); border-radius:2px;"></span>
+      </div>
       <h1>Seu voto não acaba na eleição.</h1>
       <p>
         No MudaBrasil, você <strong>expressa confiança</strong> nos políticos,
@@ -70,88 +75,95 @@
         <strong>retirar sua confiança a qualquer momento</strong> se não cumprirem
         o prometido. Tudo <strong>anônimo</strong>, com <strong>dados públicos verificáveis</strong>.
       </p>
-      <div style="display:flex; gap:var(--space-md); justify-content:center; flex-wrap:wrap;">
+      <div style="display:flex; gap:var(--space-md); justify-content:center; flex-wrap:wrap; margin-top:var(--space-xl);">
         <button class="btn btn-accent" onclick="location.href='pages/meu-voto.html'">✋ Expressar Confiança</button>
         <button class="btn btn-primary" onclick="location.href='pages/parlamentares.html'">🗳️ Ver Parlamentares</button>
         <button class="btn btn-secondary" onclick="location.href='pages/proposta.html'">📖 Conhecer a Proposta</button>
       </div>
     </section>
 
-    <!-- COMO FUNCIONA -->
+    <!-- COMO FUNCIONA — cards estilo doc -->
     <section class="reveal" style="max-width:900px; margin:0 auto var(--space-2xl);">
-      <h2 style="text-align:center; margin-bottom:var(--space-lg);">Como funciona o MudaBrasil?</h2>
-      <div class="cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
-        <div class="card" style="text-align:center;">
-          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">1️⃣</div>
-          <h3>Escolha um político</h3>
-          <p>Compare deputados e senadores com dados públicos reais: transparência, processos, presença e votação.</p>
+      <h2 style="text-align:center; margin-bottom:var(--space-lg); font-family:var(--font-title);">
+        Como funciona o MudaBrasil?
+      </h2>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:var(--space-lg);">
+        <div style="background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); text-align:center;">
+          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">🔍</div>
+          <h3 style="color:var(--lime); margin-bottom:var(--space-sm); font-size:var(--text-xl);">Escolha um político</h3>
+          <p style="color:var(--text-secondary); font-size:var(--text-sm);">Compare deputados e senadores com dados públicos reais: transparência, processos, presença e votação.</p>
         </div>
-        <div class="card" style="text-align:center;">
-          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">2️⃣</div>
-          <h3>Expresse confiança</h3>
-          <p>Dê seu voto de confiança anônimo. Você recebe um código único — guarde-o, é seu único comprovante.</p>
+        <div style="background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); text-align:center;">
+          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">✅</div>
+          <h3 style="color:var(--blue); margin-bottom:var(--space-sm); font-size:var(--text-xl);">Expresse confiança</h3>
+          <p style="color:var(--text-secondary); font-size:var(--text-sm);">Dê seu voto de confiança anônimo. Você recebe um código único — guarde-o, é seu único comprovante.</p>
         </div>
-        <div class="card" style="text-align:center;">
-          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">3️⃣</div>
-          <h3>Acompanhe e revogue</h3>
-          <p>Se o político não cumprir o prometido, use seu código para revogar o voto. Simples assim.</p>
+        <div style="background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); text-align:center;">
+          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">⚡</div>
+          <h3 style="color:var(--green-br); margin-bottom:var(--space-sm); font-size:var(--text-xl);">Revogue a qualquer tempo</h3>
+          <p style="color:var(--text-secondary); font-size:var(--text-sm);">Se o político não cumprir o prometido, use seu código para revogar o voto. Simples assim.</p>
         </div>
       </div>
     </section>
 
-    <!-- CARDS DE NAVEGAÇÃO -->
-    <h2 style="text-align:center; margin-top:var(--space-2xl);">O que você pode fazer</h2>
-    <p style="text-align:center; color:var(--text-secondary); max-width:600px; margin:0 auto var(--space-lg);">
+    <!-- CARDS DE NAVEGAÇÃO — estilo card dos docs -->
+    <h2 style="text-align:center; margin-top:var(--space-2xl); font-family:var(--font-title);">O que você pode fazer</h2>
+    <p style="text-align:center; color:var(--text-muted2); max-width:600px; margin:0 auto var(--space-xl);">
       Participação cívica simples, direta e sem enrolação.
     </p>
-    <div class="cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
-      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/parlamentares.html'">
-        <h3>🗳️ Ver Parlamentares</h3>
-        <p>Veja dados públicos de deputados e senadores: transparência, processos, presença em sessões e patrimônio declarado.</p>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:var(--space-lg);">
+      <div class="card reveal" style="cursor:pointer; background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); transition:all var(--transition-base);" onclick="location.href='pages/parlamentares.html'"
+           onmouseover="this.style.borderColor='var(--blue)'; this.style.transform='translateY(-4px)';"
+           onmouseout="this.style.borderColor='rgba(90,107,126,0.25)'; this.style.transform='';">
+        <h3 style="color:var(--blue); margin-bottom:var(--space-sm);">🗳️ Parlamentares</h3>
+        <p style="color:var(--text-secondary); font-size:var(--text-sm); margin:0;">Compare candidatos com dados reais de 513 deputados e 81 senadores. Rankings, comparações e PLs.</p>
       </div>
-      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/meu-voto.html'">
-        <h3>✋ Meu Voto</h3>
-        <p>Expresse confiança, consulte seu voto atual, reafirme ou revogue. Tudo em um só lugar.</p>
+      <div class="card reveal" style="cursor:pointer; background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); transition:all var(--transition-base);" onclick="location.href='pages/meu-voto.html'"
+           onmouseover="this.style.borderColor='var(--lime)'; this.style.transform='translateY(-4px)';"
+           onmouseout="this.style.borderColor='rgba(90,107,126,0.25)'; this.style.transform='';">
+        <h3 style="color:var(--lime); margin-bottom:var(--space-sm);">✋ Meu Voto</h3>
+        <p style="color:var(--text-secondary); font-size:var(--text-sm); margin:0;">Expresse confiança, consulte seu código, acompanhe PLs e revogue quando necessário.</p>
       </div>
-      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/proposta.html'">
-        <h3>📖 A Proposta</h3>
-        <p>Conheça o manifesto do MudaBrasil: por que defendemos o voto contínuo e revogável no Brasil.</p>
+      <div class="card reveal" style="cursor:pointer; background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); transition:all var(--transition-base);" onclick="location.href='pages/proposta.html'"
+           onmouseover="this.style.borderColor='var(--green-br)'; this.style.transform='translateY(-4px)';"
+           onmouseout="this.style.borderColor='rgba(90,107,126,0.25)'; this.style.transform='';">
+        <h3 style="color:var(--green-br); margin-bottom:var(--space-sm);">📖 A Proposta</h3>
+        <p style="color:var(--text-secondary); font-size:var(--text-sm); margin:0;">Conheça o manifesto do MudaBrasil: por que defendemos o voto contínuo e revogável no Brasil.</p>
       </div>
     </div>
 
-    <!-- DESTAQUE: FONTES PÚBLICAS -->
-    <div class="contribution-section reveal">
-      <h2>🔍 Dados 100% Públicos e Verificáveis</h2>
-      <p>Nossa plataforma de comparação de candidatos é alimentada exclusivamente por fontes oficiais, garantindo total transparência e rastreabilidade.</p>
-      <table class="data-table">
-        <thead>
-          <tr><th>Fonte</th><th>Dados Disponíveis</th><th>Link</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>TSE</strong></td>
-            <td class="value-neutral">Registro de candidatura, histórico eleitoral, condenações, votos</td>
-            <td><a href="https://www.tse.jus.br" target="_blank" rel="noopener">tse.jus.br</a></td>
-          </tr>
-          <tr>
-            <td><strong>Portal da Transparência</strong></td>
-            <td class="value-neutral">Rendimentos, patrimônio declarado, gastos</td>
-            <td><a href="https://portaldatransparencia.gov.br" target="_blank" rel="noopener">portaldatransparencia.gov.br</a></td>
-          </tr>
-          <tr>
-            <td><strong>Câmara / Senado</strong></td>
-            <td class="value-neutral">Proposituras autorais, votação nominal, presença em sessões</td>
-            <td><a href="https://www.camara.leg.br" target="_blank" rel="noopener">camara.leg.br</a></td>
-          </tr>
-          <tr>
-            <td><strong>CNJ</strong></td>
-            <td class="value-neutral">Processos judiciais, status de ações, condenações</td>
-            <td><a href="https://www.cnj.jus.br" target="_blank" rel="noopener">cnj.jus.br</a></td>
-          </tr>
-        </tbody>
-      </table>
-      <p style="font-size:var(--text-xs); color:var(--text-muted);">
-        ⚖️ O índice de integridade é calculado automaticamente combinando transparência, processos judiciais e presença. Em produção, os dados são atualizados via APIs oficiais.
+    <!-- FONTES PÚBLICAS — tabela estilo docs -->
+    <div class="contribution-section reveal" style="background:var(--bg-card); border:1px solid rgba(90,107,126,0.2); border-radius:var(--border-radius-xl); padding:var(--space-xl); margin-top:var(--space-2xl);">
+      <h2 style="font-family:var(--font-title); margin-bottom:var(--space-sm);">
+        <span style="color:var(--lime);">🔍</span> Dados 100% Públicos e Verificáveis
+      </h2>
+      <p style="color:var(--text-secondary); max-width:700px; margin-bottom:var(--space-xl);">
+        Nossa plataforma é alimentada exclusivamente por fontes oficiais — garantindo total transparência e rastreabilidade.
+      </p>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:var(--space-md);">
+        <div style="background:rgba(14,23,38,0.5); border:1px solid rgba(90,107,126,0.15); border-radius:var(--border-radius-md); padding:var(--space-lg);">
+          <div style="color:var(--blue); font-weight:800; font-family:var(--font-title); margin-bottom:6px;">TSE</div>
+          <p style="color:var(--text-muted); font-size:var(--text-xs); margin:0;">Candidaturas, histórico eleitoral, condenações</p>
+          <a href="https://www.tse.jus.br" target="_blank" rel="noopener" style="font-size:var(--text-xs); color:var(--blue-light);">tse.jus.br →</a>
+        </div>
+        <div style="background:rgba(14,23,38,0.5); border:1px solid rgba(90,107,126,0.15); border-radius:var(--border-radius-md); padding:var(--space-lg);">
+          <div style="color:var(--lime); font-weight:800; font-family:var(--font-title); margin-bottom:6px;">Portal da Transparência</div>
+          <p style="color:var(--text-muted); font-size:var(--text-xs); margin:0;">Rendimentos, patrimônio declarado, gastos</p>
+          <a href="https://portaldatransparencia.gov.br" target="_blank" rel="noopener" style="font-size:var(--text-xs); color:var(--lime);">portaldatransparencia.gov.br →</a>
+        </div>
+        <div style="background:rgba(14,23,38,0.5); border:1px solid rgba(90,107,126,0.15); border-radius:var(--border-radius-md); padding:var(--space-lg);">
+          <div style="color:var(--green-br); font-weight:800; font-family:var(--font-title); margin-bottom:6px;">Câmara / Senado</div>
+          <p style="color:var(--text-muted); font-size:var(--text-xs); margin:0;">Proposituras, votação nominal, presença</p>
+          <a href="https://www.camara.leg.br" target="_blank" rel="noopener" style="font-size:var(--text-xs); color:var(--green-br);">camara.leg.br →</a>
+        </div>
+        <div style="background:rgba(14,23,38,0.5); border:1px solid rgba(90,107,126,0.15); border-radius:var(--border-radius-md); padding:var(--space-lg);">
+          <div style="color:var(--gray-mid); font-weight:800; font-family:var(--font-title); margin-bottom:6px;">CNJ</div>
+          <p style="color:var(--text-muted); font-size:var(--text-xs); margin:0;">Processos judiciais e condenações</p>
+          <a href="https://www.cnj.jus.br" target="_blank" rel="noopener" style="font-size:var(--text-xs); color:var(--gray-mid);">cnj.jus.br →</a>
+        </div>
+      </div>
+      <p style="font-size:var(--text-xs); color:var(--text-muted2); margin-top:var(--space-lg); margin-bottom:0;">
+        ⚖️ O índice de integridade é calculado combinando transparência, processos judiciais e presença. Dados atualizados via APIs oficiais.
       </p>
     </div>
 

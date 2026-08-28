@@ -206,6 +206,41 @@ function openSqlite() {
     CREATE INDEX IF NOT EXISTS idx_voters_google ON voters(google_id);
     CREATE INDEX IF NOT EXISTS idx_voters_phone ON voters(phone);
     CREATE INDEX IF NOT EXISTS idx_voters_hash ON voters(voter_hash);
+
+    CREATE TABLE IF NOT EXISTS pls (
+      id              TEXT PRIMARY KEY,
+      number          TEXT NOT NULL,
+      year            INTEGER NOT NULL,
+      author          TEXT,
+      party           TEXT,
+      title           TEXT,
+      ementa          TEXT,
+      status          TEXT DEFAULT 'Tramitando',
+      chamber         TEXT,
+      approval_count  INTEGER NOT NULL DEFAULT 0,
+      rejection_count INTEGER NOT NULL DEFAULT 0,
+      data_json       TEXT,
+      updated_at      INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_pls_year ON pls(year);
+    CREATE INDEX IF NOT EXISTS idx_pls_number ON pls(number);
+
+    CREATE TABLE IF NOT EXISTS pl_votes (
+      id              TEXT PRIMARY KEY,
+      pl_id           TEXT NOT NULL,
+      voter_hash      TEXT NOT NULL,
+      vote            TEXT NOT NULL,
+      created_at      INTEGER NOT NULL,
+      UNIQUE(pl_id, voter_hash)
+    );
+    CREATE INDEX IF NOT EXISTS idx_pl_votes_pl ON pl_votes(pl_id);
+
+    CREATE TABLE IF NOT EXISTS vote_codes (
+      code            TEXT PRIMARY KEY,
+      voter_hash      TEXT NOT NULL,
+      used            INTEGER NOT NULL DEFAULT 0,
+      created_at      INTEGER NOT NULL
+    );
   `);
 }
 
@@ -672,14 +707,317 @@ function close() {
 function backend() { return BACKEND; }
 function file() { return BACKEND === 'sqlite' ? VOTOS_DB : VOTOS_FILE; }
 
+/* ============================================================
+   PLs (PROJETOS DE LEI) - ROTEIRO OFICIAL
+   ============================================================ */
+
+const rowToPl = r => ({
+  id: r.id, number: r.number, year: r.year, author: r.author, party: r.party,
+  title: r.title, ementa: r.ementa, status: r.status, chamber: r.chamber,
+  approvalCount: r.approval_count, rejectionCount: r.rejection_count,
+  updatedAt: r.updated_at
+});
+const UPSERT_PL_SQL = `
+  INSERT INTO pls (id, number, year, author, party, title, ementa, status, chamber, approval_count, rejection_count, data_json, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    number=excluded.number, year=excluded.year, author=excluded.author, party=excluded.party,
+    title=excluded.title, ementa=excluded.ementa, status=excluded.status, chamber=excluded.chamber,
+    data_json=excluded.data_json, updated_at=excluded.updated_at`;
+const plParams = p => [
+  p.id, p.number, p.year || new Date().getFullYear(),
+  p.author || null, p.party || null, p.title || null, p.ementa || null,
+  p.status || 'Tramitando', p.chamber || 'Câmara',
+  p.approvalCount || 0, p.rejectionCount || 0,
+  p.data ? JSON.stringify(p.data) : null,
+  Date.now()
+];
+
+function upsertPl(p) {
+  if (BACKEND === 'sqlite') { openSqlite(); db.prepare(UPSERT_PL_SQL).run(...plParams(p)); return; }
+  const all = jsonReadFile('pls'); all[p.id] = p; jsonWriteFile('pls', all);
+}
+
+function getPl(id) {
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    const r = db.prepare('SELECT * FROM pls WHERE id = ?').get(id);
+    return r ? rowToPl(r) : null;
+  }
+  return jsonReadFile('pls')[id] || null;
+}
+
+function readAllPls() {
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    const out = {};
+    for (const r of db.prepare('SELECT * FROM pls ORDER BY year DESC, number DESC').all()) out[r.id] = rowToPl(r);
+    return out;
+  }
+  return jsonReadFile('pls');
+}
+
+function getPlsByFilters({ search, party, chamber, limit = 200 } = {}) {
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    let sql = 'SELECT * FROM pls WHERE 1=1';
+    const params = [];
+    if (search) { sql += ' AND (number LIKE ? OR title LIKE ? OR author LIKE ? OR ementa LIKE ?)';
+      const q = '%' + search + '%'; params.push(q, q, q, q); }
+    if (party) { sql += ' AND party = ?'; params.push(party); }
+    if (chamber) { sql += ' AND chamber = ?'; params.push(chamber); }
+    sql += ' ORDER BY year DESC, number DESC LIMIT ?'; params.push(limit);
+    const out = {};
+    for (const r of db.prepare(sql).all(...params)) out[r.id] = rowToPl(r);
+    return out;
+  }
+  const all = jsonReadFile('pls');
+  return Object.fromEntries(Object.entries(all).filter(([_, p]) => {
+    if (party && p.party !== party) return false;
+    if (chamber && p.chamber !== chamber) return false;
+    if (search) { const s = search.toLowerCase();
+      return (p.number||'').toLowerCase().includes(s) || (p.title||'').toLowerCase().includes(s) ||
+        (p.author||'').toLowerCase().includes(s) || (p.ementa||'').toLowerCase().includes(s); }
+    return true;
+  }).slice(0, limit));
+}
+
+function castPlVote(plId, voterHash, vote) {
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    const id = 'plv-' + plId + '-' + voterHash.slice(0, 8);
+    const existing = db.prepare('SELECT * FROM pl_votes WHERE pl_id = ? AND voter_hash = ?').get(plId, voterHash);
+    const previousVote = existing ? existing.vote : null;
+    if (existing) {
+      db.prepare('UPDATE pl_votes SET vote = ? WHERE pl_id = ? AND voter_hash = ?').run(vote, plId, voterHash);
+    } else {
+      db.prepare('INSERT INTO pl_votes (id, pl_id, voter_hash, vote, created_at) VALUES (?, ?, ?, ?, ?)').run(id, plId, voterHash, vote, Date.now());
+    }
+    // Atualizar contadores
+    if (previousVote !== 'aprovo') {
+      if (vote === 'aprovo') db.prepare('UPDATE pls SET approval_count = approval_count + 1 WHERE id = ?').run(plId);
+    }
+    if (previousVote === 'aprovo' && vote !== 'aprovo') {
+      db.prepare('UPDATE pls SET approval_count = MAX(0, approval_count - 1) WHERE id = ?').run(plId);
+    }
+    if (previousVote !== 'nao_aprovo') {
+      if (vote === 'nao_aprovo') db.prepare('UPDATE pls SET rejection_count = rejection_count + 1 WHERE id = ?').run(plId);
+    }
+    if (previousVote === 'nao_aprovo' && vote !== 'nao_aprovo') {
+      db.prepare('UPDATE pls SET rejection_count = MAX(0, rejection_count - 1) WHERE id = ?').run(plId);
+    }
+    return { ok: true, plId, vote, previousVote };
+  }
+  const all = jsonReadFile('pl_votes') || {};
+  const key = plId + '|' + voterHash;
+  const previousVote = all[key] ? all[key].vote : null;
+  all[key] = { plId, voterHash, vote, createdAt: Date.now() };
+  jsonWriteFile('pl_votes', all);
+  // atualiza contadores no pls
+  const pls = jsonReadFile('pls');
+  if (pls[plId]) {
+    if (previousVote !== 'aprovo' && vote === 'aprovo') pls[plId].approvalCount = (pls[plId].approvalCount || 0) + 1;
+    if (previousVote === 'aprovo' && vote !== 'aprovo') pls[plId].approvalCount = Math.max(0, (pls[plId].approvalCount || 0) - 1);
+    if (previousVote !== 'nao_aprovo' && vote === 'nao_aprovo') pls[plId].rejectionCount = (pls[plId].rejectionCount || 0) + 1;
+    if (previousVote === 'nao_aprovo' && vote !== 'nao_aprovo') pls[plId].rejectionCount = Math.max(0, (pls[plId].rejectionCount || 0) - 1);
+    jsonWriteFile('pls', pls);
+  }
+  return { ok: true, plId, vote, previousVote };
+}
+
+function getPlVoteForVoter(plId, voterHash) {
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    const r = db.prepare('SELECT vote FROM pl_votes WHERE pl_id = ? AND voter_hash = ?').get(plId, voterHash);
+    return r ? r.vote : null;
+  }
+  const all = jsonReadFile('pl_votes') || {};
+  const r = all[plId + '|' + voterHash];
+  return r ? r.vote : null;
+}
+
+/* ============================================================
+   CÓDIGOS DE VERIFICAÇÃO DE VOTO
+   ============================================================ */
+
+function generateVoteCode(voterHash) {
+  // Formato: 0000 0000 0000 0000 0000 (5 grupos de 4 dígitos, 20 no total)
+  const code = Array.from({ length: 5 }, () => String(Math.floor(1000 + Math.random() * 9000))).join('');
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    db.prepare('INSERT INTO vote_codes (code, voter_hash, used, created_at) VALUES (?, ?, 0, ?)').run(code, voterHash, Date.now());
+  } else {
+    const all = jsonReadFile('vote_codes') || {};
+    all[code] = { voterHash, used: 0, createdAt: Date.now() };
+    jsonWriteFile('vote_codes', all);
+  }
+  return code;
+}
+
+function getVoteCodesForVoter(voterHash) {
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    return db.prepare('SELECT * FROM vote_codes WHERE voter_hash = ? ORDER BY created_at DESC').all(voterHash)
+      .map(r => ({ code: r.code, used: !!r.used, createdAt: r.created_at }));
+  }
+  const all = jsonReadFile('vote_codes') || {};
+  return Object.values(all).filter(c => c.voterHash === voterHash)
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+function verifyVoteCode(code) {
+  if (!/^\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}$/.test(code.replace(/\s/g, ''))) return null;
+  const clean = code.replace(/\s/g, '');
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    const r = db.prepare('SELECT * FROM vote_codes WHERE code = ?').get(clean);
+    if (!r) return null;
+    let ballots = [];
+    try {
+      ballots = db.prepare(`
+        SELECT b.politician_id, b.vote_type, b.revoked, b.created_at, p.name, p.party, p.state
+        FROM ballots b
+        LEFT JOIN politicians p ON p.id = b.politician_id
+        WHERE b.voter_hash = ?
+        ORDER BY b.created_at DESC
+      `).all(r.voter_hash);
+    } catch (e) {
+      ballots = [];
+    }
+    return {
+      voterHash: r.voter_hash,
+      used: !!r.used,
+      createdAt: r.created_at,
+      ballots
+    };
+  }
+  const all = jsonReadFile('vote_codes') || {};
+  return all[clean] || null;
+}
+
+function markCodeUsed(code) {
+  const clean = code.replace(/\s/g, '');
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    db.prepare('UPDATE vote_codes SET used = 1 WHERE code = ?').run(clean);
+  } else {
+    const all = jsonReadFile('vote_codes') || {};
+    if (all[clean]) { all[clean].used = 1; jsonWriteFile('vote_codes', all); }
+  }
+}
+
+/* ============================================================
+   VOTOS REVOGADOS (deriva dos ballots revoked = 1)
+   ============================================================ */
+
+function getRevokedStats() {
+  // Para cada político, total ativos e total revogados
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    const rows = db.prepare(`
+      SELECT
+        p.id, p.name, p.party, p.state, p.position, p.photo,
+        SUM(CASE WHEN b.revoked = 0 THEN 1 ELSE 0 END) AS active,
+        SUM(CASE WHEN b.revoked = 1 THEN 1 ELSE 0 END) AS revoked,
+        COUNT(b.id) AS total
+      FROM politicians p
+      LEFT JOIN ballots b ON b.politician_id = p.id
+      GROUP BY p.id
+      HAVING revoked > 0
+      ORDER BY revoked DESC, active DESC
+      LIMIT 50
+    `).all();
+    return rows.map(r => ({
+      id: r.id, name: r.name, party: r.party, state: r.state,
+      position: r.position, photo: r.photo,
+      activeVotes: r.active || 0, revokedVotes: r.revoked || 0,
+      totalVotes: r.total || 0,
+      cassationThreshold: Math.ceil((r.total || 0) * 0.7),
+      progressToCassation: r.total > 0 ? Math.min(100, Math.round(((r.revoked || 0) / Math.max(1, Math.ceil(r.total * 0.7))) * 100)) : 0
+    }));
+  }
+  const ballots = jsonReadFile('ballots');
+  const politicians = jsonReadFile('politicians');
+  const out = {};
+  for (const b of Object.values(ballots)) {
+    if (!out[b.politicianId]) out[b.politicianId] = { id: b.politicianId, activeVotes: 0, revokedVotes: 0, totalVotes: 0 };
+    if (b.revoked) out[b.politicianId].revokedVotes++;
+    else out[b.politicianId].activeVotes++;
+    out[b.politicianId].totalVotes++;
+  }
+  return Object.values(out)
+    .filter(x => x.revokedVotes > 0)
+    .map(x => {
+      const p = politicians[x.id] || {};
+      return {
+        ...x, name: p.name, party: p.party, state: p.state, position: p.position, photo: p.photo,
+        cassationThreshold: Math.ceil(x.totalVotes * 0.7),
+        progressToCassation: x.totalVotes > 0 ? Math.min(100, Math.round((x.revokedVotes / Math.max(1, Math.ceil(x.totalVotes * 0.7))) * 100)) : 0
+      };
+    })
+    .sort((a, b) => b.revokedVotes - a.revokedVotes || b.activeVotes - a.activeVotes)
+    .slice(0, 50);
+}
+
+/* ============================================================
+   CANDIDATOS DETALHADOS (TSE, Portal, Câmara, Senado, CNJ)
+   ============================================================ */
+
+function getPoliticianFullDetails(id) {
+  const p = getPolitician(id);
+  if (!p) return null;
+  // Estrutura de dados consolidada a partir das fontes oficiais
+  return {
+    ...p,
+    sources: {
+      tse: {
+        name: 'TSE',
+        data: 'Registro de candidatura, histórico eleitoral, condenações, votos',
+        link: 'https://www.tse.jus.br/'
+      },
+      portalTransparencia: {
+        name: 'Portal da Transparência',
+        data: 'Rendimentos, patrimônio declarado, gastos',
+        link: 'https://portaldatransparencia.gov.br/'
+      },
+      camaraSenado: {
+        name: p.position && p.position.toLowerCase().includes('senador') ? 'Senado' : 'Câmara',
+        data: 'Proposituras autorais, votação nominal, presença em sessões',
+        link: p.position && p.position.toLowerCase().includes('senador') ? 'https://www25.senado.leg.br/web/senadores/' : 'https://www.camara.leg.br/deputados/quem-e-quem'
+      },
+      cnj: {
+        name: 'CNJ',
+        data: 'Processos judiciais, status de ações, condenações',
+        link: 'https://www.cnj.jus.br/'
+      }
+    },
+    integrityIndex: computeIntegrityIndex(p)
+  };
+}
+
+function computeIntegrityIndex(p) {
+  // Calculado a partir de: processos (CNJ), presença, transparência
+  // Quando dados reais não disponíveis, usa fallback razoável
+  const processes = typeof p.lawsuits === 'number' ? p.lawsuits : (p.processes || 0);
+  const attendance = typeof p.attendanceRate === 'number' ? p.attendanceRate : 85;
+  const transparency = typeof p.transparencyScore === 'number' ? p.transparencyScore : 80;
+  // Fórmula: 100 - processos*8 (cap 60) + bonus presença + bonus transparência
+  const processPenalty = Math.min(60, processes * 8);
+  const score = Math.max(0, Math.min(100, Math.round(100 - processPenalty + (attendance - 85) * 0.5 + (transparency - 80) * 0.5)));
+  return score;
+}
+
 module.exports = {
   init, close, backend, file,
   getBallot, upsertBallot, readAllBallots, countBallots, clearBallots, importAllBallots,
-  upsertPolitician, getPolitician, getAllPoliticians, getPoliticiansByFilters,
+  upsertPolitician, getPolitician, getAllPoliticians, getPoliticiansByFilters, getPoliticianFullDetails,
   setVerification, getVerification, getAllVerifications, getVerifiedPoliticians,
   createComplaint, getComplaint, getComplaintsByPolitician, countComplaintsByPolitician, getAllComplaints,
   createSupport, getSupportsByPolitician, countSupportsByPolitician,
   createResponse, getResponseByComplaint, getResponsesByPolitician,
   hashVoter, upsertVoter, getVoterById, getVoterByGoogleId, getVoterByPhone, getVoterByHash,
+  upsertPl, getPl, readAllPls, getPlsByFilters, castPlVote, getPlVoteForVoter,
+  generateVoteCode, getVoteCodesForVoter, verifyVoteCode, markCodeUsed,
+  getRevokedStats,
   VOTOS_DB, VOTOS_FILE
 };

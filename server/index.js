@@ -94,6 +94,18 @@ function sendJson(res, status, obj, methods = 'GET, POST, OPTIONS') {
   res.end(JSON.stringify(obj));
 }
 
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; if (data.length > 1024 * 64) { req.destroy(); reject(new Error('Body muito grande')); } });
+    req.on('end', () => {
+      if (!data) return resolve({});
+      try { resolve(JSON.parse(data)); } catch (e) { reject(new Error('JSON invalido: ' + e.message)); }
+    });
+    req.on('error', reject);
+  });
+}
+
 /** Lê e faz parse do body (JSON) de uma requisição POST. */
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -256,9 +268,9 @@ async function handleApi(req, res, url) {
     }
   }
 
-  const m = p.match(/^\/api\/candidatos\/([\w-]+)$/);
-  if (m) {
-    const id = m[1];
+  const m = p.match(/^\/api\/candidatos\/(camara-|senado-)?([\w-]+)$/);
+  if (m && m[0] !== '/api/candidatos/comparar' && !p.startsWith('/api/candidatos/detalhes/')) {
+    const id = m[0].replace('/api/candidatos/', '');
     try {
       // Busca em deputados e senadores (o id carrega o prefixo 'camara-' ou 'senado-')
       const [depResult, senResult] = await Promise.all([
@@ -493,6 +505,130 @@ async function handleApi(req, res, url) {
   if (p.startsWith('/api/estatisticas/politico/') && req.method === 'GET') {
     const pid = decodeURIComponent(p.replace('/api/estatisticas/politico/', ''));
     return sendJson(res, 200, { ok: true, stats: reclamacoes.getPoliticianStats(pid) });
+  }
+
+  // === PLs - PROJETOS DE LEI ===
+  if (p === '/api/pls' && req.method === 'GET') {
+    const url = new URL(req.url, 'http://x');
+    const search = url.searchParams.get('q') || '';
+    const party = url.searchParams.get('party') || '';
+    const chamber = url.searchParams.get('chamber') || '';
+    const list = Object.values(db.getPlsByFilters({ search, party, chamber, limit: 200 }));
+    return sendJson(res, 200, { ok: true, total: list.length, pls: list });
+  }
+
+  if (p.startsWith('/api/pls/') && req.method === 'GET') {
+    const id = decodeURIComponent(p.replace('/api/pls/', ''));
+    const pl = db.getPl(id);
+    if (!pl) return sendJson(res, 404, { error: 'PL nao encontrado' });
+    return sendJson(res, 200, { ok: true, pl });
+  }
+
+  if (p === '/api/pls/voto' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const { plId, vote, sessionToken } = body;
+    if (!plId || !['aprovo', 'nao_aprovo'].includes(vote)) return sendJson(res, 400, { error: 'plId e vote (aprovo|nao_aprovo) sao obrigatorios' });
+    const voter = auth.getVoterFromToken(sessionToken);
+    if (!voter) return sendJson(res, 401, { error: 'Autenticacao necessaria para votar em PL' });
+    const r = db.castPlVote(plId, voter.voterHash, vote);
+    const pl = db.getPl(plId);
+    return sendJson(res, 200, { ok: true, ...r, pl });
+  }
+
+  if (p === '/api/pls/meu-voto' && req.method === 'GET') {
+    const url = new URL(req.url, 'http://x');
+    const plId = url.searchParams.get('plId');
+    const sessionToken = url.searchParams.get('sessionToken') || url.searchParams.get('token');
+    const voter = auth.getVoterFromToken(sessionToken);
+    if (!voter || !plId) return sendJson(res, 200, { ok: true, vote: null });
+    return sendJson(res, 200, { ok: true, vote: db.getPlVoteForVoter(plId, voter.voterHash) });
+  }
+
+  // === CÓDIGO DE VERIFICAÇÃO DE VOTO (Conferir Voto) ===
+  if (p === '/api/voto/codigo' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const { sessionToken } = body;
+    const voter = auth.getVoterFromToken(sessionToken);
+    if (!voter) return sendJson(res, 401, { error: 'Autenticacao necessaria' });
+    const code = db.generateVoteCode(voter.voterHash);
+    // Formata com espaços
+    const formatted = code.match(/.{1,4}/g).join(' ');
+    return sendJson(res, 200, { ok: true, code, formatted, voterHash: voter.voterHash });
+  }
+
+  if (p === '/api/voto/codigos' && req.method === 'GET') {
+    const url = new URL(req.url, 'http://x');
+    const sessionToken = url.searchParams.get('sessionToken') || url.searchParams.get('token');
+    const voter = auth.getVoterFromToken(sessionToken);
+    if (!voter) return sendJson(res, 401, { error: 'Autenticacao necessaria' });
+    const codes = db.getVoteCodesForVoter(voter.voterHash).map(c => ({
+      ...c,
+      formatted: c.code.match(/.{1,4}/g).join(' ')
+    }));
+    return sendJson(res, 200, { ok: true, codes });
+  }
+
+  if (p === '/api/voto/conferir' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const { code } = body;
+    const r = db.verifyVoteCode(code);
+    if (!r) return sendJson(res, 404, { error: 'Codigo nao encontrado' });
+    // Retorna os votos ativos do eleitor
+    const all = db.readAllBallots();
+    const meusVotos = Object.values(all).filter(b => b.voterHash === r.voterHash || b.id.startsWith('voter-'));
+    return sendJson(res, 200, { ok: true, code: r.code, voterHash: r.voterHash, votos: meusVotos });
+  }
+
+  // === DETALHES COMPLETOS DE CANDIDATO (fontes oficiais) ===
+  if (p.startsWith('/api/candidatos/detalhes/') && req.method === 'GET') {
+    const id = decodeURIComponent(p.replace('/api/candidatos/detalhes/', ''));
+    const d = db.getPoliticianFullDetails(id);
+    if (!d) return sendJson(res, 404, { error: 'Candidato nao encontrado' });
+    return sendJson(res, 200, { ok: true, candidato: d });
+  }
+
+  // === COMPARAÇÃO (até 3 políticos) ===
+  if (p === '/api/candidatos/comparar' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const ids = (body.ids || []).slice(0, 3);
+    if (ids.length < 2) return sendJson(res, 400, { error: 'Selecione pelo menos 2 candidatos' });
+    try {
+      const [depResult, senResult] = await Promise.all([
+        fetchDeputados(),
+        fetchSenadores()
+      ]);
+      const all = [...depResult.list, ...senResult.list];
+      const candidatos = ids
+        .map(id => all.find(c => c.id === id))
+        .filter(Boolean)
+        .map(c => ({ ...c, ...db.getPoliticianFullDetails(c.id) }));
+      if (candidatos.length < 2) return sendJson(res, 404, { error: 'Candidatos não encontrados' });
+      return sendJson(res, 200, { ok: true, candidatos });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'Falha ao comparar: ' + e.message });
+    }
+  }
+
+  // === POLÍTICOS COM VOTOS REVOGADOS ===
+  if (p === '/api/voto/revogados' && req.method === 'GET') {
+    const stats = db.getRevokedStats();
+    return sendJson(res, 200, { ok: true, total: stats.length, politicos: stats });
+  }
+
+  // === MEUS VOTOS (para revogar) ===
+  if (p === '/api/voto/meus' && req.method === 'GET') {
+    const url = new URL(req.url, 'http://x');
+    const sessionToken = url.searchParams.get('sessionToken') || url.searchParams.get('token');
+    const voter = auth.getVoterFromToken(sessionToken);
+    if (!voter) return sendJson(res, 401, { error: 'Autenticacao necessaria' });
+    const all = db.readAllBallots();
+    const meus = Object.values(all).filter(b => !b.revoked);
+    // Enriquece com dados do político
+    const enriched = meus.map(b => {
+      const pol = db.getPolitician(b.politicianId);
+      return { ...b, politician: pol };
+    });
+    return sendJson(res, 200, { ok: true, total: enriched.length, votos: enriched });
   }
 
   return sendJson(res, 404, { error: 'Rota de API não encontrada' });
