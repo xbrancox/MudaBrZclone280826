@@ -30,8 +30,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { fetchDeputados, enrichBills, DEP_FILE } = require('./ingest');
+const { fetchSenadores, SENADO_FILE } = require('./senado');
 const votes = require('./votes');
 const db = require('./db');
+const auth = require('./auth');
+const verificacao = require('./verificacao');
+const reclamacoes = require('./reclamacoes');
 
 const ROOT = path.join(__dirname, '..');
 const PORT = process.env.PORT || 8080;
@@ -50,6 +54,9 @@ setInterval(() => {
   fetchDeputados({ force: true })
     .then(r => console.log('[auto] dados públicos atualizados: ' + r.count + ' deputados'))
     .catch(e => console.error('[auto] falha na atualização agendada: ' + e.message));
+  fetchSenadores({ force: true })
+    .then(r => console.log('[auto] dados do Senado atualizados: ' + r.count + ' senadores'))
+    .catch(e => console.error('[auto] falha na atualização do Senado: ' + e.message));
 }, REFRESH_HOURS * 3600 * 1000).unref();
 
 const MIME = {
@@ -166,7 +173,7 @@ async function handleApi(req, res, url) {
 
   if (p === '/api/health') {
     let registros = 0;
-    try { registros = db.count(); } catch (_) { /* storage indisponível */ }
+    try { registros = db.countBallots(); } catch (_) { /* storage indisponível */ }
     return sendJson(res, 200, {
       ok: true,
       uptimeSec: Math.round(process.uptime()),
@@ -184,32 +191,65 @@ async function handleApi(req, res, url) {
   if (p === '/api/status') {
     return sendJson(res, 200, {
       ok: true,
-      source: 'camara',
+      source: 'camara+senado',
       api: 'https://dadosabertos.camara.leg.br/api/v2',
-      aviso: 'Os dados reais vêm da API aberta da Câmara dos Deputados. ' +
+      senadoApi: 'https://legis.senado.leg.br/dadosabertos',
+      aviso: 'Os dados reais vêm das APIs abertas da Câmara dos Deputados e do Senado Federal. ' +
              'TSE, Portal da Transparência e CNJ são as fontes de produção ' +
              '(ver README.md).'
     });
   }
 
-  if (p === '/api/candidatos') {
+  if (p === '/api/senadores') {
     try {
-      const { list, fromCache, updatedAt, count } =
-        await fetchDeputados({ force: q.refresh === '1' });
-      const candidatos = applyQuery(list, q);
+      const { list, fromCache, count } = await fetchSenadores({ force: q.refresh === '1' });
+      const senadores = applyQuery(list, q);
       return sendJson(res, 200, {
         mode: 'real',
-        source: 'Câmara dos Deputados (dados reais)',
+        source: 'Senado Federal',
         total: count,
-        retornados: candidatos.length,
+        retornados: senadores.length,
         doCache: fromCache,
-        atualizadoEm: updatedAt,
-        candidatos
+        dataFonte: 'Dados Abertos do Senado Federal',
+        senadores
       });
     } catch (e) {
       return sendJson(res, 502, {
         mode: 'error',
-        source: 'Câmara dos Deputados',
+        source: 'Senado Federal',
+        error: 'Falha ao buscar dados reais: ' + e.message,
+        senadores: []
+      });
+    }
+  }
+
+  if (p === '/api/candidatos') {
+    try {
+      const [depResult, senResult] = await Promise.all([
+        fetchDeputados({ force: q.refresh === '1' }),
+        fetchSenadores({ force: q.refresh === '1' })
+      ]);
+      const deputados = depResult.list.map(d => ({ ...d, position: 'Deputado Federal' }));
+      const senadores = senResult.list.map(s => ({ ...s, position: 'Senador Federal' }));
+      const todos = [...deputados, ...senadores];
+      const candidatos = applyQuery(todos, q);
+      return sendJson(res, 200, {
+        mode: 'real',
+        source: 'Câmara dos Deputados + Senado Federal',
+        total: todos.length,
+        retornados: candidatos.length,
+        doCache: depResult.fromCache && senResult.fromCache,
+        atualizadoEm: new Date().toISOString(),
+        candidatos,
+        detalhes: {
+          deputados: deputados.length,
+          senadores: senadores.length
+        }
+      });
+    } catch (e) {
+      return sendJson(res, 502, {
+        mode: 'error',
+        source: 'Câmara dos Deputados + Senado Federal',
         error: 'Falha ao buscar dados reais: ' + e.message,
         candidatos: []
       });
@@ -220,16 +260,28 @@ async function handleApi(req, res, url) {
   if (m) {
     const id = m[1];
     try {
-      const { list } = await fetchDeputados();
-      const cand = list.find(c => c.id === id);
-      if (!cand) return sendJson(res, 404, { error: 'Candidato não encontrado' });
-      const camaraId = id.replace('camara-', '');
-      const enrich = await enrichBills(camaraId);
-      if (enrich && enrich.billsAuthored != null) {
-        cand.billsAuthored = enrich.billsAuthored;
-        cand.hasFullData = true;
+      // Busca em deputados e senadores (o id carrega o prefixo 'camara-' ou 'senado-')
+      const [depResult, senResult] = await Promise.all([
+        fetchDeputados(),
+        fetchSenadores()
+      ]);
+      let cand = depResult.list.find(c => c.id === id);
+      let fonte = 'Câmara dos Deputados';
+      if (!cand) {
+        cand = senResult.list.find(c => c.id === id);
+        fonte = 'Senado Federal';
       }
-      return sendJson(res, 200, { mode: 'real', source: 'Câmara dos Deputados', candidato: cand });
+      if (!cand) return sendJson(res, 404, { error: 'Candidato não encontrado' });
+
+      if (id.startsWith('camara-')) {
+        const camaraId = id.replace('camara-', '');
+        const enrich = await enrichBills(camaraId);
+        if (enrich && enrich.billsAuthored != null) {
+          cand.billsAuthored = enrich.billsAuthored;
+          cand.hasFullData = true;
+        }
+      }
+      return sendJson(res, 200, { mode: 'real', source: fonte, candidato: cand });
     } catch (e) {
       return sendJson(res, 502, { error: e.message });
     }
@@ -305,6 +357,144 @@ async function handleApi(req, res, url) {
     return sendJson(res, r.ok ? 200 : (r.status || 400), r);
   }
 
+  /* ---------- AUTENTICAÇÃO (Google + Telefone) ---------- */
+
+  if (p === '/api/auth/google' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    try {
+      const r = await auth.loginWithGoogle(body.idToken || '');
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 401, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/auth/otp/send' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    try {
+      const r = await auth.sendOtp(body.phone || '');
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/auth/otp/verify' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    try {
+      const r = await auth.verifyOtp(body.phone || '', body.code || '');
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 401, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/auth/me' && req.method === 'GET') {
+    const token = q.sessionToken || (req.headers.authorization || '').replace('Bearer ', '');
+    const voter = auth.getVoterFromToken(token);
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Não autenticado' });
+    return sendJson(res, 200, { ok: true, voter: { id: voter.id, method: voter.method, name: voter.name, photo: voter.photo, voterHash: voter.voterHash } });
+  }
+
+  if (p === '/api/auth/logout' && req.method === 'POST') {
+    const token = q.sessionToken || (req.headers.authorization || '').replace('Bearer ', '');
+    auth.logout(token);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  /* ---------- VERIFICAÇÃO DE POLÍTICOS ---------- */
+
+  if (p === '/api/verificacao/iniciar' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    try {
+      const r = verificacao.startVerification(body.politicianId || '', body.email || '');
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/verificacao/confirmar' && req.method === 'GET') {
+    const token = q.token || '';
+    try {
+      const r = verificacao.confirmVerification(token);
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/verificacao/dominios' && req.method === 'GET') {
+    return sendJson(res, 200, { ok: true, dominios: verificacao.getAuthorizedDomains() });
+  }
+
+  if (p === '/api/verificacao/stats' && req.method === 'GET') {
+    return sendJson(res, 200, { ok: true, stats: verificacao.getStats() });
+  }
+
+  if (p.startsWith('/api/verificacao/politico/') && req.method === 'GET') {
+    const pid = decodeURIComponent(p.replace('/api/verificacao/politico/', ''));
+    return sendJson(res, 200, { ok: true, details: verificacao.getVerificationDetails(pid), stats: reclamacoes.getPoliticianStats(pid) });
+  }
+
+  /* ---------- RECLAMAÇÕES, APOIOS, RESPOSTAS ---------- */
+
+  if (p === '/api/reclamacoes' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const token = body.sessionToken || '';
+    const voter = auth.getVoterFromToken(token);
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Faça login para reclamar' });
+    try {
+      const r = reclamacoes.createComplaint({ politicianId: body.politicianId, voterHash: voter.voterHash, voterIp: ip, content: body.content });
+      return sendJson(res, 201, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/reclamacoes' && req.method === 'GET') {
+    const pid = q.politicianId;
+    if (pid) {
+      const list = reclamacoes.listComplaints(pid, { limit: parseInt(q.limit || 20), offset: parseInt(q.offset || 0) });
+      return sendJson(res, 200, { ok: true, complaints: list });
+    }
+    const list = reclamacoes.listAllComplaints({ limit: parseInt(q.limit || 50), offset: parseInt(q.offset || 0) });
+    return sendJson(res, 200, { ok: true, complaints: list, stats: reclamacoes.getGlobalStats() });
+  }
+
+  if (p === '/api/apoios' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const token = body.sessionToken || '';
+    const voter = auth.getVoterFromToken(token);
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Faça login para apoiar' });
+    try {
+      const r = reclamacoes.createSupport({ politicianId: body.politicianId, voterHash: voter.voterHash, voterIp: ip, content: body.content });
+      return sendJson(res, 201, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/apoios' && req.method === 'GET') {
+    const pid = q.politicianId;
+    if (!pid) return sendJson(res, 400, { ok: false, error: 'politicianId é obrigatório' });
+    const list = reclamacoes.listSupports(pid, { limit: parseInt(q.limit || 20), offset: parseInt(q.offset || 0) });
+    return sendJson(res, 200, { ok: true, supports: list });
+  }
+
+  if (p === '/api/respostas' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const token = body.sessionToken || '';
+    const voter = auth.getVoterFromToken(token);
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Faça login' });
+    try {
+      const r = reclamacoes.createResponse({ complaintId: body.complaintId, politicianId: body.politicianId, content: body.content, sessionToken: token });
+      return sendJson(res, 201, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/rankings' && req.method === 'GET') {
+    return sendJson(res, 200, { ok: true, rankings: reclamacoes.getRankings(), stats: reclamacoes.getGlobalStats() });
+  }
+
+  if (p.startsWith('/api/estatisticas/politico/') && req.method === 'GET') {
+    const pid = decodeURIComponent(p.replace('/api/estatisticas/politico/', ''));
+    return sendJson(res, 200, { ok: true, stats: reclamacoes.getPoliticianStats(pid) });
+  }
+
   return sendJson(res, 404, { error: 'Rota de API não encontrada' });
 }
 
@@ -355,11 +545,17 @@ server.listen(PORT, () => {
   console.log('    Termômetro:     http://localhost:' + PORT + '/pages/termometro.html');
   console.log('    Candidatos:     http://localhost:' + PORT + '/pages/candidatos.html');
   console.log('    API (lista):    http://localhost:' + PORT + '/api/candidatos');
+  console.log('    API (senadores): http://localhost:' + PORT + '/api/senadores');
   console.log('    API (voto):     POST http://localhost:' + PORT + '/api/voto');
   console.log('    API (termômetro):GET  http://localhost:' + PORT + '/api/termometro');
   console.log('    Tempo real:     GET  http://localhost:' + PORT + '/api/stream (SSE)');
   console.log('    Health:         GET  http://localhost:' + PORT + '/api/health\n');
+  console.log('    Parlamentares:  http://localhost:' + PORT + '/pages/parlamentares.html');
+  console.log('    Auth:           POST /api/auth/{google,otp/send,otp/verify,me,logout}');
+  console.log('    Verificação:    /api/verificacao/{iniciar,confirmar,dominios,stats,politico/:id}');
+  console.log('    Reclamações:    /api/{reclamacoes,apoios,respostas,rankings}');
   console.log('    Dados reais:    ' + DEP_FILE);
+  console.log('    Senadores:      ' + SENADO_FILE);
   console.log('    Votos:          ' + db.file() + '  [' + STORAGE_LABEL + ']');
   if (migrated > 0) console.log('    Migração:       ' + migrated + ' cédulas importadas de votos.json → votos.db');
   console.log('    Atualização:    dados públicos a cada ' + REFRESH_HOURS + 'h (automática)');

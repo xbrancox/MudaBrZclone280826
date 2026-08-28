@@ -120,7 +120,7 @@ function generateCode() {
 
 /* ---- Persistência (via camada db: SQLite ou JSON) ---- */
 function loadStore() {
-  return { ballots: db.readAll() };
+  return { ballots: db.readAllBallots() };
 }
 
 /* ---- Índice parlamentar (id -> dados), cache em memória ---- */

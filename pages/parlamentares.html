@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parlamentares · MudaBrasil</title>
+  <meta name="description" content="Conheça todos os parlamentares brasileiros: Deputados Federais e Senadores. Filtre, busque, registre reclamações ou apoios." />
+  <link rel="stylesheet" href="/css/design-system.css" />
+  <link rel="stylesheet" href="/css/parlamentares.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- HEADER (igual demais páginas) -->
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a href="/" class="brand">
+        <span class="brand__mark">🇧🇷</span>
+        <span class="brand__name">MudaBrasil</span>
+      </a>
+      <nav class="nav">
+        <a href="/">Início</a>
+        <a href="/pages/termometro.html">🌡️ Termômetro</a>
+        <a href="/pages/parlamentares.html" class="nav--active">🏛️ Parlamentares</a>
+        <a href="/pages/proposta.html">📜 Proposta</a>
+        <a href="/pages/status.html">⚡ Status</a>
+      </nav>
+      <div class="user-area">
+        <button id="authBtn" class="btn btn--accent btn--sm" type="button">Entrar</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- HERO -->
+    <section class="hero hero--parlamentares">
+      <div class="hero__bg" aria-hidden="true"></div>
+      <div class="hero__content">
+        <span class="hero__eyebrow">🏛️ Transparência parlamentar ativa</span>
+        <h1 class="hero__title">Conheça seus <span class="grad">parlamentares</span></h1>
+        <p class="hero__sub">Deputados e Senadores do Brasil, com dados abertos de fontes oficiais. Filtre, busque, registre sua voz.</p>
+        <div class="hero__stats" id="heroStats">
+          <div class="stat-pill"><strong id="totalPoliticians">…</strong> parlamentares</div>
+          <div class="stat-pill stat-pill--accent"><strong id="totalVerified">…</strong> verificados</div>
+          <div class="stat-pill"><strong id="totalComplaints">…</strong> reclamações</div>
+          <div class="stat-pill stat-pill--success"><strong id="totalSupports">…</strong> apoios</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUSCA + FILTROS -->
+    <section class="search">
+      <div class="search__bar">
+        <div class="search__input-wrap">
+          <span class="search__icon" aria-hidden="true">🔍</span>
+          <input id="searchInput" type="text" placeholder="Buscar por nome, partido, estado ou tema…" autocomplete="off" />
+        </div>
+        <select id="filterState" class="search__select" aria-label="Estado">
+          <option value="">Todos os estados</option>
+        </select>
+        <select id="filterParty" class="search__select" aria-label="Partido">
+          <option value="">Todos os partidos</option>
+        </select>
+        <select id="filterPosition" class="search__select" aria-label="Cargo">
+          <option value="">Todos os cargos</option>
+          <option value="Deputado Federal">Deputados</option>
+          <option value="Senador Federal">Senadores</option>
+        </select>
+        <select id="filterVerified" class="search__select" aria-label="Verificação">
+          <option value="">Qualquer</option>
+          <option value="1">✅ Verificados</option>
+        </select>
+        <select id="sortBy" class="search__select" aria-label="Ordenação">
+          <option value="name:asc">Nome A→Z</option>
+          <option value="name:desc">Nome Z→A</option>
+          <option value="satisfaction:desc">Mais bem avaliados</option>
+          <option value="complaints:desc">Mais reclamados</option>
+          <option value="supports:desc">Mais apoiados</option>
+        </select>
+      </div>
+      <div class="search__result-bar">
+        <span id="resultCount">0 parlamentares</span>
+        <div class="view-toggle" role="tablist">
+          <button class="view-toggle__btn view-toggle__btn--active" data-view="grid" type="button">▦ Grade</button>
+          <button class="view-toggle__btn" data-view="list" type="button">☰ Lista</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABAS DE NAVEGAÇÃO INTERNA (parlamentares / radar / ranking) -->
+    <nav class="tabs">
+      <button class="tabs__btn tabs__btn--active" data-tab="all" type="button">🗂️ Todos</button>
+      <button class="tabs__btn" data-tab="radar" type="button">🛡️ Radar Cívico</button>
+      <button class="tabs__btn" data-tab="ranking" type="button">🏆 Rankings</button>
+    </nav>
+
+    <!-- CONTEÚDO -->
+    <section id="tab-all" class="tab-content tab-content--active">
+      <div id="parliamentaryGrid" class="grid grid--cards"></div>
+      <div id="emptyState" class="empty hidden">
+        <div class="empty__icon">🔎</div>
+        <h3>Nenhum parlamentar encontrado</h3>
+        <p>Tente ajustar os filtros ou a busca.</p>
+      </div>
+    </section>
+
+    <section id="tab-radar" class="tab-content hidden">
+      <div class="radar-header">
+        <h2>🛡️ Radar Cívico</h2>
+        <p>Acompanhe o que está sendo dito sobre cada parlamentar. Reclamações e apoios em tempo real.</p>
+      </div>
+      <div class="radar-filters">
+        <button class="chip chip--active" data-radar="all" type="button">Tudo</button>
+        <button class="chip" data-radar="complaints" type="button">⚠️ Reclamações</button>
+        <button class="chip" data-radar="supports" type="button">💚 Apoios</button>
+        <button class="chip" data-radar="responses" type="button">💬 Com resposta</button>
+      </div>
+      <div id="radarFeed" class="feed"></div>
+    </section>
+
+    <section id="tab-ranking" class="tab-content hidden">
+      <div class="radar-header">
+        <h2>🏆 Rankings</h2>
+        <p>Os parlamentares com mais engajamento cívico.</p>
+      </div>
+      <div class="ranking-grid">
+        <div class="ranking-card">
+          <h3>⚠️ Mais reclamações</h3>
+          <ol id="rankMostComplaints" class="ranking-list"></ol>
+        </div>
+        <div class="ranking-card">
+          <h3>💚 Mais apoios</h3>
+          <ol id="rankMostSupports" class="ranking-list"></ol>
+        </div>
+        <div class="ranking-card">
+          <h3>🌟 Melhor avaliação</h3>
+          <ol id="rankBestSatisfaction" class="ranking-list"></ol>
+        </div>
+        <div class="ranking-card">
+          <h3>💬 Mais respondem</h3>
+          <ol id="rankBestResponse" class="ranking-list"></ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL DE PERFIL -->
+  <div id="profileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="profileName">
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__panel">
+      <button class="modal__close" type="button" data-close-modal aria-label="Fechar">×</button>
+      <div id="profileContent"></div>
+    </div>
+  </div>
+
+  <!-- MODAL DE LOGIN -->
+  <div id="authModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="modal__backdrop" data-close-auth></div>
+    <div class="modal__panel modal__panel--auth">
+      <button class="modal__close" type="button" data-close-auth aria-label="Fechar">×</button>
+      <div class="auth">
+        <h2 id="authTitle" class="auth__title">Entre para participar</h2>
+        <p class="auth__sub">Para registrar reclamações, apoios ou respostas.</p>
+
+        <div class="auth__tabs">
+          <button class="auth__tab auth__tab--active" data-auth-tab="google" type="button">
+            <span>🔵</span> Google
+          </button>
+          <button class="auth__tab" data-auth-tab="phone" type="button">
+            <span>📱</span> Telefone (SMS)
+          </button>
+        </div>
+
+        <div id="authGooglePanel" class="auth__panel">
+          <p class="auth__hint">Modo dev: use o campo abaixo com seu e-mail.</p>
+          <label class="auth__label">Token de teste (formato: <code>google:email:nome</code>)</label>
+          <input id="googleToken" type="text" class="auth__input" placeholder="google:voce@exemplo.com:Seu Nome" />
+          <button id="googleLoginBtn" class="btn btn--primary btn--block" type="button">Entrar com Google</button>
+        </div>
+
+        <div id="authPhonePanel" class="auth__panel hidden">
+          <p class="auth__hint">Modo dev: o código é exibido na tela para testes.</p>
+          <label class="auth__label">Telefone (com DDD)</label>
+          <input id="phoneInput" type="tel" class="auth__input" placeholder="11999999999" inputmode="numeric" />
+          <button id="sendOtpBtn" class="btn btn--primary btn--block" type="button">Enviar código SMS</button>
+
+          <div id="otpPanel" class="hidden">
+            <label class="auth__label">Código de 6 dígitos (enviado por SMS)</label>
+            <input id="otpInput" type="text" class="auth__input" placeholder="000000" maxlength="6" inputmode="numeric" />
+            <button id="verifyOtpBtn" class="btn btn--accent btn--block" type="button">Verificar código</button>
+          </div>
+        </div>
+
+        <div id="authFeedback" class="auth__feedback"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>MudaBrasil · Plataforma cívica de voto contínuo e revogável</p>
+  </footer>
+
+  <script src="/js/shared-ui.js"></script>
+  <script src="/js/parlamentar-auth.js"></script>
+  <script src="/js/parlamentares.js"></script>
+</body>
+</html>

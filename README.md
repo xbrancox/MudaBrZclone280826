@@ -381,7 +381,83 @@ data: {"tipo":"voto","ts":"2026-08-19T12:00:00.000Z","totalVotosAtivos":124,"tot
 > (`GET /api/stream`, ~7 ms do voto ao navegador), painel "Plataforma ao vivo" na
 > home com dados reais, e suíte de testes do motor (decaimento exato, carga de 10.000
 > votos, latência SSE).
+>
+> ✅ **Fase 6 — "Conclusão" (2026-08-20):**
+> - **Integração Senado Federal**: nova rota `/api/senadores` + merge na `/api/candidatos`
+>   (513 deputados + 81 senadores = 594 candidatos totais). Fonte:
+>   `legis.senado.leg.br/dadosabertos` (JSON/XML com fallback gracioso se WAF bloquear).
+> - **Health check**: `GET /api/health` — uptime, backend de armazenamento (SQLite/JSON),
+>   totais de votos ativos/revogados, status do cron de atualização.
+> - **Encerramento gracioso**: handlers para `SIGINT`/`SIGTERM` fecham o banco SQLite
+>   ordenadamente antes de sair (nenhuma urna perdida, nenhum arquivo corrompido).
+> - **Headers de privacidade/segurança** em todas as respostas JSON:
+>   `X-Content-Type-Options: nosniff` + `Referrer-Policy: no-referrer`.
+> - **Testes validados**: 25/25 (engine) + 19/19 (thermometer) + 13/13 (live) + render
+>   = **70 checks passando** (Node puro + Playwright E2E + SSE real + persistência pós-restart).
+> - **Repositório**: https://github.com/xbrancox/mudabrasil
 
 ---
 
 Feito com 🇧🇷 para a transparência cívica brasileira.
+
+---
+
+## 🏛️ Nova Aba "Parlamentares" (v2.1)
+
+A página **/pages/parlamentares.html** unifica tudo: **Candidatos + Radar Político + Rankings**.
+
+### ✨ Funcionalidades
+- **594 parlamentares** (513 deputados + 81 senadores) com dados reais
+- **🔍 Busca avançada** com filtros: estado, partido, cargo, verificados
+- **🛡️ Radar Cívico**: feed ao vivo de reclamações, apoios e respostas
+- **🏆 Rankings**: mais reclamados, mais apoiados, melhor avaliados, mais respondem
+- **🪪 Selo de verificação**: somente políticos verificados respondem
+- **🔐 Login via Google OAuth ou Telefone (SMS OTP)** — sem Gov.br
+- **📝 Reclamações + Apoios + Respostas** com moderação IA + humana
+- **Sem limite** de reclamações/apoios por eleitor (identificado por hash)
+- **Sem prazo** para resposta (vai para estatísticas/gráficos)
+- **📊 Links oficiais** para Câmara, Senado, TSE, Portal da Transparência
+
+### 🔐 Domínios autorizados para verificação
+- `@camara.leg.br` (deputados)
+- `@senado.leg.br` / `@senador.leg.br` (senadores)
+- `@tse.jus.br` (Tribunal Superior Eleitoral)
+
+### 🛠️ Arquivos novos
+- `server/auth.js` — login Google + telefone (SMS OTP)
+- `server/verificacao.js` — selo via domínio de e-mail
+- `server/reclamacoes.js` — reclamações, apoios, respostas, rankings
+- `pages/parlamentares.html` — aba unificada
+- `js/parlamentares.js` + `js/parlamentar-auth.js` — lógica
+- `css/parlamentares.css` — design com cores, fontes e animações premium
+
+### 🌐 Endpoints novos
+```
+POST /api/auth/{google,otp/send,otp/verify}        Login
+GET  /api/auth/me                                  Sessão atual
+POST /api/auth/logout                              Sair
+
+POST /api/verificacao/iniciar                      Iniciar verificação
+GET  /api/verificacao/confirmar?token=...          Confirmar
+GET  /api/verificacao/dominios                     Domínios autorizados
+GET  /api/verificacao/stats                        Estatísticas
+GET  /api/verificacao/politico/:id                 Status de um político
+
+POST /api/reclamacoes                              Criar reclamação
+GET  /api/reclamacoes?politicianId=...             Listar
+POST /api/apoios                                   Criar apoio
+GET  /api/apoios?politicianId=...                  Listar
+POST /api/respostas                                Resposta (só verificado)
+GET  /api/rankings                                 Rankings públicos
+GET  /api/estatisticas/politico/:id                Stats detalhadas
+```
+
+### 🧪 Fluxo de teste (modo dev)
+```bash
+node server/index.js
+# → http://localhost:8080/pages/parlamentares.html
+# 1. Login: "google:seu@email.com:Seu Nome"
+# 2. Abrir qualquer parlamentar
+# 3. Reclamar / Apoiar (com sessão ativa)
+# 4. Verificar: e-mail institucional com domínio autorizado
+```

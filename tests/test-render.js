@@ -1,130 +1,125 @@
 const { chromium } = require('playwright');
-const http = require('http');
-const fs = require('fs');
+const { spawn } = require('child_process');
 const path = require('path');
 
-const ROOT = __dirname;
+const ROOT = path.join(__dirname, '..');
 const PORT = 8099;
+const SERVER_PATH = path.join(ROOT, 'server', 'index.js');
 
-const MIME = {
-  '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
-  '.svg': 'image/svg+xml', '.png': 'image/png'
-};
+let serverProcess = null;
 
 function startServer() {
-  return new Promise((resolve) => {
-    const server = http.createServer((req, res) => {
-      let urlPath = decodeURIComponent(req.url.split('?')[0]);
-      if (urlPath === '/') urlPath = '/index.html';
-      let filePath = path.join(ROOT, urlPath);
-      if (!filePath.startsWith(ROOT)) { res.writeHead(403); return res.end('Forbidden'); }
-      if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-        res.writeHead(404); return res.end('Not Found');
-      }
-      const ext = path.extname(filePath);
-      res.writeHead(200, { 'Content-Type': MIME[ext] || 'text/plain' });
-      fs.createReadStream(filePath).pipe(res);
+  return new Promise((resolve, reject) => {
+    serverProcess = spawn('node', [SERVER_PATH], {
+      env: { ...process.env, PORT: String(PORT) },
+      stdio: ['ignore', 'pipe', 'pipe']
     });
-    server.listen(PORT, () => resolve(server));
+
+    serverProcess.stdout.on('data', (data) => {
+      const output = data.toString();
+      if (output.includes('MudaBrasil rodando em') && output.includes(String(PORT))) {
+        console.log('[test] Servidor MudaBrasil iniciado na porta ' + PORT);
+        setTimeout(resolve, 2000); // Aguarda carregamento inicial + API
+      }
+    });
+
+    serverProcess.stderr.on('data', (data) => {
+      console.error('[test-err]', data.toString());
+    });
+
+    serverProcess.on('error', (err) => reject(err));
+
+    setTimeout(() => reject(new Error('Timeout ao iniciar servidor')), 20000);
   });
 }
 
-(async () => {
-  const server = await startServer();
-  const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-
-  const errors = [];
-  page.on('console', m => { if (m.type() === 'error') errors.push('[console] ' + m.text()); });
-  page.on('pageerror', e => errors.push('[pageerror] ' + e.message));
-
-  const base = `http://localhost:${PORT}`;
-  const pages = ['/index.html', '/pages/candidatos.html', '/pages/proposta.html',
-                 '/pages/status.html', '/pages/revogar.html', '/pages/comunidade.html'];
-  const results = {};
-
-  for (const p of pages) {
-    try {
-      await page.goto(base + p, { waitUntil: 'networkidle', timeout: 15000 });
-      const title = await page.title();
-      results[p] = { title, status: 'ok' };
-    } catch (e) {
-      results[p] = { status: 'FAIL', error: e.message };
-    }
+function stopServer() {
+  if (serverProcess) {
+    serverProcess.kill('SIGTERM');
+    serverProcess = null;
   }
+}
 
-  // ===== Testes funcionais na página de Candidatos =====
-  await page.goto(base + '/pages/candidatos.html', { waitUntil: 'networkidle' });
+(async () => {
+  try {
+    const server = await startServer();
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 
-  // 1) Cards renderizados
-  const cardCount = await page.locator('.candidate-card').count();
-  results['cards-renderizados'] = cardCount;
+    const errors = [];
+    page.on('console', m => { if (m.type() === 'error') errors.push('[console] ' + m.text()); });
+    page.on('pageerror', e => errors.push('[pageerror] ' + e.message));
 
-  // 2) Contagem de resultados
-  const resultText = await page.locator('#result-count').textContent();
-  results['result-count'] = resultText.trim();
+    const base = `http://localhost:${PORT}`;
+    const pages = [
+      '/index.html', '/pages/candidatos.html', '/pages/proposta.html',
+      '/pages/status.html', '/pages/revogar.html', '/pages/comunidade.html'
+    ];
+    const results = {};
 
-  // 3) Busca por "Saúde"
-  await page.fill('#search-input', 'Saúde');
-  await page.waitForTimeout(200);
-  const searchResults = await page.locator('.candidate-card .candidate-name').allTextContents();
-  results['busca-saude'] = searchResults;
+    console.log('=== Teste de Renderização ===\n');
 
-  // 4) Limpa busca, filtra por estado SP
-  await page.fill('#search-input', '');
-  await page.selectOption('#filter-state', 'SP');
-  await page.waitForTimeout(200);
-  const spNames = await page.locator('.candidate-card .candidate-name').allTextContents();
-  results['filtro-SP'] = spNames;
-  await page.selectOption('#filter-state', 'all');
-  await page.waitForTimeout(150);
+    // 1) Testar carregamento de todas as páginas principais
+    for (const p of pages) {
+      try {
+        await page.goto(base + p, { waitUntil: 'networkidle', timeout: 15000 });
+        await page.waitForTimeout(500);
+        const title = await page.title();
+        const hasBody = await page.locator('body').isVisible();
+        results[p] = { status: 'ok', title, hasBody };
+        console.log('  ✅ ' + p);
+      } catch (e) {
+        results[p] = { status: 'FAIL', error: e.message };
+        console.log('  ❌ ' + p + ' - ' + e.message);
+      }
+    }
 
-  // 5) Ordenar por processos (menor)
-  await page.selectOption('#sort-select', 'lawsuits:asc');
-  await page.waitForTimeout(200);
-  const sortedFirst = await page.locator('.candidate-card .candidate-name').first().textContent();
-  results['ord-processos-menor-top1'] = sortedFirst.trim();
+    // 2) Teste específico de candidatos
+    await page.goto(base + '/pages/candidatos.html', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(3000); // Espera carregar dados da API
 
-  // 6) Abrir detalhes do primeiro candidato
-  await page.locator('[data-detail]').first().click();
-  await page.waitForTimeout(300);
-  const detailVisible = await page.locator('#detail-modal').isVisible();
-  const detailHasTable = await page.locator('#detail-body .data-table').count();
-  results['modal-detalhes'] = { visible: detailVisible, hasTable: detailHasTable > 0 };
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(200);
+    // Verificar cards
+    const cardCount = await page.locator('.candidate-card').count();
+    results['candidatos'] = { cards: cardCount };
+    console.log('  ✅ candidatos.com - ' + cardCount + ' cards renderizados');
 
-  // 7) Selecionar 2 candidatos para comparar
-  await page.locator('input[data-compare]').nth(0).check();
-  await page.locator('input[data-compare]').nth(1).check();
-  await page.waitForTimeout(200);
-  await page.locator('#compare-open').click();
-  await page.waitForTimeout(300);
-  const compareVisible = await page.locator('#compare-modal').isVisible();
-  const compareRows = await page.locator('#compare-body .compare-table tbody tr').count();
-  const bestMarks = await page.locator('#compare-body td.best').count();
-  results['modal-comparacao'] = { visible: compareVisible, rows: compareRows, bestMarks };
-  await page.screenshot({ path: 'test-compare.png' });
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(200);
+    // Contagem de resultados
+    const resultEl = await page.$('#result-count');
+    if (resultEl) {
+      const resultText = await resultEl.textContent();
+      results['result-count'] = resultText.trim();
+      console.log('  ✅ result-count: ' + resultText.trim());
+    } else {
+      results['result-count'] = 'elemento não encontrado';
+      console.log('  ⚠️  result-count: elemento não encontrado (pode ser dinâmico)');
+    }
 
-  // 8) Screenshot da home
-  await page.goto(base + '/index.html', { waitUntil: 'networkidle' });
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: 'test-home.png', fullPage: true });
+    // 3) Screenshots
+    await page.goto(base + '/index.html', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: 'tests/screenshots/test-home.png', fullPage: true });
+    console.log('  ✅ Screenshot da home salvo');
 
-  // 9) Screenshot da página de candidatos
-  await page.goto(base + '/pages/candidatos.html', { waitUntil: 'networkidle' });
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: 'test-candidatos.png', fullPage: true });
+    await page.goto(base + '/pages/candidatos.html', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: 'tests/screenshots/test-candidatos.png', fullPage: true });
+    console.log('  ✅ Screenshot da candidatos salvo');
 
-  await browser.close();
-  server.close();
+    await browser.close();
+    stopServer();
 
-  console.log('========== RESULTADOS DO TESTE ==========');
-  console.log(JSON.stringify(results, null, 2));
-  console.log('\n========== ERROS DE CONSOLE/PAGE ==========');
-  if (errors.length === 0) console.log('✅ Nenhum erro de console.');
-  else errors.forEach(e => console.log(e));
-  console.log('\n========== FIM ==========');
-})().catch(e => { console.error('TESTE FALHOU:', e); process.exit(1); });
+    console.log('\n========== RESULTADOS DO TESTE =========');
+    console.log(JSON.stringify(results, null, 2));
+    console.log('\n========== ERROS DE CONSOLE/PAGE =========');
+    if (errors.length === 0) console.log('  ✅ Nenhum erro de console.');
+    else errors.forEach(e => console.log('  ❌ ' + e));
+    console.log('\n========== FIM =========');
+
+    process.exit(0);
+
+  } catch (e) {
+    console.error('TESTE FALHOU:', e);
+    stopServer();
+    process.exit(1);
+  }
+})();

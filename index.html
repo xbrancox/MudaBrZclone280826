@@ -31,11 +31,9 @@
     <nav>
       <ul class="nav-links" id="nav-links">
         <li><a href="index.html" class="active">Início</a></li>
+        <li><a href="pages/parlamentares.html">🏛️ Parlamentares</a></li>
+        <li><a href="pages/meu-voto.html">Meu Voto</a></li>
         <li><a href="pages/proposta.html">Proposta</a></li>
-        <li><a href="pages/candidatos.html">Candidatos</a></li>
-        <li><a href="pages/termometro.html">Termômetro</a></li>
-        <li><a href="pages/status.html">Status</a></li>
-        <li><a href="pages/revogar.html">Revogar</a></li>
         <li><a href="pages/comunidade.html">Comunidade</a></li>
       </ul>
     </nav>
@@ -50,11 +48,9 @@
   <aside class="sidebar" id="sidebar">
     <ul>
       <li><a href="index.html" style="color:var(--accent-500);">🏠 Início</a></li>
+      <li><a href="pages/parlamentares.html">🏛️ Parlamentares</a></li>
+      <li><a href="pages/meu-voto.html">✋ Meu Voto</a></li>
       <li><a href="pages/proposta.html">📖 Proposta</a></li>
-      <li><a href="pages/candidatos.html">🗳️ Candidatos</a></li>
-      <li><a href="pages/termometro.html">🌡️ Termômetro</a></li>
-      <li><a href="pages/status.html">📊 Status</a></li>
-      <li><a href="pages/revogar.html">⚠️ Revogar</a></li>
       <li><a href="pages/comunidade.html">👥 Comunidade</a></li>
     </ul>
     <div class="login-area">
@@ -67,95 +63,59 @@
 
     <!-- HERO -->
     <section class="hero reveal show">
-      <h1>Democracia Contínua, Transparente e Revogável</h1>
+      <h1>Seu voto não acaba na eleição.</h1>
       <p>
-        O MudaBrasil transforma o voto em um direito contínuo. Acompanhe propostas,
-        compare candidatos com <strong>dados públicos reais</strong> e revogue decisões
-        que não cumpriram seu compromisso.
+        No MudaBrasil, você <strong>expressa confiança</strong> nos políticos,
+        <strong>vota nos Projetos de Lei</strong> que afetam sua vida e pode
+        <strong>retirar sua confiança a qualquer momento</strong> se não cumprirem
+        o prometido. Tudo <strong>anônimo</strong>, com <strong>dados públicos verificáveis</strong>.
       </p>
       <div style="display:flex; gap:var(--space-md); justify-content:center; flex-wrap:wrap;">
-        <button class="btn btn-accent" onclick="location.href='pages/termometro.html'">🌡️ Termômetro ao vivo</button>
-        <button class="btn btn-primary" onclick="location.href='pages/candidatos.html'">🗳️ Comparar Candidatos</button>
-        <button class="btn btn-secondary" onclick="location.href='pages/proposta.html'">📖 Ver Proposta</button>
+        <button class="btn btn-accent" onclick="location.href='pages/meu-voto.html'">✋ Expressar Confiança</button>
+        <button class="btn btn-primary" onclick="location.href='pages/parlamentares.html'">🗳️ Ver Parlamentares</button>
+        <button class="btn btn-secondary" onclick="location.href='pages/proposta.html'">📖 Conhecer a Proposta</button>
       </div>
     </section>
 
-    <!-- PAINEL AO VIVO (termômetro de confiança) -->
-    <section class="action-panel live-panel reveal">
-      <div class="live-panel-head">
-        <h2>🌡️ Plataforma ao vivo</h2>
-        <span class="source-badge-pill demo" id="live-badge">⏳ carregando…</span>
-      </div>
-      <p style="font-size:var(--text-sm);">
-        <strong>Seu voto coloca, seu voto tira.</strong> O índice de confiança dos
-        513 deputados federais, atualizado em tempo real a cada voto, revogação ou
-        manutenção — anônimo, sem cadastro.
-      </p>
-      <div class="live-metrics">
-        <div class="live-metric">
-          <span class="live-metric-num" id="live-ativos">—</span>
-          <span class="live-metric-label">Votos ativos</span>
+    <!-- COMO FUNCIONA -->
+    <section class="reveal" style="max-width:900px; margin:0 auto var(--space-2xl);">
+      <h2 style="text-align:center; margin-bottom:var(--space-lg);">Como funciona o MudaBrasil?</h2>
+      <div class="cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+        <div class="card" style="text-align:center;">
+          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">1️⃣</div>
+          <h3>Escolha um político</h3>
+          <p>Compare deputados e senadores com dados públicos reais: transparência, processos, presença e votação.</p>
         </div>
-        <div class="live-metric">
-          <span class="live-metric-num" id="live-revogados">—</span>
-          <span class="live-metric-label">Votos revogados</span>
+        <div class="card" style="text-align:center;">
+          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">2️⃣</div>
+          <h3>Expresse confiança</h3>
+          <p>Dê seu voto de confiança anônimo. Você recebe um código único — guarde-o, é seu único comprovante.</p>
         </div>
-        <div class="live-metric">
-          <span class="live-metric-num" id="live-participantes">—</span>
-          <span class="live-metric-label">Participações</span>
-        </div>
-        <div class="live-metric">
-          <span class="live-metric-num" id="live-top">—</span>
-          <span class="live-metric-label">Índice no topo</span>
+        <div class="card" style="text-align:center;">
+          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">3️⃣</div>
+          <h3>Acompanhe e revogue</h3>
+          <p>Se o político não cumprir o prometido, use seu código para revogar o voto. Simples assim.</p>
         </div>
       </div>
-      <div class="score-bar-container">
-        <div class="score-label">
-          <span id="live-top-name">Liderança do índice de confiança</span>
-          <span><strong id="live-top-valor">—</strong></span>
-        </div>
-        <div class="score-bar">
-          <div class="score-fill" id="live-top-fill" style="width:0%"></div>
-        </div>
-      </div>
-      <div style="text-align:center;">
-        <button class="btn btn-accent" onclick="location.href='pages/termometro.html'">🌡️ Ver Termômetro completo</button>
-      </div>
-      <p class="note" style="text-align:center;">
-        Voto anônimo por código (R4) · sem cadastro · protótipo de pesquisa — sem valor legal.
-      </p>
     </section>
 
     <!-- CARDS DE NAVEGAÇÃO -->
-    <h2 style="text-align:center; margin-top:var(--space-2xl);">Explore o MudaBrasil</h2>
+    <h2 style="text-align:center; margin-top:var(--space-2xl);">O que você pode fazer</h2>
     <p style="text-align:center; color:var(--text-secondary); max-width:600px; margin:0 auto var(--space-lg);">
-      Tudo o que você precisa para uma participação cívica informada e ativa.
+      Participação cívica simples, direta e sem enrolação.
     </p>
-    <div class="cards-grid">
-      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/candidatos.html'">
-        <h3>🗳️ Candidatos</h3>
-        <p>Compare candidatos com dados públicos: transparência, processos judiciais, votação nominal e patrimônio.</p>
-        <span class="badge score">Novo</span>
+    <div class="cards-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/parlamentares.html'">
+        <h3>🗳️ Ver Parlamentares</h3>
+        <p>Veja dados públicos de deputados e senadores: transparência, processos, presença em sessões e patrimônio declarado.</p>
+      </div>
+      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/meu-voto.html'">
+        <h3>✋ Meu Voto</h3>
+        <p>Expresse confiança, consulte seu voto atual, reafirme ou revogue. Tudo em um só lugar.</p>
       </div>
       <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/proposta.html'">
-        <h3>📖 Proposta</h3>
-        <p>Leia o manifesto, adicione novas metas e proporcione consenso coletivo.</p>
-      </div>
-      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/status.html'">
-        <h3>📊 Status</h3>
-        <p>Acompanhe o progresso das métricas, cronograma e relatórios em tempo real.</p>
-      </div>
-      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/revogar.html'">
-        <h3>⚠️ Revogar</h3>
-        <p>Inicie uma revogação, forneça justificativa e colete assinaturas para reverter decisões.</p>
-      </div>
-      <div class="card reveal" style="cursor:pointer;" onclick="location.href='pages/comunidade.html'">
-        <h3>👥 Comunidade</h3>
-        <p>Veja quem assinou, contribuições destacadas e estatísticas da comunidade.</p>
-      </div>
-      <div class="card reveal">
-        <h3>🔍 Transparência</h3>
-        <p>Dados estruturados a partir de TSE, Portal da Transparência, CNJ e votação nominal.</p>
+        <h3>📖 A Proposta</h3>
+        <p>Conheça o manifesto do MudaBrasil: por que defendemos o voto contínuo e revogável no Brasil.</p>
       </div>
     </div>
 
@@ -218,9 +178,10 @@
       <div class="footer-section">
         <h4>Links Rápidos</h4>
         <ul>
+          <li><a href="pages/parlamentares.html">🏛️ Parlamentares</a></li>
+          <li><a href="pages/meu-voto.html">Meu Voto</a></li>
           <li><a href="pages/proposta.html">Proposta</a></li>
-          <li><a href="pages/candidatos.html">Candidatos</a></li>
-          <li><a href="pages/status.html">Status</a></li>
+          <li><a href="pages/comunidade.html">Comunidade</a></li>
         </ul>
       </div>
       <div class="footer-section">
@@ -232,9 +193,10 @@
         </ul>
       </div>
       <div class="footer-section">
-        <h4>Score Atual</h4>
-        <div class="mini-score-bar"><div class="mini-score-fill" style="width:78%"></div></div>
-        <p>Última atualização: 2026-08-18</p>
+        <h4>Como Funciona</h4>
+        <p style="font-size:var(--text-xs); color:var(--text-muted);">
+          Voto anônimo por código · sem cadastro · protótipo de pesquisa — sem valor legal.
+        </p>
       </div>
     </div>
     <div class="footer-bottom">

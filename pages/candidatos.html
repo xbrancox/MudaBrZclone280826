@@ -31,11 +31,9 @@
     <nav>
       <ul class="nav-links" id="nav-links">
         <li><a href="../index.html">Início</a></li>
+        <li><a href="parlamentares.html" class="active">🏛️ Parlamentares</a></li>
+        <li><a href="meu-voto.html">Meu Voto</a></li>
         <li><a href="proposta.html">Proposta</a></li>
-        <li><a href="candidatos.html" class="active">Candidatos</a></li>
-        <li><a href="termometro.html">Termômetro</a></li>
-        <li><a href="status.html">Status</a></li>
-        <li><a href="revogar.html">Revogar</a></li>
         <li><a href="comunidade.html">Comunidade</a></li>
       </ul>
     </nav>
@@ -50,11 +48,9 @@
   <aside class="sidebar" id="sidebar">
     <ul>
       <li><a href="../index.html">🏠 Início</a></li>
+      <li><a href="candidatos.html" style="color:var(--accent-500);">🗳️ Políticos</a></li>
+      <li><a href="meu-voto.html">✋ Meu Voto</a></li>
       <li><a href="proposta.html">📖 Proposta</a></li>
-      <li><a href="candidatos.html" style="color:var(--accent-500);">🗳️ Candidatos</a></li>
-      <li><a href="termometro.html">🌡️ Termômetro</a></li>
-      <li><a href="status.html">📊 Status</a></li>
-      <li><a href="revogar.html">⚠️ Revogar</a></li>
       <li><a href="comunidade.html">👥 Comunidade</a></li>
     </ul>
     <div class="login-area">
@@ -65,11 +61,11 @@
   <!-- ===================== CONTEÚDO ===================== -->
   <main class="main-content">
     <section class="reveal">
-      <h1 style="text-align:center;">🗳️ Compare Candidatos</h1>
+      <h1 style="text-align:center;">🗳️ Compare Políticos</h1>
       <p id="page-subtitle" style="text-align:center; max-width:720px; margin:0 auto var(--space-md);">
-        Transparência total para o eleitor decidir. Todos os dados são
-        estruturados a partir de <strong>fontes públicas oficiais</strong>:
-        TSE, Portal da Transparência, Câmara/Senado e CNJ.
+        Antes de expressar confiança, conheça bem o político. Todos os dados abaixo
+        vêm de <strong>fontes públicas oficiais</strong>: Câmara, Senado, TSE,
+        Portal da Transparência e CNJ.
       </p>
 
       <!-- Selo de fonte de dados (preenchido pelo JS: reais ou demo) -->
@@ -109,9 +105,14 @@
       <!-- Grade de candidatos -->
       <div class="candidates-grid" id="candidates-grid"></div>
 
-      <p style="text-align:center; font-size:var(--text-xs); color:var(--text-muted); margin-top:var(--space-2xl);">
-        💡 Dica: marque a caixa no canto superior direito de até 3 candidatos para comparar lado a lado.
-      </p>
+      <div style="text-align:center; margin-top:var(--space-2xl); padding:var(--space-lg); background:var(--surface-500); border-radius:var(--border-radius-md);">
+        <p style="margin:0 0 var(--space-md);">
+          💡 <strong>Dica:</strong> marque a caixa no canto superior direito de até 3 políticos para comparar lado a lado.
+        </p>
+        <p style="margin:0; font-size:var(--text-sm); color:var(--text-secondary);">
+          Já decidiu? <a href="meu-voto.html" style="color:var(--accent-400); font-weight:600;">Expresse sua confiança agora →</a>
+        </p>
+      </div>
     </section>
   </main>
 

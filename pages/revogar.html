@@ -3,235 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MudaBrasil - Revogar</title>
+  <title>MudaBrasil - Revogar Voto</title>
+  <meta http-equiv="refresh" content="2;url=meu-voto.html#conferir">
   <link rel="stylesheet" href="../css/design-system.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: var(--space-md);
+      text-align: center;
+    }
+    .redirect-box {
+      max-width: 480px;
+      padding: var(--space-2xl);
+      background: var(--surface-500);
+      border-radius: var(--border-radius-lg);
+      border: 1px solid var(--border-500);
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border-500);
+      border-top-color: var(--accent-500);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto var(--space-md);
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
-
-  <header class="navbar">
-    <div class="logo" onclick="location.href='../index.html'">
-      <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
-        <defs>
-          <linearGradient id="gradLogo" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#7fb0f5"/>
-            <stop offset="100%" stop-color="#FFD700"/>
-          </linearGradient>
-        </defs>
-        <circle cx="20" cy="20" r="18" stroke="url(#gradLogo)" stroke-width="4" fill="none"/>
-        <path d="M12 20 L20 12 L28 20 L20 28 Z" fill="url(#gradLogo)"/>
-      </svg>
-      <span>MudaBrasil</span>
-    </div>
-
-    <nav>
-      <ul class="nav-links" id="nav-links">
-        <li><a href="../index.html">Início</a></li>
-        <li><a href="proposta.html">Proposta</a></li>
-        <li><a href="candidatos.html">Candidatos</a></li>
-        <li><a href="termometro.html">Termômetro</a></li>
-        <li><a href="status.html">Status</a></li>
-        <li><a href="revogar.html" class="active">Revogar</a></li>
-        <li><a href="comunidade.html">Comunidade</a></li>
-      </ul>
-    </nav>
-
-    <div style="display:flex; align-items:center; gap:8px;">
-      <button class="btn btn-primary btn-sm" onclick="showLoginForm()">Login</button>
-      <div class="mobile-toggle" id="mobile-menu">☰</div>
-    </div>
-  </header>
-
-  <aside class="sidebar" id="sidebar">
-    <ul>
-      <li><a href="../index.html">🏠 Início</a></li>
-      <li><a href="proposta.html">📖 Proposta</a></li>
-      <li><a href="candidatos.html">🗳️ Candidatos</a></li>
-      <li><a href="termometro.html">🌡️ Termômetro</a></li>
-      <li><a href="status.html">📊 Status</a></li>
-      <li><a href="revogar.html" style="color:var(--accent-500);">⚠️ Revogar</a></li>
-      <li><a href="comunidade.html">👥 Comunidade</a></li>
-    </ul>
-    <div class="login-area">
-      <button class="btn btn-secondary btn-sm" onclick="showLoginForm()">Entrar na sua conta</button>
-    </div>
-  </aside>
-
-  <main class="main-content">
-    <section class="reveal">
-      <h1>⚠️ Iniciar Revogação</h1>
-      <p style="max-width:720px; margin:0 auto var(--space-xl);">
-        Proponha, discuta e execute a revogação da proposta atual quando ela não
-        cumprir seu compromisso com a comunidade.
-      </p>
-
-      <div class="revogar-container">
-        <div class="card revogar-card reveal">
-          <h3>📝 Justificativa</h3>
-          <textarea id="justificativa" rows="5" placeholder="Por que esta proposta deve ser revogada?"></textarea>
-          <button class="btn btn-secondary btn-sm" style="margin-top:var(--space-md);" onclick="addJustification()">➕ Adicionar Justificativa</button>
-        </div>
-
-        <div class="card revogar-card reveal">
-          <h3>📊 Assinaturas Necessárias</h3>
-          <div class="signature-counter">
-            <div class="signature-circle" id="signature-circle">
-              <span class="current">0</span>/<span class="target">500</span>
-            </div>
-            <p>Assine para iniciar a revogação</p>
-          </div>
-          <button class="btn btn-accent" onclick="signRevocation()">👍 Assinar Revogação</button>
-        </div>
-
-        <div class="card revogar-card reveal">
-          <h3>⚖️ Debate Público</h3>
-          <div class="debate-section" style="background:rgba(6,26,58,0.5); border-radius:var(--border-radius-md); padding:var(--space-md); margin-bottom:var(--space-md); max-height:180px; overflow-y:auto;">
-            <div id="debate-comments">
-              <p style="font-size:var(--text-sm); margin-bottom:var(--space-md);"><strong>Usuário Anônimo:</strong> A proposta não atende às métricas de transparência.</p>
-            </div>
-          </div>
-          <input type="text" id="debate-input" placeholder="Participe do debate...">
-          <button class="btn btn-primary btn-sm" style="margin-top:var(--space-md);" onclick="addComment()">Comentar</button>
-        </div>
-
-        <div class="revogar-actions">
-          <button class="btn btn-secondary" onclick="cancelRevocation()">❌ Cancelar</button>
-          <button class="btn btn-danger" style="margin-left:var(--space-sm);" onclick="submitRevocation()">📨 Enviar Revogação</button>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <div class="modal" id="login-modal">
-    <div class="modal-content">
-      <span class="close" onclick="this.closest('.modal').style.display='none'">×</span>
-      <h2>Login na Conta MudaBrasil</h2>
-      <form onsubmit="event.preventDefault(); alert('Login simulado com sucesso!'); this.closest('.modal').style.display='none';">
-        <label>Usuário</label>
-        <input type="text" placeholder="Seu usuário" required>
-        <label>Senha</label>
-        <input type="password" placeholder="Senha" required>
-        <button class="btn btn-primary" type="submit">Entrar</button>
-      </form>
-    </div>
+  <div class="redirect-box">
+    <div class="spinner"></div>
+    <h2>↩ Revogar está em "Meu Voto"</h2>
+    <p style="color:var(--text-secondary); margin-bottom:var(--space-lg);">
+      A opção de conferir e revogar seu voto agora fica na aba
+      <strong>"Conferir / Revogar"</strong> dentro de <strong>Meu Voto</strong>.
+      É só colar seu código e escolher a ação.
+    </p>
+    <p style="font-size:var(--text-sm); color:var(--text-muted);">
+      Redirecionando em 2 segundos...
+    </p>
+    <a href="meu-voto.html#conferir" class="btn btn-accent" style="display:inline-block; margin-top:var(--space-md);">
+      Ir agora →
+    </a>
   </div>
-
-  <footer>
-    <div class="footer-content">
-      <div class="footer-section">
-        <h4>Links Rápidos</h4>
-        <ul>
-          <li><a href="../index.html">Início</a></li>
-          <li><a href="candidatos.html">Candidatos</a></li>
-          <li><a href="status.html">Status</a></li>
-        </ul>
-      </div>
-      <div class="footer-section">
-        <h4>Fontes de Dados</h4>
-        <ul>
-          <li><a href="https://www.tse.jus.br" target="_blank" rel="noopener">TSE</a></li>
-          <li><a href="https://portaldatransparencia.gov.br" target="_blank" rel="noopener">Portal da Transparência</a></li>
-          <li><a href="https://www.cnj.jus.br" target="_blank" rel="noopener">CNJ</a></li>
-        </ul>
-      </div>
-      <div class="footer-section">
-        <h4>Alertas</h4>
-        <p>0 ativos | 2 pendentes</p>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <p>&copy; 2026 MudaBrasil. Plataforma cívica de voto contínuo e revogável.</p>
-    </div>
-  </footer>
-
-  <script src="../js/shared-ui.js"></script>
   <script>
-    let signatureCount = 0;
-    const targetSignatures = 500;
-
-    function showToast(message, type = 'info') {
-      const toast = document.createElement('div');
-      toast.className = 'score-notification';
-      if (type === 'warning') toast.style.background = 'linear-gradient(135deg, #FFA500, #FF8C00)';
-      toast.textContent = message;
-      document.body.appendChild(toast);
-      setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3500);
-    }
-
-    function updateSignatureCounter() {
-      const currentEl = document.querySelector('.current');
-      const progress = (signatureCount / targetSignatures) * 100;
-      currentEl.textContent = signatureCount;
-      document.getElementById('signature-circle').style.background =
-        `conic-gradient(#FFD700 ${progress}%, #333 ${progress}%)`;
-    }
-
-    function signRevocation() {
-      if (signatureCount < targetSignatures) {
-        signatureCount++;
-        updateSignatureCounter();
-        showToast(`✅ Você assinou! Restam ${targetSignatures - signatureCount} para iniciar.`);
-      } else {
-        showToast('🎉 Meta de assinaturas alcançada! A revogação pode ser processada.');
-      }
-    }
-
-    function addJustification() {
-      const textarea = document.getElementById('justificativa');
-      if (textarea.value.trim()) {
-        const comments = document.getElementById('debate-comments');
-        const p = document.createElement('p');
-        p.style.fontSize = 'var(--text-sm)';
-        p.style.color = 'var(--accent-500)';
-        p.innerHTML = `<strong>Seu Motivo:</strong> ${escapeHtml(textarea.value)}`;
-        comments.appendChild(p);
-        textarea.value = '';
-        scrollToDebate();
-      }
-    }
-
-    function addComment() {
-      const input = document.getElementById('debate-input');
-      if (input.value.trim()) {
-        const comments = document.getElementById('debate-comments');
-        const p = document.createElement('p');
-        p.style.fontSize = 'var(--text-sm)';
-        p.innerHTML = `<strong>Você:</strong> ${escapeHtml(input.value)}`;
-        comments.appendChild(p);
-        input.value = '';
-        scrollToDebate();
-      }
-    }
-
-    function scrollToDebate() {
-      document.getElementById('debate-comments').nextElementSibling;
-    }
-
-    // Escapa HTML para evitar injeção via comentários
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-    function cancelRevocation() {
-      if (confirm('Tem certeza que deseja cancelar esta revogação?')) {
-        window.location.href = '../index.html';
-      }
-    }
-
-    function submitRevocation() {
-      if (signatureCount >= targetSignatures) {
-        showToast('📨 Revogação submetida com sucesso! Revisão pelos moderadores.');
-        setTimeout(() => window.location.href = '../index.html', 1500);
-      } else {
-        showToast(`⚠️ Precisamos de mais ${targetSignatures - signatureCount} assinaturas.`, 'warning');
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', updateSignatureCounter);
+    setTimeout(function() {
+      window.location.href = 'meu-voto.html#conferir';
+    }, 2000);
   </script>
 </body>
 </html>

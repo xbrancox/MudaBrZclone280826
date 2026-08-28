@@ -30,4 +30,5 @@ Thumbs.db
 tmp/
 temp/
 
-# === FIM .gitignore ===
+# === FIM .gitignore ===data/
+node_modules/
