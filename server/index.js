@@ -411,6 +411,36 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
+  /* ---------- E-MAIL AUTH ---------- */
+
+  if (p === '/api/auth/email/send' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    try {
+      const r = await auth.sendEmailOtp(body.email || '');
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/auth/email/verify' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    try {
+      const r = await auth.verifyEmailOtp(body.email || '', body.code || '');
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 401, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/auth/register' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    try {
+      const r = await auth.register(body.email || '', body.name || '', body.phone || '');
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
+  /* ---------- VERIFICAÇÃO DE POLÍTICOS ---------- */
   /* ---------- VERIFICAÇÃO DE POLÍTICOS ---------- */
 
   if (p === '/api/verificacao/iniciar' && req.method === 'POST') {

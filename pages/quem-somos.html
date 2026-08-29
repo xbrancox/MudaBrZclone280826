@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quem Somos — MudaBrasil</title>
+  <link rel="stylesheet" href="../css/design-system.css">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; font-family: 'Manrope', sans-serif; background: #0E1726; color: #fff; min-height: 100vh; }
+    .main-content { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+    .header svg { filter: drop-shadow(0 0 8px rgba(52,101,164,0.5)); }
+    .header h1 { font-family: 'Montserrat', sans-serif; font-size: 2rem; font-weight: 800; margin: 0; background: linear-gradient(135deg, #4a7bc2, #AECF00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero { text-align: center; padding: 40px 0 60px; }
+    .hero h2 { font-family: 'Montserrat', sans-serif; font-size: 2.5rem; font-weight: 900; margin: 0 0 16px; line-height: 1.2; }
+    .hero p { font-size: 1.1rem; color: #94A3B8; max-width: 600px; margin: 0 auto; line-height: 1.7; }
+    .values { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 40px 0; }
+    .value-card { background: #111827; border: 1px solid rgba(90,107,126,0.25); border-radius: 16px; padding: 24px; text-align: center; }
+    .value-icon { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 1.6rem; }
+    .value-card h3 { font-family: 'Montserrat', sans-serif; font-size: 1rem; font-weight: 700; margin: 0 0 8px; color: #AECF00; }
+    .value-card p { font-size: 0.85rem; color: #94A3B8; margin: 0; line-height: 1.6; }
+    .section { background: #111827; border: 1px solid rgba(90,107,126,0.25); border-radius: 16px; padding: 28px; margin-bottom: 24px; }
+    .section h2 { font-family: 'Montserrat', sans-serif; font-size: 1.3rem; font-weight: 700; color: #AECF00; margin: 0 0 16px; }
+    .section p { color: #C6D0DD; line-height: 1.7; font-size: 0.95rem; margin: 0 0 12px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 32px 0; }
+    .stat { text-align: center; background: rgba(52,101,164,0.15); border: 1px solid rgba(52,101,164,0.3); border-radius: 12px; padding: 20px; }
+    .stat-num { font-family: 'Montserrat', sans-serif; font-size: 2rem; font-weight: 900; color: #AECF00; margin: 0; }
+    .stat-label { font-size: 0.8rem; color: #94A3B8; margin: 4px 0 0; }
+    .back-btn { display: inline-flex; align-items: center; gap: 8px; background: #3465A4; color: #fff; border: none; border-radius: 50px; padding: 10px 24px; font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 0.85rem; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+    .back-btn:hover { background: #4a7bc2; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="main-content">
+    <div class="header">
+      <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3465A4"/><stop offset="100%" stop-color="#AECF00"/></linearGradient></defs>
+        <circle cx="20" cy="20" r="18" stroke="url(#g)" stroke-width="3.5" fill="none"/>
+        <path d="M12 20 L20 12 L28 20 L20 28 Z" fill="url(#g)"/>
+      </svg>
+      <h1>Quem Somos</h1>
+    </div>
+
+    <div class="hero">
+      <h2>Uma plataforma cívica para devolver o poder ao povo</h2>
+      <p>Acreditamos que o voto não deve acabar na urna. É por isso que criamos o MudaBrasil: uma ferramenta para você acompanhar, exigir e revogar confiança nos políticos que representam você.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <p class="stat-num">513</p>
+        <p class="stat-label">Deputados Federais</p>
+      </div>
+      <div class="stat">
+        <p class="stat-num">81</p>
+        <p class="stat-label">Senadores</p>
+      </div>
+      <div class="stat">
+        <p class="stat-num">100%</p>
+        <p class="stat-label">Dados Públicos</p>
+      </div>
+    </div>
+
+    <div class="values">
+      <div class="value-card">
+        <div class="value-icon" style="background:rgba(52,101,164,0.2);">🔍</div>
+        <h3>Transparência</h3>
+        <p>Todos os dados vêm de fontes públicas oficiais: TSE, Portal da Transparência, Câmara e Senado.</p>
+      </div>
+      <div class="value-card">
+        <div class="value-icon" style="background:rgba(174,207,0,0.15);">🔒</div>
+        <h3>Anonimato</h3>
+        <p>Seu voto é anônimo. Você recebe um código de confirmação que é o único comprovante.</p>
+      </div>
+      <div class="value-card">
+        <div class="value-icon" style="background:rgba(0,151,57,0.15);">⚡</div>
+        <h3>Revogabilidade</h3>
+        <p>A qualquer momento, você pode revogar seu voto. O político não cumpre? A confiança vai embora.</p>
+      </div>
+      <div class="value-card">
+        <div class="value-icon" style="background:rgba(255,140,0,0.15);">👥</div>
+        <h3>Participação</h3>
+        <p>Deixe reclamações, apoie e dê sua opinião sobre os políticos. Sua voz tem peso.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📖 Nossa História</h2>
+      <p>O MudaBrasil nasceu da constatação de que a democracia representativa tem um problema estrutural: depois das eleições, o cidadão perde o controle sobre seus representantes. Não há mecanismo prático de cobrança entre os ciclos eleitorais.</p>
+      <p>A ideia é simples: criar uma plataforma onde o voto não acaba na urna. Você expressa confiança em um político, acompanha sua atuação, e pode revogar essa confiança a qualquer momento se ele não cumprir o prometido.</p>
+      <p>Não somos um partido. Não temos candidato. Somos uma ferramenta de transparência e participação — um termômetro da vontade popular que se atualiza a cada dia, não a cada 4 anos.</p>
+    </div>
+
+    <div class="section">
+      <h2>🎯 Nossa Missão</h2>
+      <p>Devolver ao cidadão o poder de cobrar accountability dos seus representantes. Tornar a política mais responsiva, mais transparente e menos dependente de promessas de campanha que nunca se verificam.</p>
+    </div>
+
+    <div class="section">
+      <h2>🤝 Como Participar</h2>
+      <p><strong>1. Cadastre-se:</strong> leva 30 segundos. Use e-mail, Google ou celular.</p>
+      <p><strong>2. Vote:</strong> encontre políticos e dê seu voto de confiança. Você recebe um código de confirmação.</p>
+      <p><strong>3. Acompanhe:</strong> veja o que seus representantes estão fazendo no Congresso.</p>
+      <p><strong>4. Revogue:</strong> se o político não cumprir, use seu código para revogar a confiança.</p>
+      <p><strong>5. Espalhe:</strong> compartilhe a ideia com amigos, familiares e nas redes sociais.</p>
+    </div>
+
+    <div class="section">
+      <h2>📊 Fontes de Dados</h2>
+      <p>Toda a informação exibida na plataforma vem de fontes oficiais:</p>
+      <p>• <strong>TSE</strong> — Tribunal Superior Eleitoral (candidaturas, histórico, condenações)</p>
+      <p>• <strong>Portal da Transparência</strong> (rendimentos, patrimônio, gastos)</p>
+      <p>• <strong>Câmara dos Deputados</strong> (proposituras, votações, presença)</p>
+      <p>• <strong>Senado Federal</strong> (proposituras, votações, presença)</p>
+      <p>• <strong>CNJ</strong> (processos judiciais e condenações)</p>
+    </div>
+
+    <a href="../index.html" class="back-btn">← Voltar ao Início</a>
+  </div>
+</body>
+</html>
