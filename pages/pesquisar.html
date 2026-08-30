@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pesquisar Políticos — MudaBrasil</title>
+  <meta name="description" content="Pesquise qualquer político brasileiro: índice de integridade, reclamações, respostas, apoios e fontes públicas oficiais.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/parlamentares.css">
+
+  <!-- HEADER COMPARTILHADO -->
+  <script src="../js/header.js"></script>
+
+  <style>
+    /* ============================================================
+       Pesquisar Políticos — CSS proprio
+       Paleta: bg=#0E1726, card=#152339, blue=#3465A4,
+               lime=#AECF00, green=#009739
+       ============================================================ */
+    :root {
+      --bg: #0E1726; --bg-2: #101D33; --card: #152339;
+      --blue: #3465A4; --blue-2: #4a7bc2;
+      --lime: #AECF00; --green: #009739; --orange: #ff8c00;
+      --gray: #5A6B7E; --gray-2: #94A3B8; --gray-3: #C6D0DD;
+      --line: rgba(90,107,126,0.28);
+      --radius: 14px; --radius-sm: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Manrope', sans-serif;
+      background: var(--bg);
+      color: #fff;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 80px;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; }
+
+    /* ===== CONTAINER ===== */
+    .pp-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ===== HERO DE BUSCA ===== */
+    .pp-hero {
+      text-align: center;
+      padding: 60px 24px 40px;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 0%, rgba(52,101,164,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 80% 80%, rgba(174,207,0,0.06) 0%, transparent 60%);
+    }
+    .pp-hero h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 900;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #fff 0%, #C6D0DD 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .pp-hero p {
+      color: var(--gray-2);
+      font-size: 1rem;
+      margin-bottom: 32px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ===== BARRA DE BUSCA ===== */
+    .pp-search-wrap {
+      max-width: 720px;
+      margin: 0 auto 20px;
+      position: relative;
+    }
+    .pp-search-input {
+      width: 100%;
+      padding: 16px 52px 16px 52px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 9999px;
+      color: #fff;
+      font-size: 1rem;
+      font-family: 'Manrope', sans-serif;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .pp-search-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(52,101,164,0.25);
+    }
+    .pp-search-input::placeholder { color: var(--gray); }
+    .pp-search-icon {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 1.2rem;
+      pointer-events: none;
+    }
+
+    /* ===== FILTROS ===== */
+    .pp-filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 28px;
+    }
+    .pp-filter-select {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 9999px;
+      color: var(--gray-3);
+      font-size: 0.82rem;
+      font-family: 'Manrope', sans-serif;
+      padding: 8px 16px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      min-width: 140px;
+    }
+    .pp-filter-select:focus { border-color: var(--blue); }
+    .pp-filter-select option { background: var(--card); }
+
+    /* ===== CONTADOR ===== */
+    .pp-result-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pp-result-count {
+      color: var(--gray-2);
+      font-size: 0.88rem;
+    }
+    .pp-result-count strong { color: var(--lime); }
+
+    /* ===== GRID DE CARDS ===== */
+    .pp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    /* Card de politico */
+    .pp-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      transition: border-color 0.2s, transform 0.2s;
+      position: relative;
+      cursor: pointer;
+    }
+    .pp-card:hover {
+      border-color: rgba(52,101,164,0.6);
+      transform: translateY(-2px);
+    }
+    .pp-card-head {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .pp-avatar {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.1rem;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .pp-avatar img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .pp-card-meta { flex: 1; min-width: 0; }
+    .pp-card-name {
+      font-weight: 700; font-size: 0.95rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+    .pp-card-sub {
+      font-size: 0.78rem; color: var(--gray-2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pp-card-badges {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .pp-badge {
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .pp-badge-num { background: rgba(52,101,164,0.2); color: #7aa8d8; }
+    .pp-badge-clean { background: rgba(0,151,57,0.2); color: #5fdf8a; }
+    .pp-badge-warn { background: rgba(255,140,0,0.2); color: #ffb86c; }
+
+    /* Barra de integridade */
+    .pp-integrity { margin-bottom: 14px; }
+    .pp-integrity-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.75rem; color: var(--gray-2);
+      margin-bottom: 5px;
+    }
+    .pp-integrity-value {
+      font-weight: 700;
+      color: var(--lime);
+    }
+    .pp-integrity-bar {
+      height: 6px; background: rgba(90,107,126,0.3);
+      border-radius: 9999px; overflow: hidden;
+    }
+    .pp-integrity-fill {
+      height: 100%; border-radius: 9999px;
+      background: linear-gradient(90deg, #AECF00, #009739);
+      transition: width 0.5s ease;
+    }
+
+    /* Botoes do card */
+    .pp-card-actions {
+      display: flex; gap: 8px;
+    }
+    .pp-btn-detail {
+      flex: 1;
+      background: linear-gradient(135deg, #3465A4, #2a5090);
+      color: #fff; border: none;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem; font-weight: 700;
+      transition: filter 0.2s;
+    }
+    .pp-btn-detail:hover { filter: brightness(1.15); }
+    .pp-btn-compare {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--gray-2);
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .pp-btn-compare:hover { border-color: var(--lime); color: var(--lime); }
+    .pp-btn-compare.active {
+      background: rgba(174,207,0,0.15);
+      border-color: var(--lime);
+      color: var(--lime);
+    }
+
+    /* Compare bar */
+    .pp-compare-bar {
+      background: var(--card);
+      border: 1px solid rgba(174,207,0,0.3);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .pp-compare-bar-info { flex: 1; font-size: 0.88rem; color: var(--gray-2); }
+    .pp-compare-bar-info strong { color: var(--lime); }
+    .pp-btn-primary {
+      background: var(--lime); color: #0E1726;
+      border: none; padding: 10px 22px;
+      border-radius: 9999px; font-weight: 800; font-size: 0.85rem;
+      transition: filter 0.2s;
+    }
+    .pp-btn-primary:hover { filter: brightness(1.1); }
+    .pp-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pp-btn-ghost {
+      background: transparent; color: var(--gray-2);
+      border: 1px solid var(--line);
+      padding: 10px 18px; border-radius: 9999px;
+      font-size: 0.82rem; font-weight: 600;
+    }
+
+    /* Comparacao lado a lado */
+    .pp-compare-panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    .pp-compare-panel h3 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1rem; margin-bottom: 16px;
+      color: var(--lime);
+    }
+    .pp-compare-table {
+      display: grid;
+      gap: 1px;
+      min-width: 500px;
+    }
+    .pp-cmp-row {
+      display: grid;
+      gap: 1px;
+    }
+    .pp-cmp-cell {
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      background: rgba(14,23,38,0.5);
+    }
+    .pp-cmp-label {
+      color: var(--gray-2);
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    .pp-cmp-header {
+      background: rgba(52,101,164,0.15);
+      font-weight: 700;
+      font-size: 0.88rem;
+      text-align: center;
+    }
+
+    /* Fontes */
+    .pp-sources {
+      background: rgba(52,101,164,0.08);
+      border: 1px solid rgba(52,101,164,0.2);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-top: 24px;
+    }
+    .pp-sources h3 { font-size: 0.9rem; margin-bottom: 12px; color: var(--gray-2); }
+
+    /* Toast */
+    #pp-toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 12px 20px;
+      background: var(--card);
+      border: 1px solid var(--lime);
+      border-radius: var(--radius-sm);
+      color: var(--lime);
+      font-size: 0.88rem; font-weight: 600;
+      z-index: 1000;
+      transform: translateY(120%);
+      transition: transform 0.3s ease;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    #pp-toast.show { transform: translateY(0); }
+    #pp-toast.error { border-color: #ff8a8a; color: #ff8a8a; }
+
+    /* Empty state */
+    .pp-empty {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--gray-2);
+    }
+    .pp-empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .pp-empty h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--gray-3); }
+    .pp-empty p { font-size: 0.88rem; }
+
+    /* Loading */
+    .pp-loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--gray-2);
+      font-size: 0.9rem;
+    }
+
+    /* ---- MODAL DE DETALHES DO POLITICO ---- */
+    .pp-modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .pp-modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .pp-modal {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      width: 100%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+      animation: ppSlideUp 0.3s ease;
+    }
+    @keyframes ppSlideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .pp-modal-header {
+      position: sticky; top: 0;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      padding: 20px 24px;
+      display: flex; align-items: flex-start; gap: 16px;
+      z-index: 1;
+    }
+    .pp-modal-close {
+      position: absolute; top: 16px; right: 16px;
+      background: rgba(90,107,126,0.2);
+      border: none; color: var(--gray-2);
+      font-size: 1.4rem; width: 36px; height: 36px;
+      border-radius: 50%; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .pp-modal-close:hover { background: rgba(90,107,126,0.4); color: #fff; }
+    .pp-modal-avatar {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.6rem; flex-shrink: 0;
+      overflow: hidden;
+    }
+    .pp-modal-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .pp-modal-info { flex: 1; min-width: 0; }
+    .pp-modal-name {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.25rem; font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .pp-modal-sub { color: var(--gray-2); font-size: 0.85rem; margin-bottom: 8px; }
+    .pp-modal-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .pp-modal-body { padding: 20px 24px 28px; }
+
+    /* Tabs dentro do modal */
+    .pp-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
+    .pp-tab {
+      padding: 9px 16px;
+      background: transparent; border: none;
+      color: var(--gray-2); font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.2s;
+    }
+    .pp-tab:hover { color: var(--gray-3); }
+    .pp-tab.active { color: var(--lime); border-bottom-color: var(--lime); }
+
+    /* Grid de ficha */
+    .pp-ficha-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .pp-ficha-cell {
+      background: rgba(14,23,38,0.6);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+    }
+    .pp-ficha-label { font-size: 0.72rem; color: var(--gray); margin-bottom: 4px; }
+    .pp-ficha-value { font-size: 0.92rem; font-weight: 700; color: var(--gray-3); }
+    .pp-ficha-value.green { color: #5fdf8a; }
+    .pp-ficha-value.red { color: #ff8a8a; }
+
+    /* Lista de reclamações */
+    .pp-complain-item {
+      background: rgba(14,23,38,0.5);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .pp-complain-head {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 8px;
+    }
+    .pp-complain-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .pp-complain-meta { font-size: 0.75rem; color: var(--gray); flex: 1; }
+    .pp-complain-badge {
+      font-size: 0.65rem; padding: 2px 6px;
+      border-radius: 9999px; font-weight: 600;
+    }
+    .pp-complain-badge.verified { background: rgba(0,151,57,0.2); color: #5fdf8a; }
+    .pp-complain-badge.plain { background: rgba(90,107,126,0.2); color: var(--gray-2); }
+    .pp-complain-text { font-size: 0.88rem; color: var(--gray-3); margin-bottom: 8px; line-height: 1.5; }
+    .pp-complain-response {
+      background: rgba(52,101,164,0.1);
+      border-left: 3px solid var(--blue);
+      padding: 8px 12px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: 0.82rem; color: var(--gray-2);
+      margin-top: 8px;
+    }
+    .pp-complain-response strong { color: var(--blue); }
+    .pp-complain-actions {
+      display: flex; gap: 10px; align-items: center;
+      font-size: 0.78rem; color: var(--gray);
+    }
+    .pp-complain-actions button {
+      background: transparent; border: none;
+      color: var(--gray-2); font-size: 0.78rem; padding: 0;
+      cursor: pointer; transition: color 0.2s;
+    }
+    .pp-complain-actions button:hover { color: var(--lime); }
+    .pp-view-all {
+      text-align: center;
+      margin-top: 16px;
+    }
+    .pp-view-all-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--blue); font-size: 0.85rem; font-weight: 600;
+      cursor: pointer;
+    }
+    .pp-view-all-link:hover { color: #7aa8d8; text-decoration: underline; }
+
+    /* Botoes de acao */
+    .pp-modal-actions {
+      display: flex; gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .pp-btn-reclamar {
+      background: rgba(255,80,80,0.15);
+      border: 1px solid rgba(255,80,80,0.3);
+      color: #ff8a8a;
+      padding: 10px 18px; border-radius: var(--radius-sm);
+      font-size: 0.82rem; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .pp-btn-reclamar:hover { background: rgba(255,80,80,0.25); }
+    .pp-btn-apoiar {
+      background: rgba(0,151,57,0.15);
+      border: 1px solid rgba(0,151,57,0.3);
+      color: #5fdf8a;
+      padding: 10px 18px; border-radius: var(--radius-sm);
+      font-size: 0.82rem; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .pp-btn-apoiar:hover { background: rgba(0,151,57,0.25); }
+
+    /* ---- MODAL DE RECLAMACAO/APOIO ---- */
+    .pp-reclame-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(6px);
+      z-index: 300;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .pp-reclame-overlay.open { opacity: 1; pointer-events: all; }
+    .pp-reclame-modal {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      width: 100%; max-width: 560px;
+      padding: 28px;
+      animation: ppSlideUp 0.3s ease;
+    }
+    .pp-reclame-modal h2 { font-family: 'Montserrat', sans-serif; font-size: 1.1rem; margin-bottom: 20px; }
+    .pp-reclame-form { display: flex; flex-direction: column; gap: 16px; }
+    .pp-reclame-form label {
+      display: flex; flex-direction: column; gap: 6px;
+      font-size: 0.82rem; font-weight: 600; color: var(--gray-2);
+    }
+    .pp-reclame-form input,
+    .pp-reclame-form select,
+    .pp-reclame-form textarea {
+      background: rgba(14,23,38,0.8);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 0.9rem; font-family: 'Manrope', sans-serif;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .pp-reclame-form input:focus,
+    .pp-reclame-form select:focus,
+    .pp-reclame-form textarea:focus { border-color: var(--blue); }
+    .pp-reclame-form textarea { resize: vertical; min-height: 110px; }
+    .pp-reclame-form select option { background: var(--card); }
+    .pp-reclame-row {
+      display: flex; gap: 10px; justify-content: flex-end;
+    }
+    .pp-btn-send {
+      background: var(--lime); color: #0E1726;
+      border: none; padding: 11px 24px;
+      border-radius: var(--radius-sm);
+      font-weight: 800; font-size: 0.88rem;
+      transition: filter 0.2s;
+    }
+    .pp-btn-send:hover { filter: brightness(1.1); }
+    .pp-btn-cancel {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--gray-2);
+      padding: 11px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+    }
+
+    /* Ver todas as reclamacoes */
+    .pp-all-recl-list { margin-top: 12px; }
+    .pp-back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--blue); font-size: 0.85rem;
+      cursor: pointer; margin-bottom: 16px;
+    }
+    .pp-back-link:hover { color: #7aa8d8; }
+
+    /* Fontes oficiais no modal */
+    .pp-sources-table { margin-top: 16px; }
+    .pp-src-row {
+      display: grid; grid-template-columns: 140px 1fr 200px;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(90,107,126,0.15);
+      font-size: 0.82rem;
+    }
+    .pp-src-row:last-child { border-bottom: none; }
+    .pp-src-head { color: var(--gray); font-weight: 600; font-size: 0.75rem; }
+    .pp-src-row a { color: var(--blue); }
+    .pp-src-row a:hover { text-decoration: underline; }
+
+    /* Loading spinner no modal */
+    .pp-modal-spinner {
+      text-align: center;
+      padding: 40px;
+      color: var(--gray-2);
+    }
+
+    @media (max-width: 600px) {
+      .pp-grid { grid-template-columns: 1fr; }
+      .pp-ficha-grid { grid-template-columns: repeat(2, 1fr); }
+      .pp-modal-header { padding: 16px; }
+      .pp-modal-body { padding: 16px; }
+      .pp-src-row { grid-template-columns: 1fr; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ================================================================
+     HEADER COMPARTILHADO
+     ================================================================ -->
+
+<main class="pp-container" style="padding-top: 32px;">
+
+  <!-- ================================================================
+       HERO
+       ================================================================ -->
+  <div class="pp-hero">
+    <h1>🔍 Pesquisar Políticos</h1>
+    <p>Digite nome, número, estado, partido ou área de atuação. Compare candidatos, veja reclamações, respostas e fontes públicas.</p>
+
+    <!-- Barra de busca -->
+    <div class="pp-search-wrap">
+      <span class="pp-search-icon">🔎</span>
+      <input type="search" id="pp-search" class="pp-search-input"
+        placeholder="Buscar por nome, número, estado, partido, área…"
+        autocomplete="off">
+    </div>
+
+    <!-- Filtros -->
+    <div class="pp-filters">
+      <select id="pp-filter-cargo" class="pp-filter-select">
+        <option value="">Todos os cargos</option>
+        <option value="Deputado Federal">Deputado Federal</option>
+        <option value="Deputado Estadual">Deputado Estadual</option>
+        <option value="Senador">Senador</option>
+        <option value="Governador">Governador</option>
+        <option value="Prefeito">Prefeito</option>
+        <option value="Vereador">Vereador</option>
+      </select>
+      <select id="pp-filter-uf" class="pp-filter-select">
+        <option value="">Todos os estados</option>
+      </select>
+      <select id="pp-filter-partido" class="pp-filter-select">
+        <option value="">Todos os partidos</option>
+      </select>
+      <select id="pp-filter-sort" class="pp-filter-select">
+        <option value="integrity">Índice de Integridade</option>
+        <option value="name">Nome (A–Z)</option>
+        <option value="party">Partido</option>
+        <option value="transparency">Transparência</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       RESULTADOS
+       ================================================================ -->
+  <div class="pp-result-info">
+    <span class="pp-result-count">
+      <strong id="pp-count">0</strong> político(s) encontrado(s)
+    </span>
+  </div>
+
+  <!-- Barra de comparacao -->
+  <div id="pp-compare-bar" class="pp-compare-bar" style="display:none;">
+    <div class="pp-compare-bar-info">
+      Comparando <strong id="pp-compare-n">0</strong>/3 políticos
+    </div>
+    <button class="pp-btn-ghost" id="pp-compare-clear">Limpar</button>
+    <button class="pp-btn-primary" id="pp-compare-btn" disabled>Comparar lado a lado</button>
+  </div>
+
+  <!-- Grid -->
+  <div class="pp-grid" id="pp-grid">
+    <div class="pp-loading" id="pp-loading">⏳ Carregando políticos…</div>
+  </div>
+
+  <!-- Comparacao panel -->
+  <div id="pp-compare-panel"></div>
+
+</main>
+
+<!-- ================================================================
+     TOAST
+     ================================================================ -->
+<div id="pp-toast"></div>
+
+<!-- ================================================================
+     MODAL DE DETALHES DO POLITICO
+     ================================================================ -->
+<div class="pp-modal-overlay" id="pp-detail-overlay">
+  <div class="pp-modal" id="pp-detail-modal">
+    <button class="pp-modal-close" id="pp-detail-close">×</button>
+    <div id="pp-detail-content">
+      <div class="pp-modal-spinner">⏳ Carregando…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
+     MODAL DE RECLAMACAO / APOIO
+     ================================================================ -->
+<div class="pp-reclame-overlay" id="pp-reclame-overlay">
+  <div class="pp-reclame-modal">
+    <h2 id="pp-reclame-title">📝 Fazer reclamação</h2>
+    <form class="pp-reclame-form" id="pp-reclame-form">
+      <label>
+        Político
+        <select id="pp-reclame-politico" required>
+          <option value="">Selecione um político…</option>
+        </select>
+      </label>
+      <label>
+        Título
+        <input type="text" id="pp-reclame-titulo"
+          placeholder="Resumo breve do problema (máx. 120 caracteres)"
+          maxlength="120" required>
+      </label>
+      <label>
+        Descrição
+        <textarea id="pp-reclame-texto"
+          placeholder="Descreva o problema, anexe links de notícias, vídeos ou promessas de campanha. Ou mande um elogio e apoio."
+          required></textarea>
+      </label>
+      <div class="pp-reclame-row">
+        <button type="button" class="pp-btn-cancel" id="pp-reclame-cancel">Cancelar</button>
+        <button type="submit" class="pp-btn-send">✈️ Enviar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================================================================
+     SCRIPTS
+     ================================================================ -->
+<script src="../js/parlamentar-auth.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     UTILS
+     ============================================================ */
+  const $ = (s, p) => (p || document).querySelector(s);
+  const $$ = (s, p) => Array.from((p || document).querySelectorAll(s));
+  const esc = s => String(s || '').replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function session() {
+    try { return JSON.parse(localStorage.getItem('mudabrasil.session') || 'null'); }
+    catch (_) { return null; }
+  }
+
+  function toast(msg, type) {
+    const t = $('#pp-toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.className = 'pp-toast show' + (type === 'error' ? ' error' : '');
+    clearTimeout(t._t);
+    t._t = setTimeout(() => { t.className = 'pp-toast'; }, 3500);
+  }
+
+  function getInitials(name) {
+    if (!name) return '??';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  function hashColor(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+    const hue = Math.abs(h) % 360;
+    return `hsl(${hue},55%,35%)`;
+  }
+
+  function avatarHTML(name, photo) {
+    if (photo) return `<img src="${esc(photo)}" alt="" onerror="this.style.display='none';this.parentNode.textContent='${getInitials(name)}'">`;
+    return getInitials(name);
+  }
+
+  function timeAgo(ts) {
+    if (!ts) return 'agora';
+    const d = new Date(ts);
+    const s = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (s < 60) return 'agora';
+    if (s < 3600) return Math.floor(s / 60) + 'm atrás';
+    if (s < 86400) return Math.floor(s / 3600) + 'h atrás';
+    if (s < 2592000) return Math.floor(s / 86400) + 'd atrás';
+    return d.toLocaleDateString('pt-BR');
+  }
+
+  /* ============================================================
+     STATE
+     ============================================================ */
+  const state = {
+    all: [],
+    filtered: [],
+    compare: new Set(),
+    currentDetailId: null,
+    detailTab: 'reclamacoes',
+    reclameType: 'reclamacao', // 'reclamacao' | 'apoio'
+  };
+
+  /* ============================================================
+     FALLBACK DATA (para GitHub Pages estático)
+     ============================================================ */
+  const FALLBACK = [
+    {id:'maria-silva',    name:'Maria Silva',    position:'Deputada Federal', party:'PT',  state:'SP', focusArea:'Meio Ambiente',    integrityIndex:87, transparencyScore:92, lawsuits:0, attendanceRate:96, assets:'R$ 1.2M',  photo:'', number:1314, age:48, education:'Doutorado', termCount:2, billsAuthored:47, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'},portalTransparencia:{name:'Portal da Transparência',data:'Gastos e patrimônio',link:'https://portaldatransparencia.gov.br/'},camaraSenado:{name:'Câmara dos Deputados',data:'Proposituras e votações',link:'https://www.camara.leg.br/deputados/quem-e-quem/'}}},
+    {id:'carlos-souza',   name:'Carlos Souza',   position:'Deputado Federal', party:'MDB', state:'RJ', focusArea:'Economia',         integrityIndex:78, transparencyScore:85, lawsuits:1, attendanceRate:88, assets:'R$ 2.8M',  photo:'', number:1515, age:55, education:'Mestrado',  termCount:3, billsAuthored:31, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'},camaraSenado:{name:'Câmara dos Deputados',data:'Proposituras e votações',link:'https://www.camara.leg.br/deputados/quem-e-quem/'}}},
+    {id:'ana-beatriz',    name:'Ana Beatriz',    position:'Senadora',          party:'PSOL',state:'BA', focusArea:'Educação',         integrityIndex:74, transparencyScore:80, lawsuits:0, attendanceRate:92, assets:'R$ 980k',  photo:'', number:502, age:41, education:'Doutorado', termCount:1, billsAuthored:18, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'},camaraSenado:{name:'Senado Federal',data:'Proposituras e votações',link:'https://www25.senado.leg.br/web/senadores/'}}},
+    {id:'joao-pereira',   name:'João Pereira',   position:'Deputado Estadual',party:'PL',  state:'MG', focusArea:'Segurança',        integrityIndex:68, transparencyScore:72, lawsuits:2, attendanceRate:81, assets:'R$ 1.5M',  photo:'', number:3333, age:50, education:'Graduação', termCount:2, billsAuthored:22, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'}}},
+    {id:'patricia-lima',  name:'Patrícia Lima',  position:'Governadora',      party:'PSD', state:'RS', focusArea:'Saúde',           integrityIndex:65, transparencyScore:70, lawsuits:1, attendanceRate:89, assets:'R$ 750k',  photo:'', number:55,   age:44, education:'Mestrado',  termCount:1, billsAuthored:12, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'}}},
+    {id:'roberto-alves',  name:'Roberto Alves',  position:'Vereador',         party:'NOVO',state:'PR', focusArea:'Transparência',   integrityIndex:61, transparencyScore:78, lawsuits:0, attendanceRate:84, assets:'R$ 420k',  photo:'', number:101,  age:38, education:'Graduação', termCount:1, billsAuthored:8,  sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'}}},
+    {id:'juliana-costa',  name:'Juliana Costa',  position:'Deputada Federal', party:'REDE',state:'SP', focusArea:'Sustentabilidade', integrityIndex:58, transparencyScore:75, lawsuits:0, attendanceRate:91, assets:'R$ 1.1M',  photo:'', number:1818, age:36, education:'Doutorado', termCount:1, billsAuthored:15, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'},camaraSenado:{name:'Câmara dos Deputados',data:'Proposituras e votações',link:'https://www.camara.leg.br/deputados/quem-e-quem/'}}},
+    {id:'felipe-santos',  name:'Felipe Santos',  position:'Senador',          party:'PP',  state:'MG', focusArea:'Infraestrutura',   integrityIndex:54, transparencyScore:62, lawsuits:3, attendanceRate:79, assets:'R$ 3.2M',  photo:'', number:111,  age:62, education:'Graduação', termCount:2, billsAuthored:40, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'},camaraSenado:{name:'Senado Federal',data:'Proposituras e votações',link:'https://www25.senado.leg.br/web/senadores/'}}},
+    {id:'camila-rocha',   name:'Camila Rocha',   position:'Deputada Estadual',party:'PSB', state:'RJ', focusArea:'Cultura',          integrityIndex:51, transparencyScore:68, lawsuits:0, attendanceRate:86, assets:'R$ 680k',  photo:'', number:4411, age:33, education:'Mestrado',  termCount:1, billsAuthored:9,  sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'}}},
+    {id:'renato-vieira',  name:'Renato Vieira',  position:'Deputado Federal', party:'PTB', state:'SP', focusArea:'Trabalho',         integrityIndex:42, transparencyScore:55, lawsuits:5, attendanceRate:72, assets:'R$ 2.1M',  photo:'', number:1414, age:59, education:'Graduação', termCount:4, billsAuthored:63, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'},camaraSenado:{name:'Câmara dos Deputados',data:'Proposituras e votações',link:'https://www.camara.leg.br/deputados/quem-e-quem/'}}},
+    {id:'beatriz-mendes', name:'Beatriz Mendes', position:'Deputada Federal', party:'PDT', state:'RS', focusArea:'Direitos Humanos', integrityIndex:71, transparencyScore:82, lawsuits:0, attendanceRate:90, assets:'R$ 1.4M',  photo:'', number:1212, age:45, education:'Doutorado', termCount:2, billsAuthored:28, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'},camaraSenado:{name:'Câmara dos Deputados',data:'Proposituras e votações',link:'https://www.camara.leg.br/deputados/quem-e-quem/'}}},
+    {id:'marcos-vieira',  name:'Marcos Vieira',  position:'Senador',          party:'MDB', state:'BA', focusArea:'Agricultura',      integrityIndex:66, transparencyScore:74, lawsuits:1, attendanceRate:85, assets:'R$ 2.4M',  photo:'', number:333,  age:58, education:'Graduação', termCount:3, billsAuthored:55, sources:{tse:{name:'TSE',data:'Divulgacão de candidaturas',link:'https://divulgacand.tse.jus.br/'},camaraSenado:{name:'Senado Federal',data:'Proposituras e votações',link:'https://www25.senado.leg.br/web/senadores/'}}},
+  ];
+
+  /* ============================================================
+     LOAD DATA
+     ============================================================ */
+  async function loadPoliticians() {
+    const loading = $('#pp-loading');
+    if (loading) loading.textContent = '⏳ Carregando políticos…';
+    try {
+      const r = await fetch('/api/candidatos');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      state.all = (d.candidatos && d.candidatos.length) ? d.candidatos : FALLBACK;
+    } catch (e) {
+      state.all = FALLBACK;
+    }
+    populateFilters();
+    applyFilters();
+  }
+
+  function populateFilters() {
+    const states = new Set(), parties = new Set();
+    state.all.forEach(p => {
+      if (p.state) states.add(p.state);
+      if (p.party) parties.add(p.party);
+    });
+    const ufSel = $('#pp-filter-uf');
+    const partySel = $('#pp-filter-partido');
+    if (ufSel) Array.from(states).sort().forEach(s => {
+      const o = document.createElement('option');
+      o.value = s; o.textContent = s; ufSel.appendChild(o);
+    });
+    if (partySel) Array.from(parties).sort().forEach(p => {
+      const o = document.createElement('option');
+      o.value = p; o.textContent = p; partySel.appendChild(o);
+    });
+    // Preenche select no modal de reclamação
+    const reclameSel = $('#pp-reclame-politico');
+    if (reclameSel) state.all.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id; o.textContent = `${p.name} (${p.party} · ${p.state})`;
+      reclameSel.appendChild(o);
+    });
+  }
+
+  /* ============================================================
+     FILTERS
+     ============================================================ */
+  function applyFilters() {
+    const q = ($('#pp-search').value || '').toLowerCase().trim();
+    const cargo = $('#pp-filter-cargo').value;
+    const uf = $('#pp-filter-uf').value;
+    const partido = $('#pp-filter-partido').value;
+    const sort = $('#pp-filter-sort').value;
+
+    let list = state.all.filter(p => {
+      if (q) {
+        const hay = [
+          p.name, p.party, p.state, p.focusArea,
+          p.position, p.number, p.id
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (cargo && p.position !== cargo) return false;
+      if (uf && p.state !== uf) return false;
+      if (partido && p.party !== partido) return false;
+      return true;
+    });
+
+    if (sort === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    else if (sort === 'party') list.sort((a, b) => (a.party || '').localeCompare(b.party || ''));
+    else if (sort === 'transparency') list.sort((a, b) => (b.transparencyScore || 0) - (a.transparencyScore || 0));
+    else list.sort((a, b) => (b.integrityIndex || 0) - (a.integrityIndex || 0));
+
+    state.filtered = list.slice(0, 60);
+    $('#pp-count').textContent = state.filtered.length;
+    renderGrid();
+  }
+
+  /* ============================================================
+     RENDER GRID
+     ============================================================ */
+  function renderGrid() {
+    const grid = $('#pp-grid');
+    if (!state.filtered.length) {
+      grid.innerHTML = `
+        <div class="pp-empty">
+          <div class="pp-empty-icon">🔍</div>
+          <h3>Nenhum político encontrado</h3>
+          <p>Tente ajustar os filtros ou buscar por outro termo.</p>
+        </div>`;
+      return;
+    }
+    grid.innerHTML = state.filtered.map(p => {
+      const integrity = p.integrityIndex != null ? p.integrityIndex : 100;
+      const processes = p.lawsuits || 0;
+      const isCompare = state.compare.has(p.id);
+      const avatarBg = hashColor(p.name);
+      return `
+      <article class="pp-card" data-id="${esc(p.id)}">
+        <div class="pp-card-head">
+          <div class="pp-avatar" style="background:${avatarBg};color:#fff;">
+            ${avatarHTML(p.name, p.photo)}
+          </div>
+          <div class="pp-card-meta">
+            <div class="pp-card-name">${esc(p.name)}</div>
+            <div class="pp-card-sub">${esc(p.party || '')} · ${esc(p.state || '')} · ${esc(p.position || '')}</div>
+          </div>
+        </div>
+        <div class="pp-card-badges">
+          <span class="pp-badge pp-badge-num">#${p.number || '—'}</span>
+          ${processes === 0
+            ? '<span class="pp-badge pp-badge-clean">✅ Sem processos</span>'
+            : `<span class="pp-badge pp-badge-warn">⚠️ ${processes} processo(s)</span>`}
+        </div>
+        <div class="pp-integrity">
+          <div class="pp-integrity-label">
+            <span>Índice de Integridade</span>
+            <span class="pp-integrity-value">${integrity}</span>
+          </div>
+          <div class="pp-integrity-bar">
+            <div class="pp-integrity-fill" style="width:${Math.max(integrity, 5)}%"></div>
+          </div>
+        </div>
+        <div class="pp-card-actions">
+          <button class="pp-btn-detail" data-open="${esc(p.id)}">VER DETALHES</button>
+          <button class="pp-btn-compare ${isCompare ? 'active' : ''}" data-compare="${esc(p.id)}" title="Selecionar para comparar">
+            ${isCompare ? '✓' : '⚖'}
+          </button>
+        </div>
+      </article>`;
+    }).join('');
+
+    // Eventos
+    grid.querySelectorAll('[data-open]').forEach(btn => {
+      btn.addEventListener('click', () => openDetail(btn.dataset.open));
+    });
+    grid.querySelectorAll('[data-compare]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        toggleCompare(btn.dataset.compare);
+      });
+    });
+  }
+
+  /* ============================================================
+     COMPARE
+     ============================================================ */
+  function toggleCompare(id) {
+    if (state.compare.has(id)) {
+      state.compare.delete(id);
+    } else if (state.compare.size < 3) {
+      state.compare.add(id);
+    } else {
+      toast('Máximo de 3 políticos para comparar', 'error');
+      return;
+    }
+    const bar = $('#pp-compare-bar');
+    if (state.compare.size > 0) {
+      bar.style.display = 'flex';
+    } else {
+      bar.style.display = 'none';
+    }
+    $('#pp-compare-n').textContent = state.compare.size;
+    $('#pp-compare-btn').disabled = state.compare.size < 2;
+    renderGrid();
+  }
+
+  function setupCompare() {
+    $('#pp-compare-clear').addEventListener('click', () => {
+      state.compare.clear();
+      $('#pp-compare-bar').style.display = 'none';
+      $('#pp-compare-panel').innerHTML = '';
+      renderGrid();
+    });
+    $('#pp-compare-btn').addEventListener('click', runCompare);
+  }
+
+  async function runCompare() {
+    const ids = Array.from(state.compare);
+    try {
+      const r = await fetch('/api/candidatos/comparar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+      const d = await r.json();
+      if (!d.ok) { toast(d.error || 'Erro ao comparar', 'error'); return; }
+      renderCompare(d.candidatos);
+    } catch (e) {
+      // Fallback local
+      const cands = state.all.filter(p => ids.includes(p.id));
+      renderCompare(cands);
+    }
+  }
+
+  function renderCompare(cands) {
+    const panel = $('#pp-compare-panel');
+    const fields = [
+      { key: 'name', label: 'Nome' },
+      { key: 'party', label: 'Partido' },
+      { key: 'state', label: 'UF' },
+      { key: 'position', label: 'Cargo' },
+      { key: 'education', label: 'Escolaridade' },
+      { key: 'billsAuthored', label: 'PLs Autorias' },
+      { key: 'attendanceRate', label: 'Presença' },
+      { key: 'transparencyScore', label: 'Transparência' },
+      { key: 'lawsuits', label: 'Processos' },
+      { key: 'integrityIndex', label: 'Índice Integridade' }
+    ];
+    const cols = cands.length;
+    const gridStyle = `grid-template-columns: 200px repeat(${cols}, 1fr)`;
+    let html = `<h3 style="font-family:'Montserrat',sans-serif;font-size:1rem;margin-bottom:16px;color:var(--lime);">📊 Comparação lado a lado</h3>`;
+    html += `<div class="pp-compare-table" style="${gridStyle}">`;
+    // Header
+    html += `<div class="pp-cmp-cell pp-cmp-header"></div>`;
+    cands.forEach(c => { html += `<div class="pp-cmp-cell pp-cmp-header">${esc(c.name || '')}</div>`; });
+    fields.forEach(f => {
+      html += `<div class="pp-cmp-cell pp-cmp-label">${f.label}</div>`;
+      cands.forEach(c => {
+        let val = c[f.key];
+        if (f.key === 'integrityIndex') val = `${val != null ? val : '—'} / 100`;
+        if (f.key === 'attendanceRate' && typeof val === 'number') val = val + '%';
+        if (f.key === 'transparencyScore' && typeof val === 'number') val = val + '/100';
+        html += `<div class="pp-cmp-cell"><strong>${esc(val != null ? String(val) : '—')}</strong></div>`;
+      });
+    });
+    html += '</div>';
+    panel.innerHTML = html;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  /* ============================================================
+     MODAL DE DETALHES
+     ============================================================ */
+  function openDetail(id) {
+    state.currentDetailId = id;
+    state.detailTab = 'reclamacoes';
+    const overlay = $('#pp-detail-overlay');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    $('#pp-detail-content').innerHTML = '<div class="pp-modal-spinner">⏳ Carregando…</div>';
+    loadDetail(id);
+  }
+
+  function closeDetail() {
+    $('#pp-detail-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+    state.currentDetailId = null;
+  }
+
+  async function loadDetail(id) {
+    // Primeiro mostra com dados locais + carrega detalhes da API
+    const local = state.all.find(p => p.id === id) || state.filtered.find(p => p.id === id);
+    if (local) renderDetail(local);
+
+    // Enrich com API
+    try {
+      const r = await fetch('/api/candidatos/detalhes/' + encodeURIComponent(id));
+      if (r.ok) {
+        const d = await r.json();
+        if (d.ok && d.candidato) renderDetail(d.candidato);
+      }
+    } catch (e) {
+      // ja mostrou fallback local
+    }
+
+    // Carrega reclamações/respostas/apoios em paralelo
+    loadDetailInteractions(id);
+  }
+
+  async function loadDetailInteractions(id) {
+    const tab = state.detailTab;
+    if (tab === 'reclamacoes') {
+      loadComplaints(id);
+    }
+  }
+
+  async function loadComplaints(id) {
+    try {
+      const r = await fetch('/api/reclamacoes?politicianId=' + encodeURIComponent(id) + '&limit=20');
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      renderDetailComplaints(d.complaints || []);
+    } catch (e) {
+      renderDetailComplaints([]);
+    }
+  }
+
+  function renderDetailComplaints(complaints) {
+    const list = $('#pp-detail-complaints-list');
+    if (!list) return;
+    if (!complaints.length) {
+      list.innerHTML = '<p style="color:var(--gray-2);font-size:0.88rem;padding:16px 0;">Nenhuma reclamação ainda. Seja o primeiro!</p>';
+      return;
+    }
+    list.innerHTML = complaints.map(c => {
+      const initials = getInitials(c.politicianName || 'Político');
+      const voterLabel = c.voterHash
+        ? 'Eleitor #' + c.voterHash.slice(-6).toUpperCase()
+        : 'Eleitor anônimo';
+      return `
+      <div class="pp-complain-item">
+        <div class="pp-complain-head">
+          <div class="pp-complain-avatar" style="background:${hashColor(c.politicianName || 'X')};color:#fff;">
+            ${initials}
+          </div>
+          <div class="pp-complain-meta">
+            <strong>${esc(voterLabel)}</strong> · ${timeAgo(c.createdAt)}
+          </div>
+          ${c.verified
+            ? '<span class="pp-complain-badge verified">✔️ Verificado</span>'
+            : '<span class="pp-complain-badge plain">Cidadão</span>'}
+        </div>
+        <div class="pp-complain-text">${esc(c.content || '')}</div>
+        ${c.response ? `
+        <div class="pp-complain-response">
+          <strong>↪️ Resposta do político:</strong> ${esc(c.response)}
+        </div>` : ''}
+        <div class="pp-complain-actions">
+          <button>👍 Gostei (${Math.floor(Math.random() * 30)})</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderDetail(p) {
+    const initials = getInitials(p.name);
+    const avatarBg = hashColor(p.name);
+    const integrity = p.integrityIndex != null ? p.integrityIndex : 0;
+    const processes = p.lawsuits || 0;
+
+    // Fontes
+    const sources = p.sources || {};
+    const srcHTML = Object.values(sources).map(s =>
+      `<div class="pp-src-row">
+        <div><strong>${esc(s.name || '')}</strong></div>
+        <div style="color:var(--gray-2);font-size:0.78rem;">${esc(s.data || '')}</div>
+        <div><a href="${esc(s.link || '#')}" target="_blank" rel="noopener">${esc((s.link || '').replace(/^https?:\/\//, '').slice(0, 40))}</a></div>
+      </div>`
+    ).join('');
+
+    // Stats (mock)
+    const totalReclamacoes = Math.floor(Math.random() * 20) + 1;
+    const totalRespostas = Math.floor(Math.random() * 8);
+    const totalApoios = Math.floor(Math.random() * 30) + 1;
+
+    $('#pp-detail-content').innerHTML = `
+      <!-- HEADER -->
+      <div class="pp-modal-header">
+        <div class="pp-modal-avatar" style="background:${avatarBg};color:#fff;">
+          ${avatarHTML(p.name, p.photo)}
+        </div>
+        <div class="pp-modal-info">
+          <div class="pp-modal-name">${esc(p.name)}</div>
+          <div class="pp-modal-sub">${esc(p.party || '')} · ${esc(p.state || '')} · ${esc(p.position || '')}</div>
+          <div class="pp-modal-badges">
+            <span class="pp-badge pp-badge-num">#${p.number || '—'}</span>
+            ${integrity >= 70
+              ? `<span class="pp-badge pp-badge-clean">Integridade ${integrity}/100</span>`
+              : `<span class="pp-badge pp-badge-warn">Integridade ${integrity}/100</span>`}
+          </div>
+        </div>
+      </div>
+
+      <!-- BODY -->
+      <div class="pp-modal-body">
+        <!-- FICHA -->
+        <div class="pp-ficha-grid">
+          <div class="pp-ficha-cell">
+            <div class="pp-ficha-label">Idade</div>
+            <div class="pp-ficha-value">${p.age || '—'}</div>
+          </div>
+          <div class="pp-ficha-cell">
+            <div class="pp-ficha-label">Escolaridade</div>
+            <div class="pp-ficha-value">${esc(p.education || '—')}</div>
+          </div>
+          <div class="pp-ficha-cell">
+            <div class="pp-ficha-label">Mandatos</div>
+            <div class="pp-ficha-value">${p.termCount || 1}</div>
+          </div>
+          <div class="pp-ficha-cell">
+            <div class="pp-ficha-label">PLs Autorias</div>
+            <div class="pp-ficha-value">${p.billsAuthored || 0}</div>
+          </div>
+          <div class="pp-ficha-cell">
+            <div class="pp-ficha-label">Presença</div>
+            <div class="pp-ficha-value ${(p.attendanceRate || 0) >= 80 ? 'green' : ''}">${p.attendanceRate || '—'}%</div>
+          </div>
+          <div class="pp-ficha-cell">
+            <div class="pp-ficha-label">Processos</div>
+            <div class="pp-ficha-value ${processes === 0 ? 'green' : 'red'}">${processes}</div>
+          </div>
+          <div class="pp-ficha-cell">
+            <div class="pp-ficha-label">Patrimônio</div>
+            <div class="pp-ficha-value">${esc(p.assets || '—')}</div>
+          </div>
+          <div class="pp-ficha-cell">
+            <div class="pp-ficha-label">Área de Atuação</div>
+            <div class="pp-ficha-value" style="font-size:0.8rem;">${esc(p.focusArea || '—')}</div>
+          </div>
+        </div>
+
+        <!-- TABS: Recentes -->
+        <div class="pp-tabs">
+          <button class="pp-tab active" data-dtab="reclamacoes">
+            Reclamações (${totalReclamacoes})
+          </button>
+          <button class="pp-tab" data-dtab="respostas">
+            Respostas (${totalRespostas})
+          </button>
+          <button class="pp-tab" data-dtab="apoios">
+            Apoios (${totalApoios})
+          </button>
+        </div>
+
+        <!-- TAB: RECLAMAÇÕES -->
+        <div id="pp-tab-reclamacoes">
+          <div id="pp-detail-complaints-list">
+            <p style="color:var(--gray-2);font-size:0.88rem;">⏳ Carregando…</p>
+          </div>
+          <div class="pp-view-all">
+            <span class="pp-view-all-link" data-viewall="${esc(p.id)}">
+              Ver todas as reclamações →
+            </span>
+          </div>
+        </div>
+
+        <!-- TAB: RESPOSTAS -->
+        <div id="pp-tab-respostas" style="display:none;">
+          <p style="color:var(--gray-2);font-size:0.88rem;padding:16px 0;">
+            ${totalRespostas === 0
+              ? 'Este político ainda não respondeu a nenhuma reclamação.'
+              : totalRespostas + ' resposta(s) registrada(s).'}
+          </p>
+        </div>
+
+        <!-- TAB: APOIOS -->
+        <div id="pp-tab-apoios" style="display:none;">
+          <p style="color:var(--gray-2);font-size:0.88rem;padding:16px 0;">
+            ${totalApoios} apoio(s) positivo(s).
+          </p>
+        </div>
+
+        <!-- FONTES -->
+        ${srcHTML ? `
+        <div class="pp-sources">
+          <h3>🔎 Fontes oficiais</h3>
+          <div class="pp-sources-table">
+            <div class="pp-src-row pp-src-head">
+              <div>Fonte</div><div>Dados</div><div>Link</div>
+            </div>
+            ${srcHTML}
+          </div>
+          <p style="font-size:0.72rem;color:var(--gray);margin-top:10px;">
+            ⚙️ Dados extraídos de fontes públicas oficiais. Em produção, sincronizados a cada 24h via APIs.
+          </p>
+        </div>` : ''}
+
+        <!-- BOTOES DE ACAO -->
+        <div class="pp-modal-actions">
+          <button class="pp-btn-reclamar" id="pp-btn-reclamar">
+            📝 Fazer reclamação
+          </button>
+          <button class="pp-btn-apoiar" id="pp-btn-apoiar">
+            👍 Dar apoio
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Tab switching
+    $$('.pp-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $$('.pp-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.dtab;
+        ['reclamacoes', 'respostas', 'apoios'].forEach(t => {
+          const el = document.getElementById('pp-tab-' + t);
+          if (el) el.style.display = t === tab ? 'block' : 'none';
+        });
+        state.detailTab = tab;
+        loadDetailInteractions(state.currentDetailId);
+      });
+    });
+
+    // Ver todas as reclamações
+    $('[data-viewall]')?.addEventListener('click', () => {
+      const id = $('[data-viewall]').dataset.viewall;
+      const name = state.all.find(p => p.id === id)?.name || 'Político';
+      toast('📋 Link: todas as reclamações de ' + name + ' — em construção', '');
+    });
+
+    // Fazer reclamação
+    $('#pp-btn-reclamar')?.addEventListener('click', () => {
+      openReclame('reclamacao', p.id);
+    });
+
+    // Dar apoio
+    $('#pp-btn-apoiar')?.addEventListener('click', () => {
+      openReclame('apoio', p.id);
+    });
+  }
+
+  /* ============================================================
+     MODAL DE RECLAMAÇÃO / APOIO
+     ============================================================ */
+  function openReclame(type, politicianId) {
+    // Requer login
+    if (!session()) {
+      if (window.MBAuth) window.MBAuth.openModal();
+      else if (window.mbAbrirModal) window.mbAbrirModal('login');
+      toast('Faça login para enviar ' + (type === 'reclamacao' ? 'uma reclamação' : 'um apoio'), 'error');
+      return;
+    }
+    state.reclameType = type;
+    const sel = $('#pp-reclame-politico');
+    if (politicianId && sel) sel.value = politicianId;
+    $('#pp-reclame-titulo').value = '';
+    $('#pp-reclame-texto').value = '';
+    $('#pp-reclame-title').textContent = type === 'reclamacao'
+      ? '📝 Fazer reclamação'
+      : '👍 Dar apoio';
+    $('#pp-reclame-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeReclame() {
+    $('#pp-reclame-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  async function submitReclame(e) {
+    e.preventDefault();
+    const sess = session();
+    if (!sess) {
+      toast('Faça login primeiro', 'error');
+      closeReclame();
+      if (window.MBAuth) window.MBAuth.openModal();
+      return;
+    }
+    const politicianId = $('#pp-reclame-politico').value;
+    const content = $('#pp-reclame-texto').value.trim();
+    const titulo = $('#pp-reclame-titulo').value.trim();
+    if (!politicianId || !content) {
+      toast('Preencha todos os campos', 'error');
+      return;
+    }
+    const fullContent = (titulo ? titulo + '\n\n' : '') + content;
+    const endpoint = state.reclameType === 'apoio' ? '/api/apoios' : '/api/reclamacoes';
+    try {
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ politicianId, content: fullContent, sessionToken: sess.sessionToken })
+      });
+      const d = await r.json();
+      if (d.ok || r.ok) {
+        toast(state.reclameType === 'reclamacao'
+          ? '✅ Reclamação enviada!'
+          : '✅ Apoio registrado!');
+        closeReclame();
+        // Recarrega complaints se modal de detalhes está aberto
+        if (state.currentDetailId) {
+          loadDetailInteractions(state.currentDetailId);
+        }
+      } else {
+        toast(d.error || 'Erro ao enviar', 'error');
+      }
+    } catch (e) {
+      toast('Erro de conexão', 'error');
+    }
+  }
+
+  /* ============================================================
+     INIT
+     ============================================================ */
+  document.addEventListener('DOMContentLoaded', () => {
+    // Filtros
+    ['pp-search', 'pp-filter-cargo', 'pp-filter-uf', 'pp-filter-partido', 'pp-filter-sort']
+      .forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', applyFilters);
+      });
+
+    // Comparar
+    setupCompare();
+
+    // Carrega dados
+    loadPoliticians();
+
+    // Modal de detalhes
+    $('#pp-detail-close').addEventListener('click', closeDetail);
+    $('#pp-detail-overlay').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeDetail();
+    });
+
+    // Modal de reclamação
+    $('#pp-reclame-cancel').addEventListener('click', closeReclame);
+    $('#pp-reclame-overlay').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeReclame();
+    });
+    $('#pp-reclame-form').addEventListener('submit', submitReclame);
+  });
+})();
+</script>
+</body>
+</html>
