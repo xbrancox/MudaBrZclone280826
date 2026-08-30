@@ -3,275 +3,788 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MudaBrasil - Voto Contínuo e Revogável</title>
-  <meta name="description" content="Plataforma cívica de voto contínuo e revogável com transparência total. Compare candidatos com dados públicos e participe da democracia.">
+  <title>MudaBrasil — Voto contínuo e revogável</title>
+  <meta name="description" content="Plataforma cívica de voto contínuo e revogável. Seu voto coloca, seu voto tira.">
   <link rel="stylesheet" href="css/design-system.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ===== Paleta oficial ===== */
+    :root{
+      --bg:#0E1726; --bg-2:#101D33; --card:#152339;
+      --blue:#3465A4; --blue-2:#4a7bc2;
+      --lime:#AECF00;
+      --green:#009739;
+      --orange:#ff8c00;
+      --gray:#5A6B7E; --gray-2:#94A3B8; --gray-3:#C6D0DD;
+      --line:rgba(90,107,126,0.28);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:'Manrope',sans-serif;
+      background:var(--bg);
+      color:#fff;
+      min-height:100vh;
+      -webkit-font-smoothing:antialiased;
+    }
+    a{color:inherit;text-decoration:none}
+    button{font-family:inherit;cursor:pointer}
+    .container{max-width:1280px;margin:0 auto;padding:0 24px}
+    .font-title{font-family:'Montserrat',sans-serif}
+
+    /* ===== NAVBAR ===== */
+    .navbar{
+      position:sticky;top:0;z-index:100;
+      background:rgba(14,23,38,0.92);
+      backdrop-filter:blur(14px);
+      border-bottom:1px solid var(--line);
+    }
+    .nav-inner{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 24px;gap:16px;max-width:1480px;margin:0 auto;
+    }
+    .logo{display:flex;align-items:center;gap:10px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.15rem;cursor:pointer}
+    .nav-links{display:flex;align-items:center;gap:2px;list-style:none;margin:0;padding:0;flex-wrap:wrap}
+    .nav-links a{
+      padding:7px 13px;border-radius:9999px;
+      color:var(--gray-3);font-weight:600;font-size:0.82rem;
+      transition:all 0.25s;white-space:nowrap;
+    }
+    .nav-links a:hover{background:rgba(52,101,164,0.22);color:#fff}
+    .nav-links a.active{background:linear-gradient(135deg,#3465A4,#2a5090);color:#fff}
+    .nav-cta{display:flex;gap:8px;align-items:center}
+    .btn-entrar{
+      background:var(--blue);color:#fff;border:none;
+      padding:9px 22px;border-radius:9999px;font-weight:700;font-size:0.82rem;
+    }
+    .btn-entrar:hover{background:var(--blue-2)}
+    .btn-cadastrar{
+      background:var(--lime);color:#0E1726;border:none;
+      padding:9px 22px;border-radius:9999px;font-weight:800;font-size:0.82rem;
+    }
+    .btn-cadastrar:hover{filter:brightness(1.1)}
+    .mobile-toggle{display:none;font-size:1.6rem;color:#fff;cursor:pointer}
+
+    /* ===== HERO ===== */
+    .hero{position:relative;text-align:center;padding:96px 24px 72px;overflow:hidden}
+    .hero::before{
+      content:'';position:absolute;inset:0;pointer-events:none;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%,rgba(52,101,164,0.20) 0%,transparent 70%),
+        radial-gradient(ellipse 60% 50% at 85% 85%,rgba(174,207,0,0.08) 0%,transparent 60%);
+    }
+    .hero h1{
+      position:relative;
+      font-family:'Montserrat',sans-serif;
+      font-size:clamp(2.4rem,5.4vw,4.2rem);
+      font-weight:900;letter-spacing:-0.03em;line-height:1.05;
+      margin:0 0 18px;
+      background:linear-gradient(135deg,#ffffff 0%,#c6d0dd 60%,#94a3b8 100%);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    }
+    .hero-tagline{
+      position:relative;
+      font-family:'Montserrat',sans-serif;
+      font-size:clamp(1.5rem,3.2vw,2.4rem);
+      font-weight:800;line-height:1.3;margin:0 0 26px;
+    }
+    .tag-coloca{color:var(--orange)}
+    .tag-tira{color:var(--green)}
+    .hero-sub{position:relative;font-size:1.05rem;color:var(--gray-2);max-width:620px;margin:0 auto 36px;line-height:1.7}
+    .hero-buttons{position:relative;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:56px}
+    .btn-oval{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding:13px 34px;border-radius:50px;
+      font-size:0.85rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;
+      border:2px solid var(--blue);background:var(--blue);color:#fff;
+      transition:all 0.25s;
+    }
+    .btn-oval:hover{background:var(--blue-2);border-color:var(--blue-2);transform:translateY(-2px);box-shadow:0 6px 20px rgba(52,101,164,0.4)}
+    .btn-oval.outline{background:transparent;color:var(--blue)}
+    .btn-oval.outline:hover{background:var(--blue);color:#fff}
+
+    /* ===== COMO FUNCIONA ===== */
+    .badge-como{
+      display:inline-flex;align-items:center;gap:8px;
+      background:rgba(174,207,0,0.12);
+      color:var(--lime);
+      padding:7px 16px;border-radius:9999px;
+      font-size:0.75rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;
+      border:1px solid rgba(174,207,0,0.3);
+    }
+    .passos-grid{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:20px;max-width:1100px;margin:36px auto 0;
+    }
+    .passo-card{
+      background:linear-gradient(160deg,#152339 0%,#0E1726 100%);
+      border:1px solid var(--line);border-radius:18px;padding:28px 22px;
+      text-align:left;position:relative;
+    }
+    .passo-num{
+      font-family:'Montserrat',sans-serif;font-weight:900;font-size:2.4rem;
+      color:var(--blue);margin-bottom:6px;line-height:1;
+    }
+    .passo-titulo{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.05rem;margin:0 0 8px;color:#fff}
+    .passo-txt{color:var(--gray-2);font-size:0.88rem;line-height:1.6;margin:0}
+
+    /* ===== SECTIONS ===== */
+    section.block{padding:64px 24px}
+    .block h2{font-family:'Montserrat',sans-serif;font-weight:800;font-size:clamp(1.6rem,3vw,2.1rem);margin:0 0 8px;text-align:center}
+    .block-sub{color:var(--gray-2);text-align:center;max-width:620px;margin:0 auto 36px;font-size:0.95rem}
+
+    /* ===== EXPLORE GRID ===== */
+    .explore-grid{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:18px;max-width:1280px;margin:0 auto;
+    }
+    .explore-card{
+      background:linear-gradient(155deg,#152339 0%,#101D33 100%);
+      border:1px solid var(--line);border-radius:16px;padding:24px 20px;
+      cursor:pointer;transition:all 0.25s;
+    }
+    .explore-card:hover{border-color:var(--blue);transform:translateY(-4px);box-shadow:0 10px 30px rgba(52,101,164,0.18)}
+    .explore-icon{font-size:1.8rem;margin-bottom:10px}
+    .explore-titulo{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;margin:0 0 6px}
+    .explore-txt{color:var(--gray-2);font-size:0.83rem;line-height:1.5;margin:0}
+
+    /* ===== DONUTS ===== */
+    .donuts-header{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:28px}
+    .donut-select{
+      background:#152339;color:#fff;border:1px solid var(--line);
+      padding:8px 14px;border-radius:10px;font-size:0.85rem;font-family:inherit;
+    }
+    .donuts-grid{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+      gap:18px;max-width:1280px;margin:0 auto;
+    }
+    .donut-card{
+      background:linear-gradient(155deg,#152339 0%,#101D33 100%);
+      border:1px solid var(--line);border-radius:16px;padding:20px 16px;
+    }
+    .donut-titulo{font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.92rem;text-align:center;margin:0 0 14px;color:var(--gray-3);text-transform:uppercase;letter-spacing:0.05em}
+    .donut-svg{display:block;margin:0 auto;max-width:180px}
+    .donut-leg{display:flex;flex-direction:column;gap:5px;margin-top:12px;font-size:0.78rem}
+    .leg-row{display:flex;align-items:center;gap:7px;color:var(--gray-3)}
+    .leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+    .leg-row b{margin-left:auto;font-family:'Montserrat',sans-serif;color:#fff}
+
+    /* ===== NOTICIAS ===== */
+    .noticias-wrap{position:relative;max-width:1280px;margin:0 auto}
+    .noticias-grid{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:18px;
+    }
+    .noticia-card{
+      background:linear-gradient(155deg,#152339 0%,#101D33 100%);
+      border:1px solid var(--line);border-radius:16px;overflow:hidden;
+      cursor:pointer;transition:all 0.25s;
+    }
+    .noticia-card:hover{border-color:var(--blue);transform:translateY(-3px)}
+    .noticia-img{height:140px;background:linear-gradient(135deg,#3465A4,#0E1726);display:flex;align-items:center;justify-content:center;font-size:2.6rem}
+    .noticia-corpo{padding:16px 18px}
+    .noticia-tag{display:inline-block;background:rgba(174,207,0,0.12);color:var(--lime);padding:3px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+    .noticia-titulo{font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.95rem;line-height:1.35;margin:0 0 6px}
+    .noticia-meta{color:var(--gray-2);font-size:0.75rem;margin:0}
+
+    /* ===== NEWSLETTER ===== */
+    .newsletter{
+      background:linear-gradient(135deg,#101D33 0%,#152339 100%);
+      border:1px solid var(--line);border-radius:24px;
+      padding:48px 32px;text-align:center;max-width:900px;margin:0 auto;
+      position:relative;overflow:hidden;
+    }
+    .newsletter::before{
+      content:'';position:absolute;top:-50%;right:-10%;width:60%;height:200%;
+      background:radial-gradient(ellipse,rgba(52,101,164,0.15) 0%,transparent 60%);pointer-events:none;
+    }
+    .newsletter h2{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.6rem,3vw,2.2rem);margin:0 0 10px;position:relative}
+    .newsletter p{color:var(--gray-2);max-width:540px;margin:0 auto 26px;position:relative}
+    .newsletter-form{
+      display:flex;gap:10px;max-width:480px;margin:0 auto 26px;
+      position:relative;flex-wrap:wrap;justify-content:center;
+    }
+    .newsletter-form input{
+      flex:1;min-width:220px;padding:13px 18px;
+      background:#0E1726;border:1px solid var(--line);color:#fff;
+      border-radius:50px;font-size:0.9rem;font-family:inherit;
+    }
+    .newsletter-form input:focus{outline:none;border-color:var(--green)}
+    .newsletter-form button{
+      background:var(--green);color:#fff;border:none;
+      padding:13px 30px;border-radius:50px;font-weight:800;font-size:0.85rem;
+      text-transform:uppercase;letter-spacing:0.06em;
+    }
+    .newsletter-form button:hover{filter:brightness(1.15)}
+    .newsletter-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative}
+    .nl-comecar{background:var(--orange);color:#fff;border:none;padding:13px 30px;border-radius:50px;font-weight:800;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.06em}
+    .nl-conhecer{background:var(--blue);color:#fff;border:none;padding:13px 30px;border-radius:50px;font-weight:800;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.06em}
+    .nl-comecar:hover,.nl-conhecer:hover{filter:brightness(1.15)}
+
+    /* ===== FOOTER ===== */
+    footer{
+      background:#0a121e;border-top:1px solid var(--line);
+      padding:60px 24px 24px;margin-top:80px;
+    }
+    .footer-grid{
+      display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:36px;
+      max-width:1280px;margin:0 auto;
+    }
+    .footer-col h4{font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;color:#fff;margin:0 0 16px}
+    .footer-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+    .footer-col a{color:var(--gray-2);font-size:0.88rem;transition:color 0.2s}
+    .footer-col a:hover{color:#fff}
+    .footer-brand p{color:var(--gray-2);font-size:0.88rem;line-height:1.6;margin:10px 0 0;max-width:300px}
+    .footer-bottom{
+      max-width:1280px;margin:48px auto 0;padding-top:20px;
+      border-top:1px solid var(--line);
+      color:var(--gray-2);font-size:0.78rem;text-align:center;
+    }
+
+    /* ===== MODAL ===== */
+    .modal{
+      position:fixed;inset:0;z-index:9999;
+      background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
+      display:none;align-items:center;justify-content:center;padding:20px;
+    }
+    .modal.open{display:flex}
+    .modal-box{
+      background:#152339;border:1px solid var(--line);border-radius:18px;
+      padding:32px;max-width:440px;width:100%;position:relative;
+    }
+    .modal-close{
+      position:absolute;top:14px;right:18px;background:none;border:none;
+      color:var(--gray-2);font-size:1.6rem;cursor:pointer;line-height:1;
+    }
+    .modal-box h3{font-family:'Montserrat',sans-serif;font-weight:800;margin:0 0 6px;font-size:1.3rem}
+    .modal-sub{color:var(--gray-2);font-size:0.88rem;margin:0 0 20px}
+    .modal-tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+    .modal-tab{
+      background:none;border:none;color:var(--gray-2);
+      padding:10px 14px;font-size:0.85rem;font-weight:700;cursor:pointer;
+      border-bottom:2px solid transparent;margin-bottom:-1px;
+    }
+    .modal-tab.active{color:#fff;border-bottom-color:var(--blue)}
+    .form-group{margin-bottom:14px}
+    .form-group label{display:block;font-size:0.78rem;font-weight:700;color:var(--gray-3);margin-bottom:6px;letter-spacing:0.04em}
+    .form-group input{
+      width:100%;padding:11px 14px;background:#0E1726;border:1px solid var(--line);
+      color:#fff;border-radius:10px;font-size:0.9rem;font-family:inherit;
+    }
+    .form-group input:focus{outline:none;border-color:var(--blue)}
+    .btn-submit{
+      width:100%;padding:12px;background:var(--blue);color:#fff;
+      border:none;border-radius:10px;font-weight:800;font-size:0.9rem;margin-top:6px;
+    }
+    .btn-submit:hover{background:var(--blue-2)}
+    .btn-submit.green{background:var(--green)}
+    .divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--gray-2);font-size:0.78rem}
+    .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--line)}
+    .btn-google{
+      width:100%;padding:11px;background:#fff;color:#0E1726;
+      border:none;border-radius:10px;font-weight:700;font-size:0.88rem;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+    }
+    .modal-foot{text-align:center;color:var(--gray-2);font-size:0.82rem;margin-top:14px}
+    .modal-foot a{color:var(--lime);font-weight:700;cursor:pointer}
+    .msg-erro{background:rgba(255,80,80,0.12);color:#ff8a8a;padding:10px 14px;border-radius:8px;font-size:0.85rem;margin-bottom:14px;display:none}
+    .msg-ok{background:rgba(0,151,57,0.15);color:#5fdf8a;padding:10px 14px;border-radius:8px;font-size:0.85rem;margin-bottom:14px;display:none}
+
+    @media (max-width:900px){
+      .nav-links{display:none}
+      .nav-links.open{display:flex;flex-direction:column;position:absolute;top:100%;left:0;right:0;background:#0E1726;padding:16px;border-bottom:1px solid var(--line)}
+      .mobile-toggle{display:block}
+      .footer-grid{grid-template-columns:1fr 1fr;gap:24px}
+      .hero{padding:64px 16px 48px}
+    }
+    @media (max-width:560px){
+      .footer-grid{grid-template-columns:1fr}
+      .nav-cta .btn-entrar{padding:7px 14px;font-size:0.75rem}
+      .nav-cta .btn-cadastrar{padding:7px 14px;font-size:0.75rem}
+    }
+  </style>
 </head>
 <body>
 
-  <!-- ===================== HEADER ===================== -->
-  <header class="navbar">
-    <div class="logo">
+<!-- ===================== NAVBAR ===================== -->
+<header class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="logo" aria-label="MudaBrasil">
       <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
         <defs>
-          <linearGradient id="gradLogo" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id="gL" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stop-color="#3465A4"/>
             <stop offset="100%" stop-color="#AECF00"/>
           </linearGradient>
         </defs>
-        <circle cx="20" cy="20" r="18" stroke="url(#gradLogo)" stroke-width="4" fill="none"/>
-        <path d="M12 20 L20 12 L28 20 L20 28 Z" fill="url(#gradLogo)"/>
+        <circle cx="20" cy="20" r="18" stroke="url(#gL)" stroke-width="4" fill="none"/>
+        <path d="M12 20 L20 12 L28 20 L20 28 Z" fill="url(#gL)"/>
       </svg>
-      <span>MudaBrasil</span>
-    </div>
+      <span style="background:linear-gradient(135deg,#4a7bc2,#AECF00);-webkit-background-clip:text;-webkit-text-fill-color:transparent">MudaBrasil</span>
+    </a>
 
     <nav>
       <ul class="nav-links" id="nav-links">
         <li><a href="index.html" class="active">Início</a></li>
-        <li><a href="pages/parlamentares.html">🏛️ Parlamentares</a></li>
-        <li><a href="pages/meu-voto.html">Meu Voto</a></li>
-        <li><a href="pages/proposta.html">Proposta</a></li>
-        <li><a href="pages/comunidade.html">Comunidade</a></li>
+        <li><a href="pages/radar.html">Radar</a></li>
+        <li><a href="pages/parlamentares.html">Candidatos</a></li>
+        <li><a href="pages/congresso.html">Congresso</a></li>
+        <li><a href="pages/conferir.html">Conferir Voto</a></li>
+        <li><a href="pages/revogar.html">Revogar Voto</a></li>
+        <li><a href="pages/revogados.html">Políticos revogados</a></li>
+        <li><a href="pages/ajuda.html">Ajuda</a></li>
+        <li><a href="pages/quem-somos.html">Quem Somos</a></li>
       </ul>
     </nav>
 
-    <div style="display:flex; align-items:center; gap:8px;">
-      <button class="btn btn-primary btn-sm" id="login-btn" onclick="showLoginForm()">Login</button>
-      <div class="mobile-toggle" id="mobile-menu">☰</div>
-    </div>
-  </header>
-
-  <!-- ===================== SIDEBAR ===================== -->
-  <aside class="sidebar" id="sidebar">
-    <ul>
-      <li><a href="index.html" style="color:var(--lime);">🏠 Início</a></li>
-      <li><a href="pages/parlamentares.html">🏛️ Parlamentares</a></li>
-      <li><a href="pages/meu-voto.html">✋ Meu Voto</a></li>
-      <li><a href="pages/proposta.html">📖 Proposta</a></li>
-      <li><a href="pages/comunidade.html">👥 Comunidade</a></li>
-    </ul>
-    <div class="login-area">
-      <button class="btn btn-secondary btn-sm" onclick="showLoginForm()">Entrar na sua conta</button>
-    </div>
-  </aside>
-
-  <!-- ===================== CONTEÚDO ===================== -->
-  <main class="main-content">
-
-    <!-- HERO — identidade visual docs -->
-    <section class="hero reveal show">
-      <div style="display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:var(--space-lg);">
-        <span style="display:inline-block; width:48px; height:3px; background:var(--lime); border-radius:2px;"></span>
-        <span style="font-family:var(--font-title); font-size:var(--text-sm); font-weight:700; color:var(--lime); letter-spacing:0.15em; text-transform:uppercase;">Plataforma Cívica</span>
-        <span style="display:inline-block; width:48px; height:3px; background:var(--lime); border-radius:2px;"></span>
-      </div>
-      <h1>Seu voto não acaba na eleição.</h1>
-      <p>
-        No MudaBrasil, você <strong>expressa confiança</strong> nos políticos,
-        <strong>vota nos Projetos de Lei</strong> que afetam sua vida e pode
-        <strong>retirar sua confiança a qualquer momento</strong> se não cumprirem
-        o prometido. Tudo <strong>anônimo</strong>, com <strong>dados públicos verificáveis</strong>.
-      </p>
-      <div style="display:flex; gap:var(--space-md); justify-content:center; flex-wrap:wrap; margin-top:var(--space-xl);">
-        <button class="btn btn-accent" onclick="location.href='pages/meu-voto.html'">✋ Expressar Confiança</button>
-        <button class="btn btn-primary" onclick="location.href='pages/parlamentares.html'">🗳️ Ver Parlamentares</button>
-        <button class="btn btn-secondary" onclick="location.href='pages/proposta.html'">📖 Conhecer a Proposta</button>
-      </div>
-    </section>
-
-    <!-- COMO FUNCIONA — cards estilo doc -->
-    <section class="reveal" style="max-width:900px; margin:0 auto var(--space-2xl);">
-      <h2 style="text-align:center; margin-bottom:var(--space-lg); font-family:var(--font-title);">
-        Como funciona o MudaBrasil?
-      </h2>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:var(--space-lg);">
-        <div style="background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); text-align:center;">
-          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">🔍</div>
-          <h3 style="color:var(--lime); margin-bottom:var(--space-sm); font-size:var(--text-xl);">Escolha um político</h3>
-          <p style="color:var(--text-secondary); font-size:var(--text-sm);">Compare deputados e senadores com dados públicos reais: transparência, processos, presença e votação.</p>
-        </div>
-        <div style="background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); text-align:center;">
-          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">✅</div>
-          <h3 style="color:var(--blue); margin-bottom:var(--space-sm); font-size:var(--text-xl);">Expresse confiança</h3>
-          <p style="color:var(--text-secondary); font-size:var(--text-sm);">Dê seu voto de confiança anônimo. Você recebe um código único — guarde-o, é seu único comprovante.</p>
-        </div>
-        <div style="background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); text-align:center;">
-          <div style="font-size:2.5rem; margin-bottom:var(--space-sm);">⚡</div>
-          <h3 style="color:var(--green-br); margin-bottom:var(--space-sm); font-size:var(--text-xl);">Revogue a qualquer tempo</h3>
-          <p style="color:var(--text-secondary); font-size:var(--text-sm);">Se o político não cumprir o prometido, use seu código para revogar o voto. Simples assim.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- CARDS DE NAVEGAÇÃO — estilo card dos docs -->
-    <h2 style="text-align:center; margin-top:var(--space-2xl); font-family:var(--font-title);">O que você pode fazer</h2>
-    <p style="text-align:center; color:var(--text-muted2); max-width:600px; margin:0 auto var(--space-xl);">
-      Participação cívica simples, direta e sem enrolação.
-    </p>
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:var(--space-lg);">
-      <div class="card reveal" style="cursor:pointer; background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); transition:all var(--transition-base);" onclick="location.href='pages/parlamentares.html'"
-           onmouseover="this.style.borderColor='var(--blue)'; this.style.transform='translateY(-4px)';"
-           onmouseout="this.style.borderColor='rgba(90,107,126,0.25)'; this.style.transform='';">
-        <h3 style="color:var(--blue); margin-bottom:var(--space-sm);">🗳️ Parlamentares</h3>
-        <p style="color:var(--text-secondary); font-size:var(--text-sm); margin:0;">Compare candidatos com dados reais de 513 deputados e 81 senadores. Rankings, comparações e PLs.</p>
-      </div>
-      <div class="card reveal" style="cursor:pointer; background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); transition:all var(--transition-base);" onclick="location.href='pages/meu-voto.html'"
-           onmouseover="this.style.borderColor='var(--lime)'; this.style.transform='translateY(-4px)';"
-           onmouseout="this.style.borderColor='rgba(90,107,126,0.25)'; this.style.transform='';">
-        <h3 style="color:var(--lime); margin-bottom:var(--space-sm);">✋ Meu Voto</h3>
-        <p style="color:var(--text-secondary); font-size:var(--text-sm); margin:0;">Expresse confiança, consulte seu código, acompanhe PLs e revogue quando necessário.</p>
-      </div>
-      <div class="card reveal" style="cursor:pointer; background:var(--gradient-card); border:1px solid rgba(90,107,126,0.25); border-radius:var(--border-radius-lg); padding:var(--space-xl); transition:all var(--transition-base);" onclick="location.href='pages/proposta.html'"
-           onmouseover="this.style.borderColor='var(--green-br)'; this.style.transform='translateY(-4px)';"
-           onmouseout="this.style.borderColor='rgba(90,107,126,0.25)'; this.style.transform='';">
-        <h3 style="color:var(--green-br); margin-bottom:var(--space-sm);">📖 A Proposta</h3>
-        <p style="color:var(--text-secondary); font-size:var(--text-sm); margin:0;">Conheça o manifesto do MudaBrasil: por que defendemos o voto contínuo e revogável no Brasil.</p>
-      </div>
-    </div>
-
-    <!-- FONTES PÚBLICAS — tabela estilo docs -->
-    <div class="contribution-section reveal" style="background:var(--bg-card); border:1px solid rgba(90,107,126,0.2); border-radius:var(--border-radius-xl); padding:var(--space-xl); margin-top:var(--space-2xl);">
-      <h2 style="font-family:var(--font-title); margin-bottom:var(--space-sm);">
-        <span style="color:var(--lime);">🔍</span> Dados 100% Públicos e Verificáveis
-      </h2>
-      <p style="color:var(--text-secondary); max-width:700px; margin-bottom:var(--space-xl);">
-        Nossa plataforma é alimentada exclusivamente por fontes oficiais — garantindo total transparência e rastreabilidade.
-      </p>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:var(--space-md);">
-        <div style="background:rgba(14,23,38,0.5); border:1px solid rgba(90,107,126,0.15); border-radius:var(--border-radius-md); padding:var(--space-lg);">
-          <div style="color:var(--blue); font-weight:800; font-family:var(--font-title); margin-bottom:6px;">TSE</div>
-          <p style="color:var(--text-muted); font-size:var(--text-xs); margin:0;">Candidaturas, histórico eleitoral, condenações</p>
-          <a href="https://www.tse.jus.br" target="_blank" rel="noopener" style="font-size:var(--text-xs); color:var(--blue-light);">tse.jus.br →</a>
-        </div>
-        <div style="background:rgba(14,23,38,0.5); border:1px solid rgba(90,107,126,0.15); border-radius:var(--border-radius-md); padding:var(--space-lg);">
-          <div style="color:var(--lime); font-weight:800; font-family:var(--font-title); margin-bottom:6px;">Portal da Transparência</div>
-          <p style="color:var(--text-muted); font-size:var(--text-xs); margin:0;">Rendimentos, patrimônio declarado, gastos</p>
-          <a href="https://portaldatransparencia.gov.br" target="_blank" rel="noopener" style="font-size:var(--text-xs); color:var(--lime);">portaldatransparencia.gov.br →</a>
-        </div>
-        <div style="background:rgba(14,23,38,0.5); border:1px solid rgba(90,107,126,0.15); border-radius:var(--border-radius-md); padding:var(--space-lg);">
-          <div style="color:var(--green-br); font-weight:800; font-family:var(--font-title); margin-bottom:6px;">Câmara / Senado</div>
-          <p style="color:var(--text-muted); font-size:var(--text-xs); margin:0;">Proposituras, votação nominal, presença</p>
-          <a href="https://www.camara.leg.br" target="_blank" rel="noopener" style="font-size:var(--text-xs); color:var(--green-br);">camara.leg.br →</a>
-        </div>
-        <div style="background:rgba(14,23,38,0.5); border:1px solid rgba(90,107,126,0.15); border-radius:var(--border-radius-md); padding:var(--space-lg);">
-          <div style="color:var(--gray-mid); font-weight:800; font-family:var(--font-title); margin-bottom:6px;">CNJ</div>
-          <p style="color:var(--text-muted); font-size:var(--text-xs); margin:0;">Processos judiciais e condenações</p>
-          <a href="https://www.cnj.jus.br" target="_blank" rel="noopener" style="font-size:var(--text-xs); color:var(--gray-mid);">cnj.jus.br →</a>
-        </div>
-      </div>
-      <p style="font-size:var(--text-xs); color:var(--text-muted2); margin-top:var(--space-lg); margin-bottom:0;">
-        ⚖️ O índice de integridade é calculado combinando transparência, processos judiciais e presença. Dados atualizados via APIs oficiais.
-      </p>
-    </div>
-
-  </main>
-
-  <!-- ===================== MODAL DE LOGIN ===================== -->
-  <div class="modal" id="login-modal">
-    <div class="modal-content">
-      <span class="close" onclick="this.closest('.modal').style.display='none'">×</span>
-      <h2>Login na Conta MudaBrasil</h2>
-      <form onsubmit="event.preventDefault(); alert('Login simulado com sucesso!'); this.closest('.modal').style.display='none';">
-        <label>Usuário</label>
-        <input type="text" placeholder="Seu usuário" required>
-        <label>Senha</label>
-        <input type="password" placeholder="Senha" required>
-        <button class="btn btn-primary" type="submit">Entrar</button>
-      </form>
+    <div class="nav-cta">
+      <button class="btn-entrar" onclick="abrirModal('login')">Entrar</button>
+      <button class="btn-cadastrar" onclick="abrirModal('cadastro')">Cadastrar</button>
+      <span class="mobile-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')">☰</span>
     </div>
   </div>
+</header>
 
-  <!-- ===================== FOOTER ===================== -->
-  <footer>
-    <div class="footer-content">
-      <div class="footer-section">
-        <h4>Links Rápidos</h4>
-        <ul>
-          <li><a href="pages/parlamentares.html">🏛️ Parlamentares</a></li>
-          <li><a href="pages/meu-voto.html">Meu Voto</a></li>
-          <li><a href="pages/proposta.html">Proposta</a></li>
-          <li><a href="pages/comunidade.html">Comunidade</a></li>
-        </ul>
-      </div>
-      <div class="footer-section">
-        <h4>Fontes de Dados</h4>
-        <ul>
-          <li><a href="https://www.tse.jus.br" target="_blank" rel="noopener">TSE</a></li>
-          <li><a href="https://portaldatransparencia.gov.br" target="_blank" rel="noopener">Portal da Transparência</a></li>
-          <li><a href="https://www.cnj.jus.br" target="_blank" rel="noopener">CNJ</a></li>
-        </ul>
-      </div>
-      <div class="footer-section">
-        <h4>Como Funciona</h4>
-        <p style="font-size:var(--text-xs); color:var(--text-muted);">
-          Voto anônimo por código · sem cadastro · protótipo de pesquisa — sem valor legal.
-        </p>
-      </div>
+<!-- ===================== HERO ===================== -->
+<section class="hero">
+  <h1>O poder emana do povo</h1>
+  <p class="hero-tagline">
+    seu voto <span class="tag-coloca">coloca</span>. Seu voto <span class="tag-tira">tira</span>.
+  </p>
+  <p class="hero-sub">
+    Plataforma cívica para voto contínuo e revogável. Acompanhe, confie e retire a confiança
+    a qualquer momento — anônimo, auditável e com dados 100% públicos.
+  </p>
+  <div class="hero-buttons">
+    <button class="btn-oval" onclick="abrirModal('cadastro')">🗳️ Votar</button>
+    <button class="btn-oval outline" onclick="location.href='pages/conferir.html'">🔍 Conferir Voto</button>
+    <button class="btn-oval outline" onclick="location.href='pages/revogar.html'">⚡ Revogar Voto</button>
+  </div>
+
+  <span class="badge-como">⚙️ Como funciona</span>
+  <p style="color:var(--gray-2);margin:14px auto 0;max-width:520px;font-size:0.95rem">
+    Três passos, zero burocracia
+  </p>
+
+  <div class="passos-grid">
+    <div class="passo-card">
+      <div class="passo-num">1</div>
+      <h4 class="passo-titulo">Escolha um político</h4>
+      <p class="passo-txt">Compare candidatos com dados públicos reais: processos, presença, votações e propostas.</p>
     </div>
-    <div class="footer-bottom">
-      <p>&copy; 2026 MudaBrasil. Plataforma cívica de voto contínuo e revogável.</p>
+    <div class="passo-card">
+      <div class="passo-num">2</div>
+      <h4 class="passo-titulo">Expresse confiança</h4>
+      <p class="passo-txt">Dê seu voto de forma anônima. Você recebe um código único — guarde-o bem.</p>
     </div>
-  </footer>
+    <div class="passo-card">
+      <div class="passo-num">3</div>
+      <h4 class="passo-titulo">Revogue quando quiser</h4>
+      <p class="passo-txt">Se o político não cumprir, retire sua confiança com o mesmo código. Simples e direto.</p>
+    </div>
+  </div>
+</section>
 
-  <!-- Scripts -->
-  <script src="js/shared-ui.js"></script>
-  <script src="js/live-stream.js"></script>
-  <script>
-    /* Painel "Plataforma ao vivo": métricas reais do termômetro.
-       Sem servidor (file://), cai no modo demo — nunca quebra.
-       Com servidor, atualiza em tempo real via SSE (MBLive). */
-    (function () {
-      'use strict';
-      let isReal = false, liveStarted = false;
+<!-- ===================== EXPLORE ===================== -->
+<section class="block">
+  <h2>Explore o MudaBrasil</h2>
+  <p class="block-sub">Cinco caminhos para participar da democracia de forma contínua.</p>
+  <div class="explore-grid">
+    <div class="explore-card" onclick="location.href='pages/radar.html'">
+      <div class="explore-icon">📡</div>
+      <h3 class="explore-titulo">Radar Político</h3>
+      <p class="explore-txt">Acompanhe em tempo real quem ganha e perde confiança no Brasil.</p>
+    </div>
+    <div class="explore-card" onclick="location.href='pages/parlamentares.html'">
+      <div class="explore-icon">🗳️</div>
+      <h3 class="explore-titulo">Candidatos</h3>
+      <p class="explore-txt">Compare 513 deputados e 81 senadores com dados públicos verificáveis.</p>
+    </div>
+    <div class="explore-card" onclick="location.href='pages/congresso.html'">
+      <div class="explore-icon">📜</div>
+      <h3 class="explore-titulo">PLs no Congresso</h3>
+      <p class="explore-txt">Acompanhe projetos de lei que afetam sua vida e vote apoio ou rejeição.</p>
+    </div>
+    <div class="explore-card" onclick="location.href='pages/conferir.html'">
+      <div class="explore-icon">🔍</div>
+      <h3 class="explore-titulo">Conferir Voto</h3>
+      <p class="explore-txt">Use seu código único para verificar se seu voto foi registrado corretamente.</p>
+    </div>
+    <div class="explore-card" onclick="location.href='pages/revogar.html'">
+      <div class="explore-icon">⚡</div>
+      <h3 class="explore-titulo">Revogar Voto</h3>
+      <p class="explore-txt">Retire sua confiança de qualquer político a qualquer momento.</p>
+    </div>
+  </div>
+</section>
 
-      function fetchTimeout(url, ms) {
-        const c = new AbortController();
-        const t = setTimeout(() => c.abort(), ms);
-        return fetch(url, { signal: c.signal }).finally(() => clearTimeout(t));
-      }
-      function fmt(n) { return new Intl.NumberFormat('pt-BR').format(n || 0); }
+<!-- ===================== DONUTS ===================== -->
+<section class="block" style="background:#0a121e">
+  <h2>Acompanhe quem está na frente</h2>
+  <p class="block-sub">Resultado em tempo real por cargo eletivo. Selecione o estado para refinar.</p>
 
-      const DEMO = {
-        totalVotosAtivos: 132, totalRevogados: 27, totalRegistros: 159,
-        topN: [{ name: 'Ana Beatriz Souza', party: 'PT', state: 'SP', indice: 87 }]
-      };
+  <div class="donuts-header">
+    <select class="donut-select" id="donut-uf" onchange="renderDonuts()">
+      <option value="">Todo o Brasil</option>
+      <option>SP</option><option>RJ</option><option>MG</option><option>BA</option>
+      <option>RS</option><option>PR</option><option>PE</option><option>CE</option>
+      <option>PA</option><option>SC</option><option>GO</option><option>MA</option>
+    </select>
+  </div>
 
-      function render(data, real) {
-        isReal = real;
-        const b = document.getElementById('live-badge');
-        if (real) { b.className = 'source-badge-pill real'; b.textContent = '📡 Ao vivo · votos anônimos'; }
-        else { b.className = 'source-badge-pill demo'; b.textContent = '🧪 Modo demo — dados sintéticos'; }
-        document.getElementById('live-ativos').textContent = fmt(data.totalVotosAtivos);
-        document.getElementById('live-revogados').textContent = fmt(data.totalRevogados);
-        document.getElementById('live-participantes').textContent = fmt(data.totalRegistros);
-        const top = (data.topN && data.topN[0]) || null;
-        document.getElementById('live-top').textContent = top ? top.indice.toFixed(1) : '—';
-        document.getElementById('live-top-name').textContent = top
-          ? '🥇 ' + top.name + ' (' + (top.party || '—') + ' · ' + (top.state || '—') + ')'
-          : 'Ainda não há votos registrados';
-        document.getElementById('live-top-valor').textContent = top ? top.indice.toFixed(1) + ' / 100' : '—';
-        document.getElementById('live-top-fill').style.width = (top ? top.indice : 0) + '%';
-      }
+  <div class="donuts-grid" id="donuts-grid"></div>
+</section>
 
-      function refresh() {
-        return fetchTimeout('/api/termometro', 6000)
-          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-          .then(data => { render(data, true); return true; })
-          .catch(() => false);
-      }
+<!-- ===================== NOTÍCIAS ===================== -->
+<section class="block">
+  <h2>Notícias</h2>
+  <p class="block-sub">Cobertura cívica e política direto da fonte.</p>
+  <div class="noticias-wrap">
+    <div class="noticias-grid">
+      <article class="noticia-card" onclick="abrirModal('cadastro')">
+        <div class="noticia-img">🌳</div>
+        <div class="noticia-corpo">
+          <span class="noticia-tag">Meio Ambiente</span>
+          <h3 class="noticia-titulo">Brasil promete restaurar 163 mil km² de áreas degradadas até 2030</h3>
+          <p class="noticia-meta">Câmara dos Deputados · há 2 horas</p>
+        </div>
+      </article>
+      <article class="noticia-card" onclick="abrirModal('cadastro')">
+        <div class="noticia-img">📊</div>
+        <div class="noticia-corpo">
+          <span class="noticia-tag">Transparência</span>
+          <h3 class="noticia-titulo">TSE divulga prestação de contas parcial das eleições municipais</h3>
+          <p class="noticia-meta">TSE · há 5 horas</p>
+        </div>
+      </article>
+      <article class="noticia-card" onclick="abrirModal('cadastro')">
+        <div class="noticia-img">⚖️</div>
+        <div class="noticia-corpo">
+          <span class="noticia-tag">Justiça</span>
+          <h3 class="noticia-titulo">CNJ amplia transparência em processos disciplinares de magistrados</h3>
+          <p class="noticia-meta">CNJ · há 1 dia</p>
+        </div>
+      </article>
+      <article class="noticia-card" onclick="abrirModal('cadastro')">
+        <div class="noticia-img">🏛️</div>
+        <div class="noticia-corpo">
+          <span class="noticia-tag">Congresso</span>
+          <h3 class="noticia-titulo">Senado aprova nova lei de proteção de dados eleitorais</h3>
+          <p class="noticia-meta">Senado Federal · há 2 dias</p>
+        </div>
+      </article>
+      <article class="noticia-card" onclick="abrirModal('cadastro')">
+        <div class="noticia-img">💰</div>
+        <div class="noticia-corpo">
+          <span class="noticia-tag">Economia</span>
+          <h3 class="noticia-titulo">Portal da Transparência atualiza dados de gastos de parlamentares</h3>
+          <p class="noticia-meta">CGU · há 3 dias</p>
+        </div>
+      </article>
+      <article class="noticia-card" onclick="abrirModal('cadastro')">
+        <div class="noticia-img">🗳️</div>
+        <div class="noticia-corpo">
+          <span class="noticia-tag">Eleições</span>
+          <h3 class="noticia-titulo">Debate sobre voto contínuo e revogável ganha espaço nas universidades</h3>
+          <p class="noticia-meta">Acadêmico · há 4 dias</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
 
-      function startLive() {
-        if (liveStarted || !isReal || !window.MBLive) return;
-        liveStarted = true;
-        MBLive.initLiveUpdate(function () { refresh(); }, { enabled: true, intervalMs: 15000 });
-      }
+<!-- ===================== NEWSLETTER ===================== -->
+<section class="block">
+  <div class="newsletter">
+    <h2>Sua voz faz a diferença</h2>
+    <p>Receba atualizações sobre os políticos que você acompanha, novos dados públicos e mudanças nas leis que afetam sua vida.</p>
+    <form class="newsletter-form" onsubmit="event.preventDefault(); newsletterOk()">
+      <input type="email" id="nl-email" placeholder="seu@email.com" required>
+      <button type="submit">OK</button>
+    </form>
+    <div class="newsletter-cta">
+      <button class="nl-comecar" onclick="abrirModal('cadastro')">🚀 Começar Agora</button>
+      <button class="nl-conhecer" onclick="location.href='pages/quem-somos.html'">📖 Conhecer Mais</button>
+    </div>
+  </div>
+</section>
 
-      render(DEMO, false); // demo imediato (sem flash)
-      refresh().then(ok => { if (ok) startLive(); });
-    })();
-  </script>
+<!-- ===================== FOOTER ===================== -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-col footer-brand">
+      <h4 style="background:linear-gradient(135deg,#4a7bc2,#AECF00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:inline-block">MudaBrasil</h4>
+      <p>Plataforma cívica de voto contínuo e revogável. Democracia sem intervalo entre eleições — anônima, auditável e com dados públicos.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Navegar</h4>
+      <ul>
+        <li><a href="pages/radar.html">Pesquisar</a></li>
+        <li><a href="pages/radar.html">Radar Político</a></li>
+        <li><a href="pages/parlamentares.html">Candidatos</a></li>
+        <li><a href="pages/congresso.html">Congresso</a></li>
+        <li><a href="pages/ajuda.html">Ajuda</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Participar</h4>
+      <ul>
+        <li><a href="pages/conferir.html">Meus Votos</a></li>
+        <li><a href="pages/revogar.html">Revogar Voto</a></li>
+        <li><a href="pages/revogados.html">Políticos revogados</a></li>
+        <li><a href="pages/comunidade.html">Comunidade</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Institucional</h4>
+      <ul>
+        <li><a href="pages/quem-somos.html">Sobre Nós</a></li>
+        <li><a href="pages/proposta.html">A Proposta</a></li>
+        <li><a href="pages/ajuda.html">FAQ</a></li>
+        <li><a href="pages/ajuda.html">Contato</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    © 2026 MudaBrasil · Plataforma cívica de voto contínuo e revogável · Dados públicos via TSE, Câmara, Senado, Portal da Transparência e CNJ.
+  </div>
+</footer>
+
+<!-- ===================== MODAL LOGIN ===================== -->
+<div class="modal" id="modal-login">
+  <div class="modal-box">
+    <button class="modal-close" onclick="fecharModais()">×</button>
+    <h3>Entrar na sua conta</h3>
+    <p class="modal-sub">Acesse seu painel de votos e personalize seu radar.</p>
+
+    <div id="login-msg"></div>
+
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-tab="email" onclick="trocarTab(this,'email')">📧 E-mail</button>
+      <button class="modal-tab" data-tab="tel" onclick="trocarTab(this,'tel')">📱 Celular</button>
+    </div>
+
+    <form id="form-email-login" onsubmit="event.preventDefault(); enviarCodigoEmail()">
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="login-email" required placeholder="seu@email.com">
+      </div>
+      <button class="btn-submit" type="submit" id="btn-enviar-codigo">Enviar código de acesso</button>
+    </form>
+
+    <form id="form-codigo" style="display:none" onsubmit="event.preventDefault(); verificarCodigoEmail()">
+      <div class="form-group">
+        <label>Código de 6 dígitos (enviado por e-mail)</label>
+        <input type="text" id="login-codigo" required maxlength="6" pattern="[0-9]{6}" placeholder="000000" inputmode="numeric">
+      </div>
+      <button class="btn-submit green" type="submit" id="btn-verificar-codigo">Verificar e entrar</button>
+      <p class="modal-foot"><a onclick="voltarEmail()">← Voltar</a></p>
+    </form>
+
+    <form id="form-tel-login" style="display:none" onsubmit="event.preventDefault(); enviarCodigoTel()">
+      <div class="form-group">
+        <label>Celular (com DDD)</label>
+        <input type="tel" id="login-tel" required placeholder="(11) 99999-9999">
+      </div>
+      <button class="btn-submit" type="submit">Enviar código SMS</button>
+    </form>
+
+    <div class="divider">ou</div>
+    <button class="btn-google" onclick="loginGoogle()">
+      <span style="font-size:1.1rem">🇬</span> Entrar com Google
+    </button>
+
+    <p class="modal-foot">Não tem conta? <a onclick="abrirModal('cadastro')">Cadastre-se</a></p>
+  </div>
+</div>
+
+<!-- ===================== MODAL CADASTRO ===================== -->
+<div class="modal" id="modal-cadastro">
+  <div class="modal-box">
+    <button class="modal-close" onclick="fecharModais()">×</button>
+    <h3>Criar conta</h3>
+    <p class="modal-sub">Anônimo. Seu voto nunca é vinculado a você.</p>
+    <div id="cad-msg"></div>
+    <form onsubmit="event.preventDefault(); fazerCadastro()">
+      <div class="form-group">
+        <label>E-mail (para login e revogação)</label>
+        <input type="email" id="cad-email" required placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label>Celular (opcional, para recuperar)</label>
+        <input type="tel" id="cad-tel" placeholder="(11) 99999-9999">
+      </div>
+      <div class="form-group">
+        <label>Estado (UF)</label>
+        <input type="text" id="cad-uf" maxlength="2" placeholder="SP">
+      </div>
+      <button class="btn-submit green" type="submit">Criar conta anônima</button>
+    </form>
+    <p class="modal-foot">Já tem conta? <a onclick="abrirModal('login')">Entrar</a></p>
+  </div>
+</div>
+
+<script>
+  /* ====== Donuts ====== */
+  const CARGOS = [
+    {id:'presidente',nome:'Presidente'},
+    {id:'governador',nome:'Governador'},
+    {id:'senador',nome:'Senador'},
+    {id:'dep-federal',nome:'Dep. Federal'},
+    {id:'dep-estadual',nome:'Dep. Estadual'},
+    {id:'prefeito',nome:'Prefeito'},
+    {id:'vereador',nome:'Vereador'},
+  ];
+  const CANDIDATOS = [
+    {nome:'Maria Silva',cor:'#009739',pct:38},
+    {nome:'Carlos Souza',cor:'#3465A4',pct:24},
+    {nome:'Ana Beatriz',cor:'#fbbf24',pct:18},
+    {nome:'João Pereira',cor:'#dc2626',pct:12},
+    {nome:'Outros',cor:'#7c3aed',pct:8},
+  ];
+
+  function donutSVG(cargos, candidatos, size=150){
+    const r=55,cx=70,cy=70,circ=2*Math.PI*r;
+    let off=0;
+    const parts=candidatos.map(c=>{
+      const len=(c.pct/100)*circ;
+      const dash=`${len} ${circ-len}`;
+      const seg=`<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${c.cor}" stroke-width="22" stroke-dasharray="${dash}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      off+=len;
+      return seg;
+    }).join('');
+    return `<svg class="donut-svg" viewBox="0 0 140 140" width="${size}" height="${size}">
+      <circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="#1f2c45" stroke-width="22"/>
+      ${parts}
+      <text x="70" y="76" text-anchor="middle" fill="#fff" font-family="Montserrat" font-weight="800" font-size="22">${cargos.nome==='Presidente'?'38%':''}</text>
+    </svg>`;
+  }
+
+  function renderDonuts(){
+    const grid=document.getElementById('donuts-grid');
+    grid.innerHTML=CARGOS.map(c=>{
+      const lead=CANDIDATOS[0];
+      const leadTxt=c.id==='presidente' ? '38%' : '';
+      return `
+      <div class="donut-card">
+        <h4 class="donut-titulo">${c.nome}</h4>
+        <div style="position:relative;display:flex;justify-content:center">
+          ${donutSVG(c,CANDIDATOS)}
+          ${c.id==='presidente'?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none"><div style="font-family:Montserrat;font-weight:800;font-size:1.4rem">38%</div><div style="color:#94A3B8;font-size:0.7rem">Maria</div></div>':''}
+        </div>
+        <div class="donut-leg">
+          ${CANDIDATOS.map(ca=>`<div class="leg-row"><span class="leg-dot" style="background:${ca.cor}"></span><span>${ca.nome}</span><b>${ca.pct}%</b></div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  /* ====== Newsletter ====== */
+  function newsletterOk(){
+    const e=document.getElementById('nl-email');
+    if(!e.value) return;
+    e.value='';
+    alert('Inscrição realizada! Você receberá as próximas atualizações.');
+  }
+
+  /* ====== Modais ====== */
+  function abrirModal(tipo){
+    fecharModais();
+    document.getElementById('modal-'+tipo).classList.add('open');
+    if(tipo==='login'){ trocarTab(document.querySelector('[data-tab=email]'),'email'); }
+  }
+  function fecharModais(){
+    document.querySelectorAll('.modal').forEach(m=>m.classList.remove('open'));
+  }
+  document.querySelectorAll('.modal').forEach(m=>{
+    m.addEventListener('click',e=>{ if(e.target===m) fecharModais(); });
+  });
+  function trocarTab(el,tab){
+    document.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('form-email-login').style.display=tab==='email'?'block':'none';
+    document.getElementById('form-tel-login').style.display=tab==='tel'?'block':'none';
+    document.getElementById('form-codigo').style.display='none';
+  }
+  function voltarEmail(){
+    document.getElementById('form-codigo').style.display='none';
+    document.getElementById('form-email-login').style.display='block';
+  }
+  function loginGoogle(){
+    alert('Login com Google (demo). Em produção, abre OAuth real.');
+  }
+
+  /* ====== Auth API ====== */
+  function mostrarMsg(elId,texto,tipo){
+    const el=document.getElementById(elId);
+    el.className='msg-'+tipo;
+    el.textContent=texto;
+    el.style.display='block';
+    setTimeout(()=>{el.style.display='none'},6000);
+  }
+  async function enviarCodigoEmail(){
+    const email=document.getElementById('login-email').value.trim();
+    if(!email) return;
+    const btn=document.getElementById('btn-enviar-codigo');
+    btn.disabled=true;btn.textContent='Enviando...';
+    try{
+      const r=await fetch('/api/auth/email/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+      const j=await r.json();
+      if(!r.ok) throw new Error(j.error||'Erro ao enviar');
+      mostrarMsg('login-msg','Código enviado! Confira seu e-mail.','ok');
+      document.getElementById('form-email-login').style.display='none';
+      document.getElementById('form-codigo').style.display='block';
+    }catch(e){
+      mostrarMsg('login-msg',e.message,'erro');
+    }finally{
+      btn.disabled=false;btn.textContent='Enviar código de acesso';
+    }
+  }
+  async function verificarCodigoEmail(){
+    const email=document.getElementById('login-email').value.trim();
+    const code=document.getElementById('login-codigo').value.trim();
+    if(!code) return;
+    const btn=document.getElementById('btn-verificar-codigo');
+    btn.disabled=true;btn.textContent='Verificando...';
+    try{
+      const r=await fetch('/api/auth/email/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code})});
+      const j=await r.json();
+      if(!r.ok) throw new Error(j.error||'Código inválido');
+      localStorage.setItem('mb_session',JSON.stringify(j.session));
+      fecharModais();
+      location.reload();
+    }catch(e){
+      mostrarMsg('login-msg',e.message,'erro');
+    }finally{
+      btn.disabled=false;btn.textContent='Verificar e entrar';
+    }
+  }
+  async function enviarCodigoTel(){
+    const tel=document.getElementById('login-tel').value.trim();
+    if(!tel) return;
+    mostrarMsg('login-msg','SMS enviado (em produção).','ok');
+  }
+  async function fazerCadastro(){
+    const email=document.getElementById('cad-email').value.trim();
+    const tel=document.getElementById('cad-tel').value.trim();
+    const uf=document.getElementById('cad-uf').value.trim().toUpperCase();
+    if(!email){mostrarMsg('cad-msg','E-mail é obrigatório','erro');return;}
+    try{
+      const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,tel,uf})});
+      const j=await r.json();
+      if(!r.ok) throw new Error(j.error||'Erro no cadastro');
+      localStorage.setItem('mb_session',JSON.stringify(j.session));
+      mostrarMsg('cad-msg','Conta criada! Redirecionando...','ok');
+      setTimeout(()=>{fecharModais();location.reload()},800);
+    }catch(e){
+      mostrarMsg('cad-msg',e.message,'erro');
+    }
+  }
+
+  /* ====== Init ====== */
+  renderDonuts();
+</script>
 </body>
 </html>
