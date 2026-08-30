@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Radar Político — MudaBrasil</title>
+  <link rel="stylesheet" href="../css/design-system.css">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body{margin:0;font-family:'Manrope',sans-serif;background:#0E1726;color:#fff;min-height:100vh}
+    .wrap{max-width:1200px;margin:0 auto;padding:48px 24px 80px}
+    h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.8rem,3.5vw,2.6rem);margin:0 0 8px;background:linear-gradient(135deg,#AECF00,#4a7bc2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .sub{color:#94A3B8;margin:0 0 32px;font-size:1.05rem}
+    .back{display:inline-flex;align-items:center;gap:6px;color:#AECF00;text-decoration:none;font-weight:700;margin-bottom:24px;font-size:0.9rem}
+    .back:hover{text-decoration:underline}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+    .card{background:linear-gradient(155deg,#152339 0%,#101D33 100%);border:1px solid rgba(90,107,126,0.28);border-radius:16px;padding:22px;transition:all 0.25s}
+    .card:hover{border-color:#3465A4;transform:translateY(-3px);box-shadow:0 8px 24px rgba(52,101,164,0.18)}
+    .rank{font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.8rem;color:#AECF00;line-height:1;margin-bottom:8px}
+    .name{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.1rem;margin:0 0 4px}
+    .role{color:#94A3B8;font-size:0.85rem;margin:0 0 14px}
+    .stats{display:flex;gap:18px;font-size:0.85rem;flex-wrap:wrap}
+    .stat{display:flex;flex-direction:column;gap:2px}
+    .stat b{font-family:'Montserrat',sans-serif;font-weight:800;color:#fff}
+    .stat span{color:#94A3B8;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em}
+    .trend{display:inline-flex;align-items:center;gap:4px;background:rgba(0,151,57,0.12);color:#5fdf8a;padding:3px 9px;border-radius:6px;font-size:0.75rem;font-weight:700;margin-top:10px}
+    .trend.down{background:rgba(220,38,38,0.12);color:#fca5a5}
+    .filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+    .sel{background:#152339;color:#fff;border:1px solid rgba(90,107,126,0.28);padding:9px 14px;border-radius:10px;font-size:0.85rem;font-family:inherit}
+    .tabs{display:flex;gap:6px;margin-bottom:24px;border-bottom:1px solid rgba(90,107,126,0.28);flex-wrap:wrap}
+    .tab{background:none;border:none;color:#94A3B8;padding:10px 16px;font-size:0.88rem;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+    .tab.active{color:#fff;border-bottom-color:#AECF00}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="../index.html" class="back">← Voltar para o Início</a>
+    <h1>📡 Radar Político</h1>
+    <p class="sub">Acompanhe quem ganha e perde confiança no Brasil em tempo real.</p>
+
+    <div class="filter-bar">
+      <select class="sel" id="cargo">
+        <option>Todos os cargos</option>
+        <option>Presidente</option><option>Governador</option>
+        <option>Senador</option><option>Dep. Federal</option>
+        <option>Dep. Estadual</option><option>Prefeito</option>
+        <option>Vereador</option>
+      </select>
+      <select class="sel" id="uf">
+        <option>Todo o Brasil</option>
+        <option>SP</option><option>RJ</option><option>MG</option>
+        <option>BA</option><option>RS</option><option>PR</option>
+      </select>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active">🔥 Em alta</button>
+      <button class="tab">📉 Em queda</button>
+      <button class="tab">⭐ Mais apoiados</button>
+      <button class="tab">🚨 Mais polêmicos</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <script>
+    const POLITICOS = [
+      {rank:1,nome:'Maria Silva',cargo:'Senadora',partido:'PT',uf:'SP',icm:87,apoios:12453,tendencia:'+12%'},
+      {rank:2,nome:'Carlos Souza',cargo:'Dep. Federal',partido:'MDB',uf:'RJ',icm:78,apoios:9872,tendencia:'+8%'},
+      {rank:3,nome:'Ana Beatriz',cargo:'Governadora',partido:'PSOL',uf:'BA',icm:74,apoios:8654,tendencia:'+5%'},
+      {rank:4,nome:'João Pereira',cargo:'Dep. Estadual',partido:'PL',uf:'MG',icm:68,apoios:7431,tendencia:'-3%'},
+      {rank:5,nome:'Patrícia Lima',cargo:'Prefeita',partido:'PSD',uf:'RS',icm:65,apoios:6234,tendencia:'+2%'},
+      {rank:6,nome:'Roberto Alves',cargo:'Vereador',partido:'NOVO',uf:'PR',icm:61,apoios:5102,tendencia:'-7%'},
+      {rank:7,nome:'Juliana Costa',cargo:'Dep. Federal',partido:'REDE',uf:'SP',icm:58,apoios:4521,tendencia:'+1%'},
+      {rank:8,nome:'Felipe Santos',cargo:'Senador',partido:'PP',uf:'MG',icm:54,apoios:3987,tendencia:'-5%'},
+      {rank:9,nome:'Camila Rocha',cargo:'Dep. Estadual',partido:'PSB',uf:'RJ',icm:51,apoios:3214,tendencia:'+3%'},
+    ];
+    const grid=document.getElementById('grid');
+    grid.innerHTML=POLITICOS.map(p=>{
+      const down=p.tendencia.startsWith('-');
+      return `<div class="card">
+        <div class="rank">#${p.rank}</div>
+        <h3 class="name">${p.nome}</h3>
+        <p class="role">${p.cargo} · ${p.partido} · ${p.uf}</p>
+        <div class="stats">
+          <div class="stat"><span>ICM</span><b>${p.icm}/100</b></div>
+          <div class="stat"><span>Apoios</span><b>${p.apoios.toLocaleString('pt-BR')}</b></div>
+        </div>
+        <span class="trend ${down?'down':''}">${down?'▼':'▲'} ${p.tendencia} esta semana</span>
+      </div>`;
+    }).join('');
+  </script>
+</body>
+</html>

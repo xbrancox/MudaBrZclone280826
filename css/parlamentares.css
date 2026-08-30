@@ -664,6 +664,7 @@ select.mb-input { appearance: none; background-image: url("data:image/svg+xml;ut
   padding: 20px;
   animation: mbFade .2s;
 }
+.mb-modal[hidden] { display: none !important; }
 .mb-modal-card {
   background: var(--mb-bg-card);
   border: 1px solid var(--mb-border);

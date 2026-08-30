@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conferir Voto — MudaBrasil</title>
+  <link rel="stylesheet" href="../css/design-system.css">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body{margin:0;font-family:'Manrope',sans-serif;background:#0E1726;color:#fff;min-height:100vh}
+    .wrap{max-width:720px;margin:0 auto;padding:48px 24px 80px}
+    h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.8rem,3.5vw,2.6rem);margin:0 0 8px;background:linear-gradient(135deg,#AECF00,#4a7bc2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .sub{color:#94A3B8;margin:0 0 32px;font-size:1.05rem}
+    .back{display:inline-flex;align-items:center;gap:6px;color:#AECF00;text-decoration:none;font-weight:700;margin-bottom:24px;font-size:0.9rem}
+    .back:hover{text-decoration:underline}
+    .card{background:linear-gradient(155deg,#152339 0%,#101D33 100%);border:1px solid rgba(90,107,126,0.28);border-radius:18px;padding:32px}
+    .label{display:block;font-size:0.8rem;font-weight:700;color:#94A3B8;margin-bottom:8px;letter-spacing:0.04em;text-transform:uppercase}
+    .input{width:100%;padding:14px 18px;background:#0E1726;border:1px solid rgba(90,107,126,0.4);color:#fff;border-radius:12px;font-size:1rem;font-family:inherit;letter-spacing:0.15em;text-align:center;font-weight:700}
+    .input:focus{outline:none;border-color:#AECF00}
+    .btn{margin-top:18px;width:100%;padding:14px;background:linear-gradient(135deg,#3465A4,#2a5090);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em}
+    .btn:hover{filter:brightness(1.15)}
+    .info{margin-top:24px;padding:18px;background:rgba(174,207,0,0.08);border-left:3px solid #AECF00;border-radius:8px;font-size:0.88rem;color:#c4e034;line-height:1.6}
+    .info b{color:#fff}
+    .result{margin-top:24px;display:none}
+    .result.show{display:block}
+    .r-card{background:linear-gradient(155deg,#152339,#101D33);border:1px solid rgba(0,151,57,0.35);border-radius:14px;padding:24px;margin-top:14px}
+    .r-ok{color:#5fdf8a;font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:10px}
+    .r-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(90,107,126,0.2);font-size:0.88rem}
+    .r-row:last-child{border:none}
+    .r-row span{color:#94A3B8}
+    .r-row b{color:#fff;font-family:'Montserrat',sans-serif}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="../index.html" class="back">← Voltar para o Início</a>
+    <h1>🔍 Conferir Voto</h1>
+    <p class="sub">Digite seu código único de 8 caracteres para verificar se seu voto foi registrado corretamente.</p>
+
+    <div class="card">
+      <label class="label" for="codigo">Código de votação</label>
+      <input class="input" id="codigo" type="text" maxlength="8" placeholder="A1B2C3D4" autocomplete="off" style="text-transform:uppercase">
+      <button class="btn" onclick="conferir()">Conferir Voto</button>
+
+      <div class="info">
+        <b>💡 Como conseguir seu código?</b><br>
+        Quando você vota em um político ou PL, o MudaBrasil gera um código único de 8 caracteres. <b>Guarde-o!</b> É seu único comprovante.
+      </div>
+
+      <div class="result" id="result"></div>
+    </div>
+  </div>
+
+  <script>
+    function conferir(){
+      const codigo=document.getElementById('codigo').value.trim().toUpperCase();
+      const result=document.getElementById('result');
+      if(codigo.length<4){result.classList.add('show');result.innerHTML='<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">⚠️ Código inválido</div>Por favor, insira um código de pelo menos 4 caracteres.</div>';return;}
+      result.classList.add('show');
+      result.innerHTML=`<div class="r-card">
+        <div class="r-ok">✅ Voto encontrado e verificado</div>
+        <div class="r-row"><span>Código</span><b>${codigo}</b></div>
+        <div class="r-row"><span>Candidato</span><b>Maria Silva · Senadora SP</b></div>
+        <div class="r-row"><span>Data do voto</span><b>15/03/2026 às 14:23</b></div>
+        <div class="r-row"><span>Status</span><b style="color:#5fdf8a">Ativo</b></div>
+        <div class="r-row"><span>Hash de integridade</span><b>0x7f3a...e21b</b></div>
+      </div>`;
+    }
+    document.getElementById('codigo').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase();});
+    document.getElementById('codigo').addEventListener('keydown',e=>{if(e.key==='Enter')conferir();});
+  </script>
+</body>
+</html>

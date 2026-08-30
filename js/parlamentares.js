@@ -74,19 +74,43 @@
   }
 
   /* ============================================================
-     CANDIDATOS
+     CANDIDATOS — dados estáticos de fallback (Pages)
      ============================================================ */
+  const FALLBACK_POLITICOS = [
+    {id:'maria-silva',name:'Maria Silva',position:'Senadora',party:'PT',state:'SP',focusArea:'Meio Ambiente',integrityIndex:87,transparency:92,lawsuits:0,attendance:96,assets:'R$ 1.2M',photo:''},
+    {id:'carlos-souza',name:'Carlos Souza',position:'Dep. Federal',party:'MDB',state:'RJ',focusArea:'Economia',integrityIndex:78,transparency:85,lawsuits:1,attendance:88,assets:'R$ 2.8M',photo:''},
+    {id:'ana-beatriz',name:'Ana Beatriz',position:'Governadora',party:'PSOL',state:'BA',focusArea:'Educação',integrityIndex:74,transparency:80,lawsuits:0,attendance:92,assets:'R$ 980k',photo:''},
+    {id:'joao-pereira',name:'João Pereira',position:'Dep. Estadual',party:'PL',state:'MG',focusArea:'Segurança',integrityIndex:68,transparency:72,lawsuits:2,attendance:81,assets:'R$ 1.5M',photo:''},
+    {id:'patricia-lima',name:'Patrícia Lima',position:'Prefeita',party:'PSD',state:'RS',focusArea:'Saúde',integrityIndex:65,transparency:70,lawsuits:1,attendance:89,assets:'R$ 750k',photo:''},
+    {id:'roberto-alves',name:'Roberto Alves',position:'Vereador',party:'NOVO',state:'PR',focusArea:'Transparência',integrityIndex:61,transparency:78,lawsuits:0,attendance:84,assets:'R$ 420k',photo:''},
+    {id:'juliana-costa',name:'Juliana Costa',position:'Dep. Federal',party:'REDE',state:'SP',focusArea:'Sustentabilidade',integrityIndex:58,transparency:75,lawsuits:0,attendance:91,assets:'R$ 1.1M',photo:''},
+    {id:'felipe-santos',name:'Felipe Santos',position:'Senador',party:'PP',state:'MG',focusArea:'Infraestrutura',integrityIndex:54,transparency:62,lawsuits:3,attendance:79,assets:'R$ 3.2M',photo:''},
+    {id:'camila-rocha',name:'Camila Rocha',position:'Dep. Estadual',party:'PSB',state:'RJ',focusArea:'Cultura',integrityIndex:51,transparency:68,lawsuits:0,attendance:86,assets:'R$ 680k',photo:''},
+    {id:'renato-vieira',name:'Renato Vieira',position:'Dep. Federal',party:'PTB',state:'SP',focusArea:'Trabalho',integrityIndex:42,transparency:55,lawsuits:5,attendance:72,assets:'R$ 2.1M',photo:''},
+    {id:'beatriz-mendes',name:'Beatriz Mendes',position:'Dep. Federal',party:'PDT',state:'RS',focusArea:'Direitos Humanos',integrityIndex:71,transparency:82,lawsuits:0,attendance:90,assets:'R$ 1.4M',photo:''},
+    {id:'marcos-vieira',name:'Marcos Vieira',position:'Senador',party:'MDB',state:'BA',focusArea:'Agricultura',integrityIndex:66,transparency:74,lawsuits:1,attendance:85,assets:'R$ 2.4M',photo:''},
+  ];
+
+  const FALLBACK_PLS = [
+    {id:'pl-1234',num:'PL 1234/2026',title:'Programa Nacional de Restauração Ambiental',author:'Dep. Carlos Souza (MDB/RJ)',status:'Câmara',tema:'Meio Ambiente',sim:62,nao:38},
+    {id:'pl-5678',num:'PL 5678/2026',title:'Reforma do Ensino Médio com foco em tecnologia',author:'Sen. Ana Beatriz (PSOL/BA)',status:'Senado',tema:'Educação',sim:54,nao:46},
+    {id:'pl-9101',num:'PL 9101/2026',title:'Ampliação do programa Saúde da Família',author:'Dep. Maria Silva (PT/SP)',status:'Câmara',tema:'Saúde',sim:71,nao:29},
+    {id:'pl-8024',num:'PL 8024/2026',title:'Lei de Proteção de Dados Eleitorais',author:'Sen. Juliana Costa (REDE/SP)',status:'Sanção',tema:'Segurança',sim:78,nao:22},
+  ];
+
   async function loadCandidatos() {
     try {
       const r = await fetch('/api/candidatos');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
-      state.allPoliticians = d.candidatos || [];
-      populateFilterOptions();
-      attachFilterHandlers();
-      applyFilters();
+      state.allPoliticians = (d.candidatos && d.candidatos.length) ? d.candidatos : FALLBACK_POLITICOS;
     } catch (e) {
-      console.error('loadCandidatos', e);
+      console.warn('loadCandidatos usando fallback:', e.message);
+      state.allPoliticians = FALLBACK_POLITICOS;
     }
+    populateFilterOptions();
+    attachFilterHandlers();
+    applyFilters();
   }
 
   function populateFilterOptions() {
@@ -307,11 +331,22 @@
     // Carrega feed
     try {
       const r = await fetch('/api/reclamacoes?limit=50');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
-      renderRadar(d.complaints || []);
+      renderRadar((d.complaints && d.complaints.length) ? d.complaints : FALLBACK_RECLAMACOES);
       renderRadarLists();
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.warn('loadRadar usando fallback:', e.message);
+      renderRadar(FALLBACK_RECLAMACOES);
+      renderRadarLists();
+    }
   }
+
+  const FALLBACK_RECLAMACOES = [
+    {politicianName:'Maria Silva',totalPoliticianComplaints:3,createdAt:new Date(Date.now()-86400000).toISOString(),summary:'Prometeu auditar gastos do Senado e ainda não apresentou o relatório.'},
+    {politicianName:'Carlos Souza',totalPoliticianComplaints:1,createdAt:new Date(Date.now()-172800000).toISOString(),summary:'Votou a favor de redução de incentivo à energia solar.'},
+    {politicianName:'João Pereira',totalPoliticianComplaints:5,createdAt:new Date(Date.now()-259200000).toISOString(),summary:'Não compareceu a 8 sessões consecutivas sem justificativa.'},
+  ];
 
   function renderRadar(complaints) {
     const feed = $('#radar-feed');
@@ -375,12 +410,16 @@
   async function loadPls() {
     try {
       const r = await fetch('/api/pls');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
-      state.pls = d.pls || [];
-      populatePlFilters();
-      attachPlFilters();
-      renderPls();
-    } catch (e) { console.error(e); }
+      state.pls = (d.pls && d.pls.length) ? d.pls : FALLBACK_PLS;
+    } catch (e) {
+      console.warn('loadPls usando fallback:', e.message);
+      state.pls = FALLBACK_PLS;
+    }
+    populatePlFilters();
+    attachPlFilters();
+    renderPls();
   }
 
   function populatePlFilters() {
@@ -463,21 +502,34 @@
   /* ============================================================
      REVOGADOS
      ============================================================ */
+  const FALLBACK_REVOGADOS = [
+    {id:'roberto-alves',name:'Roberto Alves',position:'Vereador',party:'NOVO',state:'PR',revogacoes:342,motivo:'Prometeu transparência e votou a favor de aumento do próprio salário.'},
+    {id:'felipe-santos',name:'Felipe Santos',position:'Senador',party:'PP',state:'MG',revogacoes:1287,motivo:'Mudou de posição sobre reforma após lobby.'},
+    {id:'joao-pereira',name:'João Pereira',position:'Dep. Estadual',party:'PL',state:'MG',revogacoes:892,motivo:'Abandonou 18 sessões consecutivas.'},
+    {id:'patricia-lima',name:'Patrícia Lima',position:'Prefeita',party:'PSD',state:'RS',revogacoes:2154,motivo:'Esquema de superfaturamento de obras.'},
+    {id:'camila-rocha',name:'Camila Rocha',position:'Dep. Estadual',party:'PSB',state:'RJ',revogacoes:567,motivo:'Votou contra proteção ambiental.'},
+    {id:'renato-vieira',name:'Renato Vieira',position:'Dep. Federal',party:'PTB',state:'SP',revogacoes:3421,motivo:'Flagrado em operação da PF.'},
+  ];
+
   async function loadRevogados() {
     try {
       const r = await fetch('/api/voto/revogados');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
-      state.revStats = d.politicos || [];
-      // popula filtros
-      const parties = new Set();
-      const states = new Set();
-      state.allPoliticians.forEach(p => { if (p.party) parties.add(p.party); if (p.state) states.add(p.state); });
-      const psel = $('#rev-party'), ssel = $('#rev-state');
-      Array.from(parties).sort().forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; psel.appendChild(o); });
-      Array.from(states).sort().forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; ssel.appendChild(o); });
-      ['rev-search', 'rev-party', 'rev-state'].forEach(id => $('#' + id).addEventListener('input', renderRevogados));
-      renderRevogados();
-    } catch (e) { console.error(e); }
+      state.revStats = (d.politicos && d.politicos.length) ? d.politicos : FALLBACK_REVOGADOS;
+    } catch (e) {
+      console.warn('loadRevogados usando fallback:', e.message);
+      state.revStats = FALLBACK_REVOGADOS;
+    }
+    // popula filtros
+    const parties = new Set();
+    const states = new Set();
+    state.allPoliticians.forEach(p => { if (p.party) parties.add(p.party); if (p.state) states.add(p.state); });
+    const psel = $('#rev-party'), ssel = $('#rev-state');
+    if (psel) Array.from(parties).sort().forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; psel.appendChild(o); });
+    if (ssel) Array.from(states).sort().forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; ssel.appendChild(o); });
+    ['rev-search', 'rev-party', 'rev-state'].forEach(id => { const el = $('#' + id); if (el) el.addEventListener('input', renderRevogados); });
+    renderRevogados();
   }
 
   function renderRevogados() {
