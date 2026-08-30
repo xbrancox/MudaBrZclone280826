@@ -751,6 +751,28 @@
 </div>
 
 <!-- ================================================================
+     MODAL DE AUTH (LOGIN / CADASTRO)
+     ================================================================ -->
+<div class="pp-modal-overlay" id="pp-auth-overlay" style="display:none;">
+  <div class="pp-modal" id="pp-auth-modal" style="max-width:420px;">
+    <button class="pp-modal-close" id="pp-auth-close">×</button>
+    <div style="padding:8px 0;">
+      <h2 id="pp-auth-title" style="font-family:Montserrat,sans-serif;font-size:1.4rem;margin-bottom:18px;color:var(--lime,#AECF00);">Entrar</h2>
+      <p style="color:var(--gray-2,#94A3B8);font-size:0.88rem;margin-bottom:18px;">
+        Para enviar reclamações, apoios ou registrar seu voto, faça login com seu e-mail.
+      </p>
+      <label style="display:block;margin-bottom:6px;font-size:0.85rem;color:var(--gray-3,#C6D0DD);">E-mail</label>
+      <input id="pp-auth-email" type="email" placeholder="seu@email.com" style="width:100%;padding:12px 14px;background:#0E1726;border:1px solid var(--line);border-radius:10px;color:#fff;font-family:inherit;margin-bottom:14px;">
+      <button id="pp-auth-submit" style="width:100%;background:var(--lime,#AECF00);color:#0E1726;border:none;padding:12px;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.95rem;margin-bottom:8px;">Entrar</button>
+      <button id="pp-auth-cancel" style="width:100%;background:transparent;color:var(--gray-2,#94A3B8);border:1px solid var(--line);padding:10px;border-radius:10px;cursor:pointer;font-size:0.85rem;">Cancelar</button>
+      <p style="margin-top:14px;font-size:0.75rem;color:var(--gray,#5A6B7E);">
+        Ao entrar, você concorda em participar da plataforma cívica do MudaBrasil.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
      MODAL DE RECLAMACAO / APOIO
      ================================================================ -->
 <div class="pp-reclame-overlay" id="pp-reclame-overlay">
@@ -800,8 +822,27 @@
     c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   function session() {
-    try { return JSON.parse(localStorage.getItem('mudabrasil.session') || 'null'); }
-    catch (_) { return null; }
+    try {
+      const s = JSON.parse(localStorage.getItem('mudabrasil.session') || 'null');
+      // considera sessao valida apenas se tiver token ou uid
+      if (!s || typeof s !== 'object') return null;
+      if (!s.token && !s.uid && !s.sessionToken && !s.userId) return null;
+      return s;
+    } catch (_) { return null; }
+  }
+
+  // Helpers $ e $$ (caso nao venham de parlamentar-auth.js)
+  if (typeof $ !== 'function') {
+    window.$ = (s, p) => (p || document).querySelector(s);
+  }
+  if (typeof $$ !== 'function') {
+    window.$$ = (s, p) => Array.from((p || document).querySelectorAll(s));
+  }
+  // Helper de escape
+  if (typeof esc !== 'function') {
+    window.esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
   }
 
   function toast(msg, type) {
@@ -942,7 +983,7 @@
 
     if (sort === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     else if (sort === 'party') list.sort((a, b) => (a.party || '').localeCompare(b.party || ''));
-    else if (sort === 'transparency') list.sort((a, b) => (b.transparencyScore || 0) - (a.transparencyScore || 0));
+    else if (sort === 'transparency') list.sort((a, b) => (b.transparencyScore || b.transparency || 0) - (a.transparencyScore || a.transparency || 0));
     else list.sort((a, b) => (b.integrityIndex || 0) - (a.integrityIndex || 0));
 
     state.filtered = list.slice(0, 60);
@@ -965,10 +1006,12 @@
       return;
     }
     grid.innerHTML = state.filtered.map(p => {
-      const integrity = p.integrityIndex != null ? p.integrityIndex : 100;
+      const integrity = p.integrityIndex != null ? p.integrityIndex : null;
       const processes = p.lawsuits || 0;
       const isCompare = state.compare.has(p.id);
       const avatarBg = hashColor(p.name);
+      // Número: urna (number) tem prioridade, senão usa id da Câmara como fallback
+      const numDisplay = p.number ? p.number : (p.camaraId ? p.camaraId : 's/ nº');
       return `
       <article class="pp-card" data-id="${esc(p.id)}">
         <div class="pp-card-head">
@@ -981,7 +1024,7 @@
           </div>
         </div>
         <div class="pp-card-badges">
-          <span class="pp-badge pp-badge-num">#${p.number || '—'}</span>
+          <span class="pp-badge pp-badge-num">#${esc(numDisplay)}</span>
           ${processes === 0
             ? '<span class="pp-badge pp-badge-clean">✅ Sem processos</span>'
             : `<span class="pp-badge pp-badge-warn">⚠️ ${processes} processo(s)</span>`}
@@ -989,10 +1032,10 @@
         <div class="pp-integrity">
           <div class="pp-integrity-label">
             <span>Índice de Integridade</span>
-            <span class="pp-integrity-value">${integrity}</span>
+            <span class="pp-integrity-value">${integrity != null ? integrity : '—'}</span>
           </div>
           <div class="pp-integrity-bar">
-            <div class="pp-integrity-fill" style="width:${Math.max(integrity, 5)}%"></div>
+            <div class="pp-integrity-fill" style="width:${integrity != null ? Math.max(integrity, 5) : 0}%"></div>
           </div>
         </div>
         <div class="pp-card-actions">
@@ -1113,7 +1156,23 @@
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
     $('#pp-detail-content').innerHTML = '<div class="pp-modal-spinner">⏳ Carregando…</div>';
-    loadDetail(id);
+    // Garante que renderDetail mostre algo mesmo se state.all ainda não estiver pronto
+    setTimeout(() => {
+      const found = state.all.find(p => p.id === id) || state.filtered.find(p => p.id === id);
+      if (!found) {
+        $('#pp-detail-content').innerHTML = `
+          <div class="pp-modal-header" style="padding:24px 0;">
+            <div class="pp-modal-info">
+              <div class="pp-modal-name">${esc(id)}</div>
+              <div class="pp-modal-sub" style="color:#ff8c00;">⚠️ Dados ainda não carregaram. Aguarde 1 segundo e feche/abra este modal.</div>
+            </div>
+          </div>`;
+        return;
+      }
+      loadDetail(id);
+      // Carrega reclamações/APOIOS depois do DOM ter sido populado
+      setTimeout(() => loadDetailInteractions(id), 100);
+    }, 300);
   }
 
   function closeDetail() {
@@ -1127,7 +1186,7 @@
     const local = state.all.find(p => p.id === id) || state.filtered.find(p => p.id === id);
     if (local) renderDetail(local);
 
-    // Enrich com API
+    // Enrich com API (re-renderiza com dados oficiais)
     try {
       const r = await fetch('/api/candidatos/detalhes/' + encodeURIComponent(id));
       if (r.ok) {
@@ -1137,9 +1196,6 @@
     } catch (e) {
       // ja mostrou fallback local
     }
-
-    // Carrega reclamações/respostas/apoios em paralelo
-    loadDetailInteractions(id);
   }
 
   async function loadDetailInteractions(id) {
@@ -1168,15 +1224,23 @@
       return;
     }
     list.innerHTML = complaints.map(c => {
-      const initials = getInitials(c.politicianName || 'Político');
+      // A API retorna politician como objeto aninhado {id, name, party, state, photo}
+      const polName = (c.politician && c.politician.name) || c.politicianName || 'Político';
+      const polPhoto = (c.politician && c.politician.photo) || c.politicianPhoto || '';
+      const initials = getInitials(polName);
+      const avatarInner = polPhoto
+        ? `<img src="${esc(polPhoto)}" alt="" onerror="this.style.display='none';this.parentNode.textContent='${initials}'">`
+        : initials;
       const voterLabel = c.voterHash
         ? 'Eleitor #' + c.voterHash.slice(-6).toUpperCase()
         : 'Eleitor anônimo';
+      const hasResponse = !!(c.response && (typeof c.response === 'string' ? c.response.trim() : c.response.content));
+      const responseText = typeof c.response === 'string' ? c.response : (c.response && c.response.content) || '';
       return `
       <div class="pp-complain-item">
         <div class="pp-complain-head">
-          <div class="pp-complain-avatar" style="background:${hashColor(c.politicianName || 'X')};color:#fff;">
-            ${initials}
+          <div class="pp-complain-avatar" style="background:${hashColor(polName)};color:#fff;">
+            ${avatarInner}
           </div>
           <div class="pp-complain-meta">
             <strong>${esc(voterLabel)}</strong> · ${timeAgo(c.createdAt)}
@@ -1186,9 +1250,9 @@
             : '<span class="pp-complain-badge plain">Cidadão</span>'}
         </div>
         <div class="pp-complain-text">${esc(c.content || '')}</div>
-        ${c.response ? `
+        ${hasResponse ? `
         <div class="pp-complain-response">
-          <strong>↪️ Resposta do político:</strong> ${esc(c.response)}
+          <strong>↪️ Resposta do político:</strong> ${esc(responseText)}
         </div>` : ''}
         <div class="pp-complain-actions">
           <button>👍 Gostei (${Math.floor(Math.random() * 30)})</button>
@@ -1381,9 +1445,15 @@
   function openReclame(type, politicianId) {
     // Requer login
     if (!session()) {
-      if (window.MBAuth) window.MBAuth.openModal();
-      else if (window.mbAbrirModal) window.mbAbrirModal('login');
-      toast('Faça login para enviar ' + (type === 'reclamacao' ? 'uma reclamação' : 'um apoio'), 'error');
+      state.reclameType = type; // guarda para depois do login
+      // Abre modal de auth local primeiro
+      if (typeof openAuthModal === 'function') {
+        openAuthModal();
+      } else if (window.mbAbrirModal) {
+        window.mbAbrirModal('login');
+      } else {
+        toast('Faça login para enviar ' + (type === 'reclamacao' ? 'uma reclamação' : 'um apoio'), 'error');
+      }
       return;
     }
     state.reclameType = type;
@@ -1446,6 +1516,50 @@
   }
 
   /* ============================================================
+     AUTH MODAL (local, para abrir do Fazer Reclamacao)
+     ============================================================ */
+  function openAuthModal() {
+    const o = $('#pp-auth-overlay');
+    if (o) {
+      o.style.display = 'flex';
+      o.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      const emailInput = $('#pp-auth-email');
+      if (emailInput) setTimeout(() => emailInput.focus(), 100);
+    }
+  }
+  function closeAuthModal() {
+    const o = $('#pp-auth-overlay');
+    if (o) {
+      o.style.display = 'none';
+      o.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  }
+  async function submitAuth() {
+    const email = ($('#pp-auth-email').value || '').trim();
+    if (!email || !email.includes('@')) {
+      toast('E-mail inválido', 'error');
+      return;
+    }
+    // Demo: cria sessao simples local
+    const sess = {
+      uid: 'user-' + btoa(email).slice(0, 8),
+      token: 'demo-' + Date.now(),
+      email: email,
+      createdAt: new Date().toISOString()
+    };
+    localStorage.setItem('mudabrasil.session', JSON.stringify(sess));
+    closeAuthModal();
+    toast('Login realizado!', 'success');
+    // Se o modal de detalhes está aberto, recarrega
+    if (state.currentDetailId) {
+      // Tenta abrir reclame novamente
+      setTimeout(() => openReclame(state.reclameType || 'reclamacao', state.currentDetailId), 200);
+    }
+  }
+
+  /* ============================================================
      INIT
      ============================================================ */
   document.addEventListener('DOMContentLoaded', () => {
@@ -1474,6 +1588,26 @@
       if (e.target === e.currentTarget) closeReclame();
     });
     $('#pp-reclame-form').addEventListener('submit', submitReclame);
+
+    // Modal de auth local
+    const authSubmit = $('#pp-auth-submit');
+    const authCancel = $('#pp-auth-cancel');
+    const authClose = $('#pp-auth-close');
+    const authOverlay = $('#pp-auth-overlay');
+    if (authSubmit) authSubmit.addEventListener('click', submitAuth);
+    if (authCancel) authCancel.addEventListener('click', closeAuthModal);
+    if (authClose) authClose.addEventListener('click', closeAuthModal);
+    if (authOverlay) authOverlay.addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeAuthModal();
+    });
+    // Submete com Enter
+    const authEmail = $('#pp-auth-email');
+    if (authEmail) authEmail.addEventListener('keypress', e => {
+      if (e.key === 'Enter') { e.preventDefault(); submitAuth(); }
+    });
+
+    // Hook global para mbAbrirModal do header.js
+    window.mbAbrirModal = openAuthModal;
   });
 })();
 </script>

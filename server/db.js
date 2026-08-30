@@ -695,6 +695,17 @@ function getVoterByHash(voterHash) {
   return Object.values(jsonReadFile('voters')).find(v => v.voterHash === voterHash) || null;
 }
 
+function getVoterByEmail(email) {
+  const emailStr = String(email || '').trim().toLowerCase();
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    const r = db.prepare('SELECT * FROM voters WHERE email = ?').get(emailStr);
+    if (!r) return null;
+    return { id: r.id, method: r.method, googleId: r.google_id, phone: r.phone, email: r.email, name: r.name, photo: r.photo, voterHash: r.voter_hash, verifiedAt: r.verified_at, createdAt: r.created_at, lastLoginAt: r.last_login_at };
+  }
+  return Object.values(jsonReadFile('voters')).find(v => v.email === emailStr) || null;
+}
+
 /* ============================================================
    UTILITÁRIOS GLOBAIS
    ============================================================ */
@@ -1015,7 +1026,7 @@ module.exports = {
   createComplaint, getComplaint, getComplaintsByPolitician, countComplaintsByPolitician, getAllComplaints,
   createSupport, getSupportsByPolitician, countSupportsByPolitician,
   createResponse, getResponseByComplaint, getResponsesByPolitician,
-  hashVoter, upsertVoter, getVoterById, getVoterByGoogleId, getVoterByPhone, getVoterByHash,
+  hashVoter, upsertVoter, getVoterById, getVoterByGoogleId, getVoterByPhone, getVoterByHash, getVoterByEmail,
   upsertPl, getPl, readAllPls, getPlsByFilters, castPlVote, getPlVoteForVoter,
   generateVoteCode, getVoteCodesForVoter, verifyVoteCode, markCodeUsed,
   getRevokedStats,
