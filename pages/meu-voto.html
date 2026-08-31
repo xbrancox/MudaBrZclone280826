@@ -3,460 +3,144 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MudaBrasil - Meu Voto</title>
-  <meta name="description" content="Expresse confiança em políticos, consulte seu voto atual, reafirme ou revogue. Tudo anônimo e com dados públicos.">
+  <title>Revogar Voto — MudaBrasil</title>
+  <meta name="description" content="Retire sua confiança de quem não cumpriu o prometido. Simples, transparente e simulado.">
   <link rel="stylesheet" href="../css/design-system.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <script src="../js/header.js"></script>
   <style>
-    /* Estilos específicos para a página Meu Voto */
-    .vote-tabs {
-      display: flex;
-      gap: 4px;
-      margin-bottom: var(--space-lg);
-      border-bottom: 2px solid var(--border-500);
-      flex-wrap: wrap;
-    }
-    .vote-tab {
-      padding: var(--space-sm) var(--space-lg);
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
-      font-size: var(--text-sm);
-      font-weight: 600;
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-    .vote-tab:hover {
-      color: var(--accent-400);
-    }
-    .vote-tab.active {
-      color: var(--accent-500);
-      border-bottom-color: var(--accent-500);
-    }
-    .tab-panel {
-      display: none;
-      animation: fadeIn 0.3s ease;
-    }
-    .tab-panel.active {
-      display: block;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .vote-step {
-      display: flex;
-      gap: var(--space-md);
-      margin-bottom: var(--space-lg);
-      align-items: flex-start;
-    }
-    .step-number {
-      flex-shrink: 0;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: var(--accent-500);
-      color: var(--bg-900);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: var(--text-base);
-    }
-    .step-content h4 {
-      margin: 0 0 var(--space-xs);
-      font-size: var(--text-base);
-    }
-    .step-content p {
-      margin: 0;
-      color: var(--text-secondary);
-      font-size: var(--text-sm);
-    }
-    .info-box {
-      background: rgba(30, 111, 224, 0.1);
-      border-left: 4px solid var(--accent-500);
-      padding: var(--space-md);
-      border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
-      margin: var(--space-md) 0;
-    }
-    .info-box.warning {
-      background: rgba(255, 165, 0, 0.1);
-      border-left-color: #FFA500;
-    }
-    .info-box.danger {
-      background: rgba(255, 80, 80, 0.1);
-      border-left-color: #FF5050;
-    }
-    .code-input-group {
-      display: flex;
-      gap: var(--space-sm);
-      flex-wrap: wrap;
-      margin-bottom: var(--space-md);
-    }
-    .code-input-group input {
-      flex: 1;
-      min-width: 200px;
-    }
-    .my-vote-status {
-      padding: var(--space-lg);
-      background: var(--surface-500);
-      border-radius: var(--border-radius-md);
-      border: 1px solid var(--border-500);
-      margin-bottom: var(--space-md);
-    }
-    .my-vote-status.has-vote {
-      border-color: var(--accent-500);
-      background: rgba(30, 111, 224, 0.05);
-    }
-    .vote-actions-row {
-      display: flex;
-      gap: var(--space-sm);
-      flex-wrap: wrap;
-      margin-top: var(--space-md);
-    }
-    .thermo-mini-list {
-      max-height: 400px;
-      overflow-y: auto;
-    }
-    .thermo-mini-item {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-sm) 0;
-      border-bottom: 1px solid var(--border-500);
-    }
-    .thermo-mini-item:last-child {
-      border-bottom: none;
-    }
-    .thermo-mini-rank {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: var(--surface-500);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: var(--text-xs);
-      flex-shrink: 0;
-    }
-    .thermo-mini-rank.top-3 {
-      background: var(--accent-500);
-      color: var(--bg-900);
-    }
+    body{margin:0;font-family:'Manrope',sans-serif;background:#0E1726;color:#fff;min-height:100vh}
+    .wrap{max-width:760px;margin:0 auto;padding:48px 24px 80px}
+    h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.8rem,3.5vw,2.6rem);margin:0 0 8px}
+    h1 .rv-blue{color:#4a7bc2}
+    h1 .rv-green{color:#009739}
+    .sub{color:#94A3B8;margin:0 0 32px;font-size:1.02rem;line-height:1.6}
+    .back{display:inline-flex;align-items:center;gap:6px;color:#AECF00;text-decoration:none;font-weight:700;margin-bottom:24px;font-size:0.9rem}
+    .back:hover{text-decoration:underline}
+
+    .rv-list-title{font-family:'Montserrat',sans-serif;font-size:0.85rem;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 12px}
+    .rv-item{background:linear-gradient(155deg,#152339 0%,#101D33 100%);border:1px solid rgba(90,107,126,0.28);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:10px}
+    .rv-avatar{width:44px;height:44px;border-radius:50%;background:#3465A4;box-shadow:0 0 0 3px rgba(52,101,164,0.45);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;color:#fff;flex-shrink:0}
+    .rv-meta{flex:1;min-width:0}
+    .rv-name{font-weight:700;font-size:0.95rem}
+    .rv-sub{font-size:0.78rem;color:#94A3B8}
+    .rv-date{font-size:0.72rem;color:#5A6B7E;margin-top:2px}
+    .rv-btn{background:transparent;border:1px solid #AECF00;color:#AECF00;padding:8px 18px;border-radius:9999px;font-size:0.8rem;font-weight:800;cursor:pointer;transition:all 0.2s;flex-shrink:0}
+    .rv-btn:hover{background:rgba(174,207,0,0.15)}
+
+    .rv-confirm{display:none;margin-top:28px;background:linear-gradient(155deg,#152339,#101D33);border:1px solid rgba(174,207,0,0.4);border-radius:18px;padding:28px}
+    .rv-confirm.show{display:block}
+    .rv-confirm h3{font-family:'Montserrat',sans-serif;font-weight:800;margin:0 0 6px;font-size:1.15rem}
+    .rv-cpol{color:#94A3B8;margin:0 0 18px;font-size:0.9rem}
+    .rv-countdown{display:flex;align-items:center;gap:14px;background:rgba(174,207,0,0.08);border-left:3px solid #AECF00;border-radius:8px;padding:14px 16px;margin-bottom:18px}
+    .rv-timer{font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.8rem;color:#AECF00;min-width:64px;text-align:center}
+    .rv-countdown p{margin:0;font-size:0.88rem;color:#c4e034;line-height:1.5}
+    .rv-countdown p b{color:#fff}
+    .rv-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .rv-confirm-btn{flex:1;min-width:160px;padding:14px;background:#AECF00;color:#0E1726;border:none;border-radius:9999px;font-weight:800;font-size:0.95rem;cursor:pointer;transition:filter 0.2s}
+    .rv-confirm-btn:hover{filter:brightness(1.1)}
+    .rv-confirm-btn:disabled{opacity:0.45;cursor:not-allowed}
+    .rv-cancel{flex:1;min-width:120px;padding:14px;background:transparent;color:#C6D0DD;border:1px solid rgba(90,107,126,0.5);border-radius:9999px;font-weight:700;font-size:0.95rem;cursor:pointer}
+    .rv-cancel:hover{border-color:#94A3B8}
+    .info{margin-top:24px;padding:18px;background:rgba(174,207,0,0.08);border-left:3px solid #AECF00;border-radius:8px;font-size:0.88rem;color:#c4e034;line-height:1.6}
+    .info b{color:#fff}
+    .info.danger{background:rgba(255,140,122,0.08);border-left-color:#ff8c7a;color:#ffb4a6}
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <a href="../index.html" class="back">← Voltar para o Início</a>
+    <h1><span class="rv-blue">Revogar</span> <span class="rv-green">voto</span></h1>
+    <p class="sub">Retire sua confiança de quem não cumpriu o que prometeu. Cada voto revogado aproxima o político da cassação — que acontece a partir de <b style="color:#c4e034">70%</b> dos votos que o elegeram.</p>
 
-  <header class="navbar">
-    <div class="logo" onclick="location.href='../index.html'">
-      <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
-        <defs>
-          <linearGradient id="gradLogo" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#7fb0f5"/>
-            <stop offset="100%" stop-color="#FFD700"/>
-          </linearGradient>
-        </defs>
-        <circle cx="20" cy="20" r="18" stroke="url(#gradLogo)" stroke-width="4" fill="none"/>
-        <path d="M12 20 L20 12 L28 20 L20 28 Z" fill="url(#gradLogo)"/>
-      </svg>
-      <span>MudaBrasil</span>
+    <p class="rv-list-title">Candidatos em quem você votou</p>
+    <div class="rv-list" id="rv-list"></div>
+
+    <div class="info">
+      <b>🔒 Anônimo e revogável:</b> nenhum dado pessoal é guardado. Seu voto de confiança vale o quanto você quiser — revogue quando o prometido não for cumprido.
     </div>
 
-    <nav>
-      <ul class="nav-links" id="nav-links">
-        <li><a href="../index.html">Início</a></li>
-        <li><a href="pesquisar.html">🏛️ Pesquisar Políticos</a></li>
-        <li><a href="meu-voto.html" class="active">Meu Voto</a></li>
-        <li><a href="proposta.html">Proposta</a></li>
-        <li><a href="comunidade.html">Comunidade</a></li>
-      </ul>
-    </nav>
-
-    <div style="display:flex; align-items:center; gap:8px;">
-      <button class="btn btn-primary btn-sm" onclick="showLoginForm()">Login</button>
-      <div class="mobile-toggle" id="mobile-menu">☰</div>
+    <div class="rv-confirm" id="rv-confirm">
+      <h3>⚠️ Revogar seu voto?</h3>
+      <p class="rv-cpol">Você está revogando a confiança em <b id="rv-nome" style="color:#fff"></b></p>
+      <div class="rv-countdown">
+        <div class="rv-timer" id="rv-timer">10</div>
+        <p><b>Aguarde o fim da contagem.</b> O botão de confirmação será liberado em 10 segundos — tempo para pensar duas vezes antes de revogar.</p>
+      </div>
+      <div class="rv-actions">
+        <button class="rv-confirm-btn" id="rv-confirm-btn" disabled onclick="confirmarRevogacao()">✅ Confirmar revogação</button>
+        <button class="rv-cancel" onclick="cancelarRevogacao()">Cancelar</button>
+      </div>
     </div>
-  </header>
 
-  <aside class="sidebar" id="sidebar">
-    <ul>
-      <li><a href="../index.html">🏠 Início</a></li>
-        <li><a href="pesquisar.html">🗳️ Pesquisar Políticos</a></li>
-      <li><a href="meu-voto.html" style="color:var(--accent-500);">✋ Meu Voto</a></li>
-      <li><a href="proposta.html">📖 Proposta</a></li>
-      <li><a href="comunidade.html">👥 Comunidade</a></li>
-    </ul>
-    <div class="login-area">
-      <button class="btn btn-secondary btn-sm" onclick="showLoginForm()">Entrar na sua conta</button>
-    </div>
-  </aside>
-
-  <main class="main-content">
-    <section class="reveal">
-      <h1>✋ Meu Voto</h1>
-      <p style="max-width:720px; margin:0 auto var(--space-md);">
-        Aqui você faz tudo sobre o seu voto: <strong>expressa confiança</strong> em um político,
-        <strong>consulta</strong> seu voto atual, <strong>reafirma</strong> para manter o peso cheio
-        ou <strong>revoga</strong> se não cumpriram o prometido.
-      </p>
-
-      <div class="info-box">
-        <strong>🔒 100% anônimo:</strong> O sistema não sabe quem você é. Você recebe um
-        <strong>código único</strong> ao votar — ele é seu único comprovante. Sem ele, não dá
-        para consultar, manter ou revogar. Guarde com segurança.
-      </div>
-
-      <!-- TABS -->
-      <div class="vote-tabs">
-        <button class="vote-tab active" data-tab="expressar" onclick="switchTab('expressar')">
-          1️⃣ Expressar Confiança
-        </button>
-        <button class="vote-tab" data-tab="conferir" onclick="switchTab('conferir')">
-          2️⃣ Conferir / Revogar
-        </button>
-        <button class="vote-tab" data-tab="termometro" onclick="switchTab('termometro')">
-          3️⃣ Termômetro ao Vivo
-        </button>
-      </div>
-
-      <!-- TAB 1: EXPRESSAR CONFIANÇA -->
-      <div class="tab-panel active" id="panel-expressar">
-        <div class="card" style="max-width:720px; margin:0 auto;">
-          <h3>🗳️ Como expressar confiança em um político</h3>
-
-          <div class="vote-step">
-            <div class="step-number">1</div>
-            <div class="step-content">
-              <h4>Escolha o político</h4>
-              <p>Busque o deputado ou senador em quem você confia. Você pode trocar a qualquer momento.</p>
-            </div>
-          </div>
-
-          <label class="field-label" for="pol-search">Buscar parlamentar</label>
-          <div class="pol-combo">
-            <input type="text" id="pol-search" placeholder="Digite o nome, partido ou estado..." autocomplete="off">
-            <div class="pol-dropdown" id="pol-dropdown"></div>
-          </div>
-
-          <div class="selected-pol" id="selected-pol" style="display:none; margin-top:var(--space-md);">
-            <img class="selected-pol-photo" id="sp-photo" alt="" onerror="this.style.display='none'">
-            <div>
-              <div class="selected-pol-name" id="sp-name"></div>
-              <div class="selected-pol-meta" id="sp-meta"></div>
-            </div>
-            <button class="btn-link" id="sp-clear" type="button">✕</button>
-          </div>
-
-          <div class="vote-step" style="margin-top:var(--space-lg);">
-            <div class="step-number">2</div>
-            <div class="step-content">
-              <h4>Confirme seu voto</h4>
-              <p>Ao confirmar, você registra um voto de confiança. O código que aparecerá na próxima tela é mostrado <strong>apenas uma vez</strong>. Anote ou copie antes de fechar.</p>
-            </div>
-          </div>
-
-          <div class="info-box warning">
-            <strong>⚠️ Importante:</strong> O código é mostrado uma única vez. Se você perder, não tem como recuperar.
-            Anote num lugar seguro — ele é a única forma de consultar, manter ou revogar seu voto depois.
-          </div>
-
-          <button class="btn btn-accent btn-block" id="btn-votar" disabled style="margin-top:var(--space-md);">
-            🗳️ Expressar Confiança
-          </button>
-
-          <p style="text-align:center; font-size:var(--text-xs); color:var(--text-muted); margin-top:var(--space-md);">
-            Não sabe em quem votar? Comece comparando políticos em
-            <a href="pesquisar.html" style="color:var(--accent-400);">Pesquisar Políticos</a>.
-          </p>
-        </div>
-      </div>
-
-      <!-- TAB 2: CONFERIR / REVOGAR -->
-      <div class="tab-panel" id="panel-conferir">
-        <div class="card" style="max-width:720px; margin:0 auto;">
-          <h3>🔎 Consultar, manter ou revogar seu voto</h3>
-          <p style="color:var(--text-secondary); margin-bottom:var(--space-md);">
-            Já votou? Cole seu código aqui para ver o status do seu voto. Você pode
-            <strong>reafirmar</strong> (manter o peso cheio) ou <strong>revogar</strong>
-            (retirar sua confiança).
-          </p>
-
-          <div class="my-vote-status" id="my-vote-box">
-            <div class="my-vote-placeholder" style="text-align:center; padding:var(--space-md);">
-              <p style="margin:0; color:var(--text-muted);">
-                🔍 Cole seu código abaixo para ver seu voto atual.
-              </p>
-            </div>
-          </div>
-
-          <div class="code-input-group">
-            <input type="text" id="code-input" class="code-input"
-                   placeholder="Cole seu código (XXXX-XXXX-XXXX-XXXX)" autocomplete="off">
-            <button class="btn btn-secondary btn-sm" id="btn-ver" style="white-space:nowrap;">
-              👁 Ver meu voto
-            </button>
-          </div>
-
-          <div class="vote-actions-row" id="vote-actions" style="display:none;">
-            <button class="btn btn-primary btn-sm" id="btn-manter" disabled>
-              🔄 Reafirmar confiança
-            </button>
-            <button class="btn btn-danger btn-sm" id="btn-revogar" disabled>
-              ↩ Revogar meu voto
-            </button>
-          </div>
-
-          <div class="info-box" style="margin-top:var(--space-lg);">
-            <strong>💡 O que é reafirmar?</strong> Seu voto perde peso gradualmente após 90 dias
-            (até 180 dias, quando estabiliza em 50% do peso). Reafirmar reinicia a contagem,
-            mantendo seu voto com peso máximo.
-          </div>
-
-          <div class="info-box danger">
-            <strong>⚠️ Revogar é definitivo.</strong> Ao revogar, seu voto de confiança é retirado
-            do político. Você pode votar em outro depois, mas o código atual deixa de funcionar.
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 3: TERMÔMETRO AO VIVO -->
-      <div class="tab-panel" id="panel-termometro">
-        <div class="card" style="max-width:900px; margin:0 auto;">
-          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-md); margin-bottom:var(--space-md);">
-            <h3 style="margin:0;">🌡️ Confiança ao vivo nos políticos</h3>
-            <span id="source-badge" class="source-badge-pill">⏳ Carregando...</span>
-          </div>
-          <p style="color:var(--text-secondary); margin-bottom:var(--space-md);">
-            Veja como a comunidade está avaliando os políticos. Estes dados são <strong>públicos
-            e agregados</strong> — ninguém sabe quem votou em quem.
-          </p>
-
-          <div class="metrics-grid" style="margin-bottom:var(--space-lg);">
-            <div class="metric-card">
-              <div class="metric-number" id="m-ativos">0</div>
-              <div class="metric-label">Votos ativos</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-number" id="m-revogados">0</div>
-              <div class="metric-label">Votos revogados</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-number" id="m-total">0</div>
-              <div class="metric-label">Total de participações</div>
-            </div>
-          </div>
-
-          <h4 style="margin-bottom:var(--space-sm);">📈 Top parlamentares por confiança</h4>
-          <div class="thermo-mini-list" id="thermo-list"></div>
-
-          <div style="text-align:center; margin-top:var(--space-lg);">
-            <p style="color:var(--text-muted); font-size:var(--text-sm); margin-bottom:var(--space-sm);">
-              Quer ver gráficos detalhados, tendências de 30 dias e rankings completos?
-            </p>
-            <button class="btn btn-secondary" onclick="location.href='pesquisar.html'">
-              📊 Ver relatórios completos
-            </button>
-          </div>
-        </div>
-      </div>
-
-    </section>
-  </main>
-
-  <!-- MODAL: CÓDIGO GERADO (mostrado uma única vez) -->
-  <div class="modal" id="code-modal">
-    <div class="modal-content code-modal-content">
-      <h2>✅ Voto registrado!</h2>
-      <p>Guarde este código com segurança. Ele é o seu <strong>comprovante único</strong>
-      para consultar, manter ou revogar seu voto. <strong>Não será mostrado novamente.</strong></p>
-      <div class="code-display" id="code-display">—</div>
-      <p class="code-pol" id="code-pol"></p>
-      <div class="info-box warning">
-        <strong>⚠️ Anote agora!</strong> Copie o código para um lugar seguro (bloco de notas,
-        senha do celular, etc.). Se perder, não tem como recuperar.
-      </div>
-      <div class="btn-row" style="margin-top:var(--space-lg);">
-        <button class="btn btn-secondary btn-sm" id="btn-copy-code">📋 Copiar código</button>
-        <button class="btn btn-primary" id="btn-close-code">Entendi, guardar</button>
-      </div>
+    <div class="info danger">
+      <b>🧪 Aviso:</b> esta é uma <b>simulação</b>. Nenhum voto real é alterado e nenhum político é cassado de verdade. Serve para demonstrar como o MudaBrasil funcionaria na prática.
     </div>
   </div>
 
-  <div class="modal" id="login-modal">
-    <div class="modal-content">
-      <span class="close" onclick="this.closest('.modal').style.display='none'">×</span>
-      <h2>Login na Conta MudaBrasil</h2>
-      <form onsubmit="event.preventDefault(); alert('Login simulado!'); this.closest('.modal').style.display='none';">
-        <label>Usuário</label>
-        <input type="text" placeholder="Seu usuário" required>
-        <label>Senha</label>
-        <input type="password" placeholder="Senha" required>
-        <button class="btn btn-primary" type="submit">Entrar</button>
-      </form>
-    </div>
-  </div>
-
-  <footer>
-    <div class="footer-content">
-      <div class="footer-section">
-        <h4>Links Rápidos</h4>
-        <ul>
-          <li><a href="../index.html">Início</a></li>
-          <li><a href="pesquisar.html">🏛️ Pesquisar Políticos</a></li>
-          <li><a href="meu-voto.html">Meu Voto</a></li>
-          <li><a href="proposta.html">Proposta</a></li>
-        </ul>
-      </div>
-      <div class="footer-section">
-        <h4>Fontes de Dados</h4>
-        <ul>
-          <li><a href="https://dadosabertos.camara.leg.br" target="_blank" rel="noopener">Câmara dos Deputados</a></li>
-          <li><a href="https://www.tse.jus.br" target="_blank" rel="noopener">TSE</a></li>
-          <li><a href="https://portaldatransparencia.gov.br" target="_blank" rel="noopener">Portal da Transparência</a></li>
-        </ul>
-      </div>
-      <div class="footer-section">
-        <h4>Como funciona</h4>
-        <p style="font-size:var(--text-xs); color:var(--text-muted);">
-          Voto anônimo por código · sem cadastro · protótipo de pesquisa — sem valor legal.
-        </p>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <p>&copy; 2026 MudaBrasil. Plataforma cívica de voto contínuo e revogável.</p>
-    </div>
-  </footer>
-
-  <script src="../js/shared-ui.js"></script>
-  <script src="../js/live-stream.js"></script>
-  <script src="../js/thermometer.js"></script>
   <script>
-    // Controle de tabs
-    function switchTab(tabName) {
-      // Desativa todas as tabs
-      document.querySelectorAll('.vote-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      // Ativa a selecionada
-      const btn = document.querySelector(`[data-tab="${tabName}"]`);
-      const panel = document.getElementById('panel-' + tabName);
-      if (btn) btn.classList.add('active');
-      if (panel) panel.classList.add('active');
-      // Scroll suave pro topo do conteúdo
-      if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const CANDIDATOS = [
+      { nome: 'Maria Silva',  partido: 'PT',  estado: 'SP', cargo: 'Deputada Federal', votos: 12480, revogados: 5390, quando: '15/03/2026' },
+      { nome: 'Carlos Souza', partido: 'MDB', estado: 'RJ', cargo: 'Deputado Federal', votos: 9870,  revogados: 2100, quando: '02/04/2026' }
+    ];
+
+    let timerId = null;
+    let count = 10;
+    let selecionado = null;
+
+    function iniciais(nome) {
+      return nome.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
     }
 
-    // Permitir abrir tab específico via hash (#conferir, #termometro)
-    if (window.location.hash) {
-      const hash = window.location.hash.replace('#', '');
-      if (['expressar', 'conferir', 'termometro'].includes(hash)) {
-        setTimeout(() => switchTab(hash), 100);
-      }
+    function renderLista() {
+      document.getElementById('rv-list').innerHTML = CANDIDATOS.map((c, i) => `
+        <div class="rv-item">
+          <div class="rv-avatar">${iniciais(c.nome)}</div>
+          <div class="rv-meta">
+            <div class="rv-name">${c.nome}</div>
+            <div class="rv-sub">${c.partido} · ${c.estado} · ${c.cargo}</div>
+            <div class="rv-date">Voto registrado em ${c.quando}</div>
+          </div>
+          <button class="rv-btn" onclick="iniciarRevogacao(${i})">↩ Revogar</button>
+        </div>`).join('');
     }
+
+    function iniciarRevogacao(i) {
+      selecionado = i;
+      const c = CANDIDATOS[i];
+      document.getElementById('rv-nome').textContent = c.nome + ' (' + c.partido + ' · ' + c.estado + ')';
+      const box = document.getElementById('rv-confirm');
+      box.classList.add('show');
+      box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      count = 10;
+      const btn = document.getElementById('rv-confirm-btn');
+      btn.disabled = true;
+      document.getElementById('rv-timer').textContent = count;
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        count -= 1;
+        document.getElementById('rv-timer').textContent = count;
+        if (count <= 0) {
+          clearInterval(timerId);
+          btn.disabled = false;
+        }
+      }, 1000);
+    }
+
+    function cancelarRevogacao() {
+      clearInterval(timerId);
+      document.getElementById('rv-confirm').classList.remove('show');
+      selecionado = null;
+    }
+
+    function confirmarRevogacao() {
+      if (selecionado === null) return;
+      const nome = CANDIDATOS[selecionado].nome;
+      window.location.href = 'revogar.html?nome=' + encodeURIComponent(nome);
+    }
+
+    renderLista();
   </script>
 </body>
 </html>

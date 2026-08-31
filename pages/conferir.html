@@ -9,19 +9,38 @@
   <script src="../js/header.js"></script>
   <style>
     body{margin:0;font-family:'Manrope',sans-serif;background:#0E1726;color:#fff;min-height:100vh}
-    .wrap{max-width:720px;margin:0 auto;padding:48px 24px 80px}
-    h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.8rem,3.5vw,2.6rem);margin:0 0 8px;background:linear-gradient(135deg,#AECF00,#4a7bc2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .sub{color:#94A3B8;margin:0 0 32px;font-size:1.05rem}
+    .wrap{max-width:760px;margin:0 auto;padding:48px 24px 80px}
+    h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.8rem,3.5vw,2.6rem);margin:0 0 8px}
+    h1 .cv-blue{color:#4a7bc2}
+    h1 .cv-green{color:#009739}
+    .sub{color:#94A3B8;margin:0 0 32px;font-size:1.02rem;line-height:1.6}
     .back{display:inline-flex;align-items:center;gap:6px;color:#AECF00;text-decoration:none;font-weight:700;margin-bottom:24px;font-size:0.9rem}
     .back:hover{text-decoration:underline}
-    .card{background:linear-gradient(155deg,#152339 0%,#101D33 100%);border:1px solid rgba(90,107,126,0.28);border-radius:18px;padding:32px}
+
+    /* Lista de candidatos votados */
+    .cv-list-title{font-family:'Montserrat',sans-serif;font-size:0.85rem;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 12px}
+    .cv-item{background:linear-gradient(155deg,#152339 0%,#101D33 100%);border:1px solid rgba(90,107,126,0.28);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:10px}
+    .cv-avatar{width:44px;height:44px;border-radius:50%;background:#3465A4;box-shadow:0 0 0 3px rgba(52,101,164,0.45);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;color:#fff;flex-shrink:0}
+    .cv-meta{flex:1;min-width:0}
+    .cv-name{font-weight:700;font-size:0.95rem}
+    .cv-sub{font-size:0.78rem;color:#94A3B8}
+    .cv-date{font-size:0.72rem;color:#5A6B7E;margin-top:2px}
+    .cv-use{background:transparent;border:1px solid #AECF00;color:#AECF00;padding:7px 14px;border-radius:9999px;font-size:0.75rem;font-weight:700;cursor:pointer;transition:all 0.2s;flex-shrink:0}
+    .cv-use:hover{background:rgba(174,207,0,0.15)}
+
+    /* Campo de código */
+    .card{background:linear-gradient(155deg,#152339 0%,#101D33 100%);border:1px solid rgba(90,107,126,0.28);border-radius:18px;padding:32px;margin-top:28px}
     .label{display:block;font-size:0.8rem;font-weight:700;color:#94A3B8;margin-bottom:8px;letter-spacing:0.04em;text-transform:uppercase}
-    .input{width:100%;padding:14px 18px;background:#0E1726;border:1px solid rgba(90,107,126,0.4);color:#fff;border-radius:12px;font-size:1rem;font-family:inherit;letter-spacing:0.15em;text-align:center;font-weight:700}
-    .input:focus{outline:none;border-color:#AECF00}
-    .btn{margin-top:18px;width:100%;padding:14px;background:linear-gradient(135deg,#3465A4,#2a5090);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em}
-    .btn:hover{filter:brightness(1.15)}
+    .cv-code-field{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+    .cv-code-input{width:64px;padding:14px 6px;background:#0E1726;border:1px solid rgba(90,107,126,0.4);color:#fff;border-radius:12px;font-size:1.1rem;font-family:'Manrope',monospace;letter-spacing:0.2em;text-align:center;font-weight:800}
+    .cv-code-input:focus{outline:none;border-color:#AECF00;box-shadow:0 0 0 3px rgba(174,207,0,0.15)}
+    .cv-hint{font-size:0.75rem;color:#5A6B7E;text-align:center;margin:0 0 4px}
+    .cv-btn{margin-top:18px;width:100%;padding:14px;background:#AECF00;color:#0E1726;border:none;border-radius:9999px;font-weight:800;font-size:0.95rem;cursor:pointer;transition:filter 0.2s}
+    .cv-btn:hover{filter:brightness(1.1)}
     .info{margin-top:24px;padding:18px;background:rgba(174,207,0,0.08);border-left:3px solid #AECF00;border-radius:8px;font-size:0.88rem;color:#c4e034;line-height:1.6}
     .info b{color:#fff}
+
+    /* Resultado */
     .result{margin-top:24px;display:none}
     .result.show{display:block}
     .r-card{background:linear-gradient(155deg,#152339,#101D33);border:1px solid rgba(0,151,57,0.35);border-radius:14px;padding:24px;margin-top:14px}
@@ -35,40 +54,101 @@
 <body>
   <div class="wrap">
     <a href="../index.html" class="back">← Voltar para o Início</a>
-    <h1>🔍 Conferir Voto</h1>
-    <p class="sub">Digite seu código único de 8 caracteres para verificar se seu voto foi registrado corretamente.</p>
+    <h1><span class="cv-blue">Conferir</span> <span class="cv-green">voto</span></h1>
+    <p class="sub">Local onde você prova que seu voto existe e confirma em quem realmente votou.</p>
+
+    <!-- Candidatos que votou -->
+    <p class="cv-list-title">Candidatos em que você votou</p>
+    <div class="cv-list">
+      <div class="cv-item">
+        <div class="cv-avatar">MS</div>
+        <div class="cv-meta">
+          <div class="cv-name">Maria Silva</div>
+          <div class="cv-sub">PT · SP · Deputada Federal</div>
+          <div class="cv-date">Voto registrado em 15/03/2026</div>
+        </div>
+        <button class="cv-use" onclick="fillCode('4821 0394 7750 2218 9301')">Conferir este voto</button>
+      </div>
+      <div class="cv-item">
+        <div class="cv-avatar">CS</div>
+        <div class="cv-meta">
+          <div class="cv-name">Carlos Souza</div>
+          <div class="cv-sub">MDB · RJ · Deputado Federal</div>
+          <div class="cv-date">Voto registrado em 02/04/2026</div>
+        </div>
+        <button class="cv-use" onclick="fillCode('7305 8841 2209 5560 1734')">Conferir este voto</button>
+      </div>
+    </div>
 
     <div class="card">
-      <label class="label" for="codigo">Código de votação</label>
-      <input class="input" id="codigo" type="text" maxlength="8" placeholder="A1B2C3D4" autocomplete="off" style="text-transform:uppercase">
-      <button class="btn" onclick="conferir()">Conferir Voto</button>
+      <label class="label" for="cv-code-0">Seu código de votação</label>
+      <div class="cv-code-field" id="cv-code-field">
+        <input class="cv-code-input" id="cv-code-0" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
+        <input class="cv-code-input" id="cv-code-1" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
+        <input class="cv-code-input" id="cv-code-2" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
+        <input class="cv-code-input" id="cv-code-3" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
+        <input class="cv-code-input" id="cv-code-4" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
+      </div>
+      <p class="cv-hint">0000 0000 0000 0000 0000</p>
+      <button class="cv-btn" onclick="conferir()">🔍 Conferir</button>
 
       <div class="info">
         <b>💡 Como conseguir seu código?</b><br>
-        Quando você vota em um político ou PL, o MudaBrasil gera um código único de 8 caracteres. <b>Guarde-o!</b> É seu único comprovante.
+        Quando você vota em um político ou PL, o MudaBrasil gera um código único de 20 dígitos. <b>Guarde-o!</b> É seu único comprovante.
       </div>
 
-      <div class="result" id="result"></div>
+      <div class="result" id="cv-result"></div>
     </div>
   </div>
 
   <script>
-    function conferir(){
-      const codigo=document.getElementById('codigo').value.trim().toUpperCase();
-      const result=document.getElementById('result');
-      if(codigo.length<4){result.classList.add('show');result.innerHTML='<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">⚠️ Código inválido</div>Por favor, insira um código de pelo menos 4 caracteres.</div>';return;}
+    const VOTES = {
+      '4821 0394 7750 2218 9301': { name: 'Maria Silva', party: 'PT', state: 'SP', position: 'Deputada Federal', date: '15/03/2026 às 14:23', hash: '0x7f3a...e21b' },
+      '7305 8841 2209 5560 1734': { name: 'Carlos Souza', party: 'MDB', state: 'RJ', position: 'Deputado Federal', date: '02/04/2026 às 09:47', hash: '0x9b11...c40d' }
+    };
+    const inputs = Array.from(document.querySelectorAll('.cv-code-input'));
+
+    inputs.forEach((inp, i) => {
+      inp.addEventListener('input', () => {
+        inp.value = inp.value.replace(/\D/g, '').slice(0, 4);
+        if (inp.value.length === 4 && i < inputs.length - 1) inputs[i + 1].focus();
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && inp.value === '' && i > 0) inputs[i - 1].focus();
+      });
+    });
+
+    function fillCode(code) {
+      const groups = code.split(' ');
+      inputs.forEach((inp, i) => { inp.value = groups[i] || ''; });
+      inputs[0].focus();
+      document.getElementById('cv-code-field').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('cv-result').classList.remove('show');
+    }
+
+    function conferir() {
+      const code = inputs.map(i => i.value).join(' ');
+      const result = document.getElementById('cv-result');
       result.classList.add('show');
-      result.innerHTML=`<div class="r-card">
+      if (code.replace(/\s/g, '').length < 20) {
+        result.innerHTML = '<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">⚠️ Código incompleto</div>Preencha os 5 grupos de 4 dígitos do seu código de votação.</div>';
+        return;
+      }
+      const v = VOTES[code];
+      if (!v) {
+        result.innerHTML = '<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">❌ Voto não encontrado</div>Nenhum voto corresponde a este código. Confira os dígitos e tente novamente.</div>';
+        return;
+      }
+      result.innerHTML = `<div class="r-card">
         <div class="r-ok">✅ Voto encontrado e verificado</div>
-        <div class="r-row"><span>Código</span><b>${codigo}</b></div>
-        <div class="r-row"><span>Candidato</span><b>Maria Silva · Senadora SP</b></div>
-        <div class="r-row"><span>Data do voto</span><b>15/03/2026 às 14:23</b></div>
+        <div class="r-row"><span>Código</span><b>${code}</b></div>
+        <div class="r-row"><span>Candidato</span><b>${v.name} · ${v.party} ${v.state}</b></div>
+        <div class="r-row"><span>Cargo</span><b>${v.position}</b></div>
+        <div class="r-row"><span>Data do voto</span><b>${v.date}</b></div>
         <div class="r-row"><span>Status</span><b style="color:#5fdf8a">Ativo</b></div>
-        <div class="r-row"><span>Hash de integridade</span><b>0x7f3a...e21b</b></div>
+        <div class="r-row"><span>Hash de integridade</span><b>${v.hash}</b></div>
       </div>`;
     }
-    document.getElementById('codigo').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase();});
-    document.getElementById('codigo').addEventListener('keydown',e=>{if(e.key==='Enter')conferir();});
   </script>
 </body>
 </html>

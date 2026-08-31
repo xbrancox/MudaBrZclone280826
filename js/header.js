@@ -12,18 +12,18 @@
   const CSS = `
     .mb-header {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(14,23,38,0.92);
+      background: rgba(14,23,38,0.95);
       backdrop-filter: blur(14px);
       border-bottom: 1px solid rgba(90,107,126,0.28);
     }
     .mb-nav-inner {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 24px; gap: 16px; max-width: 1480px; margin: 0 auto;
+      padding: 12px 24px; gap: 16px; max-width: 1480px; margin: 0 auto;
     }
     .mb-logo {
       display: flex; align-items: center; gap: 10px;
-      font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 1.15rem;
-      color: #fff; text-decoration: none;
+      font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 1.12rem;
+      color: #fff; text-decoration: none; white-space: nowrap;
     }
     .mb-logo:hover { opacity: 0.9; }
     .mb-nav-links {
@@ -31,41 +31,42 @@
       list-style: none; margin: 0; padding: 0; flex-wrap: wrap;
     }
     .mb-nav-links a {
-      padding: 7px 13px; border-radius: 9999px;
-      color: #C6D0DD; font-weight: 600; font-size: 0.82rem;
+      padding: 7px 12px; border-radius: 9999px;
+      color: #C6D0DD; font-weight: 600; font-size: 0.8rem;
       transition: all 0.25s; white-space: nowrap; text-decoration: none;
     }
     .mb-nav-links a:hover {
       background: rgba(52,101,164,0.22); color: #fff;
     }
     .mb-nav-links a.mb-active {
-      background: linear-gradient(135deg, #3465A4, #2a5090); color: #fff;
+      background: #3465A4; color: #fff;
     }
     .mb-nav-cta { display: flex; gap: 8px; align-items: center; }
     .mb-btn-entrar {
-      background: #3465A4; color: #fff; border: none;
-      padding: 9px 22px; border-radius: 9999px;
-      font-weight: 700; font-size: 0.82rem; cursor: pointer;
-      transition: background 0.2s;
+      background: transparent; color: #C6D0DD; border: 1px solid rgba(90,107,126,0.5);
+      padding: 8px 18px; border-radius: 9999px;
+      font-weight: 700; font-size: 0.8rem; cursor: pointer;
+      transition: all 0.2s;
     }
-    .mb-btn-entrar:hover { background: #4a7bc2; }
+    .mb-btn-entrar:hover { border-color: #3465A4; color: #fff; }
     .mb-btn-cadastrar {
       background: #AECF00; color: #0E1726; border: none;
-      padding: 9px 22px; border-radius: 9999px;
-      font-weight: 800; font-size: 0.82rem; cursor: pointer;
+      padding: 8px 18px; border-radius: 9999px;
+      font-weight: 800; font-size: 0.8rem; cursor: pointer;
       transition: filter 0.2s;
     }
     .mb-btn-cadastrar:hover { filter: brightness(1.1); }
     .mb-mobile-toggle { display: none; font-size: 1.6rem; color: #fff; cursor: pointer; }
-    @media (max-width: 900px) {
+    @media (max-width: 1080px) {
       .mb-nav-links { display: none; }
       .mb-nav-links.mb-open {
-        display: flex; flex-direction: column;
+        display: flex; flex-direction: column; align-items: flex-start;
         position: absolute; top: 100%; left: 0; right: 0;
         background: #0E1726; padding: 16px;
         border-bottom: 1px solid rgba(90,107,126,0.28);
         z-index: 99;
       }
+      .mb-nav-links.mb-open a { padding: 10px 14px; width: 100%; }
       .mb-mobile-toggle { display: block; }
       .mb-nav-cta { display: none; }
     }
@@ -74,31 +75,31 @@
     }
   `;
 
-  // ---- Menu de 7 itens ----
+  // ---- Menu de 7 itens (spec dos .docx) ----
   const NAV_LINKS = [
-    { href: 'index.html',         label: 'Início' },
-    { href: 'pages/pesquisar.html', label: 'Pesquisar Políticos' },
-    { href: 'pages/congresso.html', label: 'Congresso' },
-    { href: 'pages/meu-voto.html',  label: 'Meu Voto' },
-    { href: 'pages/revogados.html', label: 'Revogados' },
-    { href: 'pages/ajuda.html',      label: 'Ajuda' },
-    { href: 'pages/quem-somos.html',label: 'Quem Somos' },
+    { href: 'index.html',          label: 'Início' },
+    { href: 'pages/pesquisar.html',label: 'Compare Candidatos' },
+    { href: 'pages/conferir.html', label: 'Conferir Voto' },
+    { href: 'pages/congresso.html',label: 'PLs no Congresso' },
+    { href: 'pages/revogados.html',label: 'Políticos Revogados' },
+    { href: 'pages/radar.html',    label: 'Radar Político' },
+    { href: 'pages/meu-voto.html', label: 'Revogar Voto' },
   ];
+
+  // ---- Prefixo relativo (raiz = '' , pages/ = '../') ----
+  function pagePrefix() {
+    const path = window.location.pathname.replace(/\\/g, '/');
+    if (path.indexOf('/pages/') !== -1) return '../';
+    return '';
+  }
 
   // ---- Detectar pagina ativa ----
   function getCurrentPage() {
-    const path = window.location.pathname;
+    const path = window.location.pathname.replace(/\\/g, '/');
     const file = path.split('/').pop() || 'index.html';
-    // index.html no root
-    if (file === 'index.html' && !path.includes('pages/')) return 'index.html';
-    // pages/
-    const page = file;
-    if (page === 'pesquisar.html') return 'pages/pesquisar.html';
-    if (page === 'congresso.html') return 'pages/congresso.html';
-    if (page === 'meu-voto.html')  return 'pages/meu-voto.html';
-    if (page === 'revogados.html')  return 'pages/revogados.html';
-    if (page === 'ajuda.html')     return 'pages/ajuda.html';
-    if (page === 'quem-somos.html')return 'pages/quem-somos.html';
+    const inPages = path.indexOf('/pages/') !== -1;
+    if (file === 'index.html' && !inPages) return 'index.html';
+    if (inPages) return 'pages/' + file;
     return null;
   }
 
@@ -117,8 +118,11 @@
       document.body.style.overflow = 'hidden';
       return;
     }
-    // Tenta via MBAuth na pagina
-    if (window.MBAuth) { window.MBAuth.openModal(); return; }
+    // Hook local exposto pela pagina
+    if (typeof window.mbOpenAuthLocal === 'function') {
+      window.mbOpenAuthLocal(type);
+      return;
+    }
     alert('Funcionalidade de login disponível na página principal.');
   }
 
@@ -140,30 +144,25 @@
   // ---- Construir HTML do header ----
   function buildHeaderHTML() {
     const current = getCurrentPage();
+    const prefix = pagePrefix();
     const linksHTML = NAV_LINKS.map(link => {
-      const isActive = (link.href === current) ||
-        (link.href === 'index.html' && current === 'index.html');
+      const href = prefix + link.href;
+      const isActive = link.href === current;
       const cls = isActive ? ' class="mb-active"' : '';
-      return `<li><a href="${link.href}"${cls}>${link.label}</a></li>`;
+      return `<li><a href="${href}"${cls}>${link.label}</a></li>`;
     }).join('\n');
 
     return `
 <header class="mb-header">
   <div class="mb-nav-inner">
-    <a href="index.html" class="mb-logo" aria-label="MudaBrasil">
-      <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
-        <defs>
-          <linearGradient id="gLHeader" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#3465A4"/>
-            <stop offset="100%" stop-color="#AECF00"/>
-          </linearGradient>
-        </defs>
-        <circle cx="20" cy="20" r="18" stroke="url(#gLHeader)" stroke-width="4" fill="none"/>
-        <path d="M12 20 L20 12 L28 20 L20 28 Z" fill="url(#gLHeader)"/>
+    <a href="${prefix}index.html" class="mb-logo" aria-label="MudaBrasil">
+      <svg width="34" height="34" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="17" stroke="#3465A4" stroke-width="4" fill="none"/>
+        <path d="M13 21 L19 27 L28 15" stroke="#AECF00" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       </svg>
-      <span style="background:linear-gradient(135deg,#4a7bc2,#AECF00);-webkit-background-clip:text;-webkit-text-fill-color:transparent">MudaBrasil</span>
+      <span>MudaBrasil</span>
     </a>
-    <nav>
+    <nav aria-label="Navegação principal">
       <ul class="mb-nav-links" id="mb-nav-links">
         ${linksHTML}
       </ul>
@@ -179,7 +178,6 @@
 
   // ---- Injetar no DOM ----
   function mount() {
-    // Ja montamos?
     if (document.getElementById('mb-shared-header')) return;
 
     injectCSS();
@@ -188,14 +186,8 @@
     container.id = 'mb-shared-header';
     container.innerHTML = buildHeaderHTML();
 
-    // Tentar inserir antes do primeiro elemento significativo
     const body = document.body;
-    const first = body.firstChild;
-    if (first && first.tagName !== 'SCRIPT' && first.tagName !== 'STYLE') {
-      body.insertBefore(container, first);
-    } else {
-      body.insertBefore(container, body.querySelector('main') || body.firstChild);
-    }
+    body.insertBefore(container, body.firstChild);
 
     // Eventos dos botoes
     const entrarBtn = document.getElementById('mb-entrar-btn');

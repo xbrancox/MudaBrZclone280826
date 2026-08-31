@@ -5,784 +5,246 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MudaBrasil — Voto contínuo e revogável</title>
   <meta name="description" content="Plataforma cívica de voto contínuo e revogável. Seu voto coloca, seu voto tira.">
-  <link rel="stylesheet" href="css/design-system.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    /* ===== Paleta oficial ===== */
-    :root{
-      --bg:#0E1726; --bg-2:#101D33; --card:#152339;
-      --blue:#3465A4; --blue-2:#4a7bc2;
-      --lime:#AECF00;
-      --green:#009739;
-      --orange:#ff8c00;
-      --gray:#5A6B7E; --gray-2:#94A3B8; --gray-3:#C6D0DD;
-      --line:rgba(90,107,126,0.28);
+    :root {
+      --bg: #0E1726;
+      --bg-card: #152339;
+      --blue: #3465A4;
+      --lime: #AECF00;
+      --green: #009739;
+      --gray-text: #5A6B7E;
+      --gray-sub: #94A3B8;
+      --line: rgba(90,107,126,0.28);
     }
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0}
-    body{
-      font-family:'Manrope',sans-serif;
-      background:var(--bg);
-      color:#fff;
-      min-height:100vh;
-      -webkit-font-smoothing:antialiased;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Manrope', sans-serif;
+      background: var(--bg);
+      color: #fff;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
-    a{color:inherit;text-decoration:none}
-    button{font-family:inherit;cursor:pointer}
-    .container{max-width:1280px;margin:0 auto;padding:0 24px}
-    .font-title{font-family:'Montserrat',sans-serif}
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; }
 
     /* ===== NAVBAR ===== */
-    .navbar{
-      position:sticky;top:0;z-index:100;
-      background:rgba(14,23,38,0.92);
-      backdrop-filter:blur(14px);
-      border-bottom:1px solid var(--line);
+    .navbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(14,23,38,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
     }
-    .nav-inner{
-      display:flex;align-items:center;justify-content:space-between;
-      padding:14px 24px;gap:16px;max-width:1480px;margin:0 auto;
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; max-width: 1300px; margin: 0 auto; gap: 16px;
     }
-    .logo{display:flex;align-items:center;gap:10px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.15rem;cursor:pointer}
-    .nav-links{display:flex;align-items:center;gap:2px;list-style:none;margin:0;padding:0;flex-wrap:wrap}
-    .nav-links a{
-      padding:7px 13px;border-radius:9999px;
-      color:var(--gray-3);font-weight:600;font-size:0.82rem;
-      transition:all 0.25s;white-space:nowrap;
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 1.2rem;
     }
-    .nav-links a:hover{background:rgba(52,101,164,0.22);color:#fff}
-    .nav-links a.active{background:linear-gradient(135deg,#3465A4,#2a5090);color:#fff}
-    .nav-cta{display:flex;gap:8px;align-items:center}
-    .btn-entrar{
-      background:var(--blue);color:#fff;border:none;
-      padding:9px 22px;border-radius:9999px;font-weight:700;font-size:0.82rem;
+    .nav-links {
+      display: flex; align-items: center; gap: 4px; list-style: none;
     }
-    .btn-entrar:hover{background:var(--blue-2)}
-    .btn-cadastrar{
-      background:var(--lime);color:#0E1726;border:none;
-      padding:9px 22px;border-radius:9999px;font-weight:800;font-size:0.82rem;
+    .nav-links a {
+      padding: 8px 14px; border-radius: 9999px;
+      color: #C6D0DD; font-weight: 600; font-size: 0.85rem;
+      transition: all 0.2s; white-space: nowrap;
     }
-    .btn-cadastrar:hover{filter:brightness(1.1)}
-    .mobile-toggle{display:none;font-size:1.6rem;color:#fff;cursor:pointer}
+    .nav-links a:hover { background: rgba(52,101,164,0.2); color: #fff; }
+    .nav-links a.active { background: var(--blue); color: #fff; }
+    .btn-entrar {
+      background: var(--blue); color: #fff; border: none;
+      padding: 9px 22px; border-radius: 9999px; font-weight: 700; font-size: 0.85rem;
+    }
+    .btn-entrar:hover { filter: brightness(1.15); }
 
     /* ===== HERO ===== */
-    .hero{position:relative;text-align:center;padding:96px 24px 72px;overflow:hidden}
-    .hero::before{
-      content:'';position:absolute;inset:0;pointer-events:none;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 0%,rgba(52,101,164,0.20) 0%,transparent 70%),
-        radial-gradient(ellipse 60% 50% at 85% 85%,rgba(174,207,0,0.08) 0%,transparent 60%);
+    .hero {
+      text-align: center; padding: 80px 24px 60px;
+      background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(52,101,164,0.25) 0%, transparent 70%);
+      max-width: 1100px; margin: 0 auto;
     }
-    .hero h1{
-      position:relative;
-      font-family:'Montserrat',sans-serif;
-      font-size:clamp(2.4rem,5.4vw,4.2rem);
-      font-weight:900;letter-spacing:-0.03em;line-height:1.05;
-      margin:0 0 18px;
-      background:linear-gradient(135deg,#ffffff 0%,#c6d0dd 60%,#94a3b8 100%);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    .hero h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      font-weight: 900; line-height: 1.1; margin-bottom: 16px;
+      color: #ffffff;
     }
-    .hero-tagline{
-      position:relative;
-      font-family:'Montserrat',sans-serif;
-      font-size:clamp(1.5rem,3.2vw,2.4rem);
-      font-weight:800;line-height:1.3;margin:0 0 26px;
+    .hero-tagline {
+      font-family: 'Montserrat', sans-serif;
+      font-size: clamp(1.4rem, 3vw, 2.2rem);
+      font-weight: 800; margin-bottom: 24px;
     }
-    .tag-coloca{color:var(--orange)}
-    .tag-tira{color:var(--green)}
-    .hero-sub{position:relative;font-size:1.05rem;color:var(--gray-2);max-width:620px;margin:0 auto 36px;line-height:1.7}
-    .hero-buttons{position:relative;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:56px}
-    .btn-oval{
-      display:inline-flex;align-items:center;justify-content:center;gap:8px;
-      padding:13px 34px;border-radius:50px;
-      font-size:0.85rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;
-      border:2px solid var(--blue);background:var(--blue);color:#fff;
-      transition:all 0.25s;
+    .tag-coloca { color: var(--blue); }
+    .tag-tira { color: var(--green); }
+    .hero-sub {
+      font-size: 1.05rem; color: var(--gray-sub);
+      max-width: 680px; margin: 0 auto 36px; line-height: 1.6;
     }
-    .btn-oval:hover{background:var(--blue-2);border-color:var(--blue-2);transform:translateY(-2px);box-shadow:0 6px 20px rgba(52,101,164,0.4)}
-    .btn-oval.outline{background:transparent;color:var(--blue)}
-    .btn-oval.outline:hover{background:var(--blue);color:#fff}
+    .hero-buttons {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 60px;
+    }
+    .btn-oval {
+      padding: 14px 32px; border-radius: 50px;
+      font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+      border: 2px solid var(--lime); background: var(--lime); color: var(--bg);
+      transition: all 0.25s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-oval:hover { filter: brightness(1.1); transform: translateY(-2px); }
+    .btn-oval.outline {
+      background: transparent; color: #fff; border-color: var(--blue);
+    }
+    .btn-oval.outline:hover { background: var(--blue); color: #fff; }
 
-    /* ===== COMO FUNCIONA ===== */
-    .badge-como{
-      display:inline-flex;align-items:center;gap:8px;
-      background:rgba(174,207,0,0.12);
-      color:var(--lime);
-      padding:7px 16px;border-radius:9999px;
-      font-size:0.75rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;
-      border:1px solid rgba(174,207,0,0.3);
+    /* ===== 6 ABAS DE NAVEGAÇÃO RÁPIDA ===== */
+    .quick-section { padding: 40px 24px 80px; max-width: 1200px; margin: 0 auto; }
+    .quick-title {
+      font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 800;
+      text-align: center; margin-bottom: 12px;
     }
-    .passos-grid{
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-      gap:20px;max-width:1100px;margin:36px auto 0;
+    .quick-sub {
+      text-align: center; color: var(--gray-sub); margin-bottom: 40px; font-size: 0.95rem;
     }
-    .passo-card{
-      background:linear-gradient(160deg,#152339 0%,#0E1726 100%);
-      border:1px solid var(--line);border-radius:18px;padding:28px 22px;
-      text-align:left;position:relative;
+    .abas-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;
     }
-    .passo-num{
-      font-family:'Montserrat',sans-serif;font-weight:900;font-size:2.4rem;
-      color:var(--blue);margin-bottom:6px;line-height:1;
+    .aba-card {
+      background: var(--bg-card); border: 1px solid var(--line);
+      border-radius: 16px; padding: 24px; transition: all 0.25s; cursor: pointer;
     }
-    .passo-titulo{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.05rem;margin:0 0 8px;color:#fff}
-    .passo-txt{color:var(--gray-2);font-size:0.88rem;line-height:1.6;margin:0}
-
-    /* ===== SECTIONS ===== */
-    section.block{padding:64px 24px}
-    .block h2{font-family:'Montserrat',sans-serif;font-weight:800;font-size:clamp(1.6rem,3vw,2.1rem);margin:0 0 8px;text-align:center}
-    .block-sub{color:var(--gray-2);text-align:center;max-width:620px;margin:0 auto 36px;font-size:0.95rem}
-
-    /* ===== EXPLORE GRID ===== */
-    .explore-grid{
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-      gap:18px;max-width:1280px;margin:0 auto;
-    }
-    .explore-card{
-      background:linear-gradient(155deg,#152339 0%,#101D33 100%);
-      border:1px solid var(--line);border-radius:16px;padding:24px 20px;
-      cursor:pointer;transition:all 0.25s;
-    }
-    .explore-card:hover{border-color:var(--blue);transform:translateY(-4px);box-shadow:0 10px 30px rgba(52,101,164,0.18)}
-    .explore-icon{font-size:1.8rem;margin-bottom:10px}
-    .explore-titulo{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;margin:0 0 6px}
-    .explore-txt{color:var(--gray-2);font-size:0.83rem;line-height:1.5;margin:0}
-
-    /* ===== DONUTS ===== */
-    .donuts-header{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:28px}
-    .donut-select{
-      background:#152339;color:#fff;border:1px solid var(--line);
-      padding:8px 14px;border-radius:10px;font-size:0.85rem;font-family:inherit;
-    }
-    .donuts-grid{
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-      gap:18px;max-width:1280px;margin:0 auto;
-    }
-    .donut-card{
-      background:linear-gradient(155deg,#152339 0%,#101D33 100%);
-      border:1px solid var(--line);border-radius:16px;padding:20px 16px;
-    }
-    .donut-titulo{font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.92rem;text-align:center;margin:0 0 14px;color:var(--gray-3);text-transform:uppercase;letter-spacing:0.05em}
-    .donut-svg{display:block;margin:0 auto;max-width:180px}
-    .donut-leg{display:flex;flex-direction:column;gap:5px;margin-top:12px;font-size:0.78rem}
-    .leg-row{display:flex;align-items:center;gap:7px;color:var(--gray-3)}
-    .leg-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
-    .leg-row b{margin-left:auto;font-family:'Montserrat',sans-serif;color:#fff}
-
-    /* ===== NOTICIAS ===== */
-    .noticias-wrap{position:relative;max-width:1280px;margin:0 auto}
-    .noticias-grid{
-      display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-      gap:18px;
-    }
-    .noticia-card{
-      background:linear-gradient(155deg,#152339 0%,#101D33 100%);
-      border:1px solid var(--line);border-radius:16px;overflow:hidden;
-      cursor:pointer;transition:all 0.25s;
-    }
-    .noticia-card:hover{border-color:var(--blue);transform:translateY(-3px)}
-    .noticia-img{height:140px;background:linear-gradient(135deg,#3465A4,#0E1726);display:flex;align-items:center;justify-content:center;font-size:2.6rem}
-    .noticia-corpo{padding:16px 18px}
-    .noticia-tag{display:inline-block;background:rgba(174,207,0,0.12);color:var(--lime);padding:3px 9px;border-radius:6px;font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
-    .noticia-titulo{font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.95rem;line-height:1.35;margin:0 0 6px}
-    .noticia-meta{color:var(--gray-2);font-size:0.75rem;margin:0}
-
-    /* ===== NEWSLETTER ===== */
-    .newsletter{
-      background:linear-gradient(135deg,#101D33 0%,#152339 100%);
-      border:1px solid var(--line);border-radius:24px;
-      padding:48px 32px;text-align:center;max-width:900px;margin:0 auto;
-      position:relative;overflow:hidden;
-    }
-    .newsletter::before{
-      content:'';position:absolute;top:-50%;right:-10%;width:60%;height:200%;
-      background:radial-gradient(ellipse,rgba(52,101,164,0.15) 0%,transparent 60%);pointer-events:none;
-    }
-    .newsletter h2{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.6rem,3vw,2.2rem);margin:0 0 10px;position:relative}
-    .newsletter p{color:var(--gray-2);max-width:540px;margin:0 auto 26px;position:relative}
-    .newsletter-form{
-      display:flex;gap:10px;max-width:480px;margin:0 auto 26px;
-      position:relative;flex-wrap:wrap;justify-content:center;
-    }
-    .newsletter-form input{
-      flex:1;min-width:220px;padding:13px 18px;
-      background:#0E1726;border:1px solid var(--line);color:#fff;
-      border-radius:50px;font-size:0.9rem;font-family:inherit;
-    }
-    .newsletter-form input:focus{outline:none;border-color:var(--green)}
-    .newsletter-form button{
-      background:var(--green);color:#fff;border:none;
-      padding:13px 30px;border-radius:50px;font-weight:800;font-size:0.85rem;
-      text-transform:uppercase;letter-spacing:0.06em;
-    }
-    .newsletter-form button:hover{filter:brightness(1.15)}
-    .newsletter-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative}
-    .nl-comecar{background:var(--orange);color:#fff;border:none;padding:13px 30px;border-radius:50px;font-weight:800;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.06em}
-    .nl-conhecer{background:var(--blue);color:#fff;border:none;padding:13px 30px;border-radius:50px;font-weight:800;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.06em}
-    .nl-comecar:hover,.nl-conhecer:hover{filter:brightness(1.15)}
+    .aba-card:hover { border-color: var(--blue); transform: translateY(-3px); }
+    .aba-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .aba-icon { font-size: 1.8rem; }
+    .aba-name { font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 1.1rem; }
+    .aba-desc { color: var(--gray-sub); font-size: 0.88rem; line-height: 1.5; margin-bottom: 16px; }
+    .aba-link { color: var(--lime); font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px; }
 
     /* ===== FOOTER ===== */
-    footer{
-      background:#0a121e;border-top:1px solid var(--line);
-      padding:60px 24px 24px;margin-top:80px;
-    }
-    .footer-grid{
-      display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:36px;
-      max-width:1280px;margin:0 auto;
-    }
-    .footer-col h4{font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;color:#fff;margin:0 0 16px}
-    .footer-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
-    .footer-col a{color:var(--gray-2);font-size:0.88rem;transition:color 0.2s}
-    .footer-col a:hover{color:#fff}
-    .footer-brand p{color:var(--gray-2);font-size:0.88rem;line-height:1.6;margin:10px 0 0;max-width:300px}
-    .footer-bottom{
-      max-width:1280px;margin:48px auto 0;padding-top:20px;
-      border-top:1px solid var(--line);
-      color:var(--gray-2);font-size:0.78rem;text-align:center;
+    footer {
+      border-top: 1px solid var(--line); padding: 40px 24px; text-align: center;
+      color: var(--gray-sub); font-size: 0.85rem; background: #0a121e;
     }
 
-    /* ===== MODAL ===== */
-    .modal{
-      position:fixed;inset:0;z-index:9999;
-      background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
-      display:none;align-items:center;justify-content:center;padding:20px;
-    }
-    .modal.open{display:flex}
-    .modal-box{
-      background:#152339;border:1px solid var(--line);border-radius:18px;
-      padding:32px;max-width:440px;width:100%;position:relative;
-    }
-    .modal-close{
-      position:absolute;top:14px;right:18px;background:none;border:none;
-      color:var(--gray-2);font-size:1.6rem;cursor:pointer;line-height:1;
-    }
-    .modal-box h3{font-family:'Montserrat',sans-serif;font-weight:800;margin:0 0 6px;font-size:1.3rem}
-    .modal-sub{color:var(--gray-2);font-size:0.88rem;margin:0 0 20px}
-    .modal-tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line)}
-    .modal-tab{
-      background:none;border:none;color:var(--gray-2);
-      padding:10px 14px;font-size:0.85rem;font-weight:700;cursor:pointer;
-      border-bottom:2px solid transparent;margin-bottom:-1px;
-    }
-    .modal-tab.active{color:#fff;border-bottom-color:var(--blue)}
-    .form-group{margin-bottom:14px}
-    .form-group label{display:block;font-size:0.78rem;font-weight:700;color:var(--gray-3);margin-bottom:6px;letter-spacing:0.04em}
-    .form-group input{
-      width:100%;padding:11px 14px;background:#0E1726;border:1px solid var(--line);
-      color:#fff;border-radius:10px;font-size:0.9rem;font-family:inherit;
-    }
-    .form-group input:focus{outline:none;border-color:var(--blue)}
-    .btn-submit{
-      width:100%;padding:12px;background:var(--blue);color:#fff;
-      border:none;border-radius:10px;font-weight:800;font-size:0.9rem;margin-top:6px;
-    }
-    .btn-submit:hover{background:var(--blue-2)}
-    .btn-submit.green{background:var(--green)}
-    .divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--gray-2);font-size:0.78rem}
-    .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--line)}
-    .btn-google{
-      width:100%;padding:11px;background:#fff;color:#0E1726;
-      border:none;border-radius:10px;font-weight:700;font-size:0.88rem;
-      display:flex;align-items:center;justify-content:center;gap:8px;
-    }
-    .modal-foot{text-align:center;color:var(--gray-2);font-size:0.82rem;margin-top:14px}
-    .modal-foot a{color:var(--lime);font-weight:700;cursor:pointer}
-    .msg-erro{background:rgba(255,80,80,0.12);color:#ff8a8a;padding:10px 14px;border-radius:8px;font-size:0.85rem;margin-bottom:14px;display:none}
-    .msg-ok{background:rgba(0,151,57,0.15);color:#5fdf8a;padding:10px 14px;border-radius:8px;font-size:0.85rem;margin-bottom:14px;display:none}
-
-    @media (max-width:900px){
-      .nav-links{display:none}
-      .nav-links.open{display:flex;flex-direction:column;position:absolute;top:100%;left:0;right:0;background:#0E1726;padding:16px;border-bottom:1px solid var(--line)}
-      .mobile-toggle{display:block}
-      .footer-grid{grid-template-columns:1fr 1fr;gap:24px}
-      .hero{padding:64px 16px 48px}
-    }
-    @media (max-width:560px){
-      .footer-grid{grid-template-columns:1fr}
-      .nav-cta .btn-entrar{padding:7px 14px;font-size:0.75rem}
-      .nav-cta .btn-cadastrar{padding:7px 14px;font-size:0.75rem}
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .abas-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
-<!-- ===================== NAVBAR ===================== -->
-<header class="navbar">
-  <div class="nav-inner">
-    <a href="index.html" class="logo" aria-label="MudaBrasil">
-      <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
-        <defs>
-          <linearGradient id="gL" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#3465A4"/>
-            <stop offset="100%" stop-color="#AECF00"/>
-          </linearGradient>
-        </defs>
-        <circle cx="20" cy="20" r="18" stroke="url(#gL)" stroke-width="4" fill="none"/>
-        <path d="M12 20 L20 12 L28 20 L20 28 Z" fill="url(#gL)"/>
-      </svg>
-      <span style="background:linear-gradient(135deg,#4a7bc2,#AECF00);-webkit-background-clip:text;-webkit-text-fill-color:transparent">MudaBrasil</span>
-    </a>
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="nav-inner">
+      <a href="index.html" class="logo">
+        <svg width="34" height="34" viewBox="0 0 40 40" fill="none">
+          <circle cx="20" cy="20" r="18" stroke="#3465A4" stroke-width="4"/>
+          <path d="M12 20 L20 12 L28 20 L20 28 Z" fill="#AECF00"/>
+        </svg>
+        <span>Muda<span style="color:var(--green)">Brasil</span></span>
+      </a>
 
-    <nav>
-      <ul class="nav-links" id="nav-links">
+      <ul class="nav-links">
         <li><a href="index.html" class="active">Início</a></li>
-        <li><a href="pages/pesquisar.html">Pesquisar Políticos</a></li>
-        <li><a href="pages/congresso.html">Congresso</a></li>
-        <li><a href="pages/meu-voto.html">Meu Voto</a></li>
-        <li><a href="pages/revogados.html">Revogados</a></li>
-        <li><a href="pages/ajuda.html">Ajuda</a></li>
-        <li><a href="pages/quem-somos.html">Quem Somos</a></li>
-      </ul>
-    </nav>
-
-    <div class="nav-cta">
-      <button class="btn-entrar" onclick="abrirModal('login')">Entrar</button>
-      <button class="btn-cadastrar" onclick="abrirModal('cadastro')">Cadastrar</button>
-      <span class="mobile-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')">☰</span>
-    </div>
-  </div>
-</header>
-
-<!-- ===================== HERO ===================== -->
-<section class="hero">
-  <h1>O poder emana do povo</h1>
-  <p class="hero-tagline">
-    seu voto <span class="tag-coloca">coloca</span>. Seu voto <span class="tag-tira">tira</span>.
-  </p>
-  <p class="hero-sub">
-    Plataforma cívica para voto contínuo e revogável. Acompanhe, confie e retire a confiança
-    a qualquer momento — anônimo, auditável e com dados 100% públicos.
-  </p>
-  <div class="hero-buttons">
-    <button class="btn-oval" onclick="abrirModal('cadastro')">🗳️ Votar</button>
-    <button class="btn-oval outline" onclick="location.href='pages/meu-voto.html'">🔍 Conferir / Revogar Voto</button>
-    <button class="btn-oval outline" onclick="location.href='pages/revogados.html'">⚡ Ver Revogados</button>
-  </div>
-
-  <span class="badge-como">⚙️ Como funciona</span>
-  <p style="color:var(--gray-2);margin:14px auto 0;max-width:520px;font-size:0.95rem">
-    Três passos, zero burocracia
-  </p>
-
-  <div class="passos-grid">
-    <div class="passo-card">
-      <div class="passo-num">1</div>
-      <h4 class="passo-titulo">Escolha um político</h4>
-      <p class="passo-txt">Compare candidatos com dados públicos reais: processos, presença, votações e propostas.</p>
-    </div>
-    <div class="passo-card">
-      <div class="passo-num">2</div>
-      <h4 class="passo-titulo">Expresse confiança</h4>
-      <p class="passo-txt">Dê seu voto de forma anônima. Você recebe um código único — guarde-o bem.</p>
-    </div>
-    <div class="passo-card">
-      <div class="passo-num">3</div>
-      <h4 class="passo-titulo">Revogue quando quiser</h4>
-      <p class="passo-txt">Se o político não cumprir, retire sua confiança com o mesmo código. Simples e direto.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ===================== EXPLORE ===================== -->
-<section class="block">
-  <h2>Explore o MudaBrasil</h2>
-  <p class="block-sub">Cinco caminhos para participar da democracia de forma contínua.</p>
-  <div class="explore-grid">
-    <div class="explore-card" onclick="location.href='pages/pesquisar.html'">
-      <div class="explore-icon">📡</div>
-      <h3 class="explore-titulo">Radar Político</h3>
-      <p class="explore-txt">Acompanhe em tempo real quem ganha e perde confiança no Brasil.</p>
-    </div>
-    <div class="explore-card" onclick="location.href='pages/pesquisar.html'">
-      <div class="explore-icon">🗳️</div>
-      <h3 class="explore-titulo">Candidatos</h3>
-      <p class="explore-txt">Compare 513 deputados e 81 senadores com dados públicos verificáveis.</p>
-    </div>
-    <div class="explore-card" onclick="location.href='pages/congresso.html'">
-      <div class="explore-icon">📜</div>
-      <h3 class="explore-titulo">PLs no Congresso</h3>
-      <p class="explore-txt">Acompanhe projetos de lei que afetam sua vida e vote apoio ou rejeição.</p>
-    </div>
-    <div class="explore-card" onclick="location.href='pages/meu-voto.html'">
-      <div class="explore-icon">🔍</div>
-      <h3 class="explore-titulo">Conferir Voto</h3>
-      <p class="explore-txt">Use seu código único para verificar se seu voto foi registrado corretamente.</p>
-    </div>
-    <div class="explore-card" onclick="location.href='pages/meu-voto.html'">
-      <div class="explore-icon">⚡</div>
-      <h3 class="explore-titulo">Revogar Voto</h3>
-      <p class="explore-txt">Retire sua confiança de qualquer político a qualquer momento.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ===================== DONUTS ===================== -->
-<section class="block" style="background:#0a121e">
-  <h2>Acompanhe quem está na frente</h2>
-  <p class="block-sub">Resultado em tempo real por cargo eletivo. Selecione o estado para refinar.</p>
-
-  <div class="donuts-header">
-    <select class="donut-select" id="donut-uf" onchange="renderDonuts()">
-      <option value="">Todo o Brasil</option>
-      <option>SP</option><option>RJ</option><option>MG</option><option>BA</option>
-      <option>RS</option><option>PR</option><option>PE</option><option>CE</option>
-      <option>PA</option><option>SC</option><option>GO</option><option>MA</option>
-    </select>
-  </div>
-
-  <div class="donuts-grid" id="donuts-grid"></div>
-</section>
-
-<!-- ===================== NOTÍCIAS ===================== -->
-<section class="block">
-  <h2>Notícias</h2>
-  <p class="block-sub">Cobertura cívica e política direto da fonte.</p>
-  <div class="noticias-wrap">
-    <div class="noticias-grid">
-      <article class="noticia-card" onclick="abrirModal('cadastro')">
-        <div class="noticia-img">🌳</div>
-        <div class="noticia-corpo">
-          <span class="noticia-tag">Meio Ambiente</span>
-          <h3 class="noticia-titulo">Brasil promete restaurar 163 mil km² de áreas degradadas até 2030</h3>
-          <p class="noticia-meta">Câmara dos Deputados · há 2 horas</p>
-        </div>
-      </article>
-      <article class="noticia-card" onclick="abrirModal('cadastro')">
-        <div class="noticia-img">📊</div>
-        <div class="noticia-corpo">
-          <span class="noticia-tag">Transparência</span>
-          <h3 class="noticia-titulo">TSE divulga prestação de contas parcial das eleições municipais</h3>
-          <p class="noticia-meta">TSE · há 5 horas</p>
-        </div>
-      </article>
-      <article class="noticia-card" onclick="abrirModal('cadastro')">
-        <div class="noticia-img">⚖️</div>
-        <div class="noticia-corpo">
-          <span class="noticia-tag">Justiça</span>
-          <h3 class="noticia-titulo">CNJ amplia transparência em processos disciplinares de magistrados</h3>
-          <p class="noticia-meta">CNJ · há 1 dia</p>
-        </div>
-      </article>
-      <article class="noticia-card" onclick="abrirModal('cadastro')">
-        <div class="noticia-img">🏛️</div>
-        <div class="noticia-corpo">
-          <span class="noticia-tag">Congresso</span>
-          <h3 class="noticia-titulo">Senado aprova nova lei de proteção de dados eleitorais</h3>
-          <p class="noticia-meta">Senado Federal · há 2 dias</p>
-        </div>
-      </article>
-      <article class="noticia-card" onclick="abrirModal('cadastro')">
-        <div class="noticia-img">💰</div>
-        <div class="noticia-corpo">
-          <span class="noticia-tag">Economia</span>
-          <h3 class="noticia-titulo">Portal da Transparência atualiza dados de gastos de parlamentares</h3>
-          <p class="noticia-meta">CGU · há 3 dias</p>
-        </div>
-      </article>
-      <article class="noticia-card" onclick="abrirModal('cadastro')">
-        <div class="noticia-img">🗳️</div>
-        <div class="noticia-corpo">
-          <span class="noticia-tag">Eleições</span>
-          <h3 class="noticia-titulo">Debate sobre voto contínuo e revogável ganha espaço nas universidades</h3>
-          <p class="noticia-meta">Acadêmico · há 4 dias</p>
-        </div>
-      </article>
-    </div>
-  </div>
-</section>
-
-<!-- ===================== NEWSLETTER ===================== -->
-<section class="block">
-  <div class="newsletter">
-    <h2>Sua voz faz a diferença</h2>
-    <p>Receba atualizações sobre os políticos que você acompanha, novos dados públicos e mudanças nas leis que afetam sua vida.</p>
-    <form class="newsletter-form" onsubmit="event.preventDefault(); newsletterOk()">
-      <input type="email" id="nl-email" placeholder="seu@email.com" required>
-      <button type="submit">OK</button>
-    </form>
-    <div class="newsletter-cta">
-      <button class="nl-comecar" onclick="abrirModal('cadastro')">🚀 Começar Agora</button>
-      <button class="nl-conhecer" onclick="location.href='pages/quem-somos.html'">📖 Conhecer Mais</button>
-    </div>
-  </div>
-</section>
-
-<!-- ===================== FOOTER ===================== -->
-<footer>
-  <div class="footer-grid">
-    <div class="footer-col footer-brand">
-      <h4 style="background:linear-gradient(135deg,#4a7bc2,#AECF00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:inline-block">MudaBrasil</h4>
-      <p>Plataforma cívica de voto contínuo e revogável. Democracia sem intervalo entre eleições — anônima, auditável e com dados públicos.</p>
-    </div>
-    <div class="footer-col">
-      <h4>Navegar</h4>
-      <ul>
-        <li><a href="pages/pesquisar.html">Pesquisar</a></li>
-        <li><a href="pages/pesquisar.html">Pesquisar Políticos</a></li>
-        <li><a href="pages/pesquisar.html">Candidatos</a></li>
-        <li><a href="pages/congresso.html">Congresso</a></li>
-        <li><a href="pages/ajuda.html">Ajuda</a></li>
-      </ul>
-    </div>
-    <div class="footer-col">
-      <h4>Participar</h4>
-      <ul>
-        <li><a href="pages/meu-voto.html">Meus Votos</a></li>
+        <li><a href="pages/pesquisar.html">Compare Candidatos</a></li>
+        <li><a href="pages/conferir.html">Conferir Voto</a></li>
+        <li><a href="pages/congresso.html">PLs no Congresso</a></li>
+        <li><a href="pages/revogados.html">Políticos Revogados</a></li>
+        <li><a href="pages/radar.html">Radar Político</a></li>
         <li><a href="pages/meu-voto.html">Revogar Voto</a></li>
-        <li><a href="pages/revogados.html">Políticos revogados</a></li>
-        <li><a href="pages/comunidade.html">Comunidade</a></li>
       </ul>
+
+      <button class="btn-entrar" onclick="location.href='pages/meu-voto.html'">Entrar</button>
     </div>
-    <div class="footer-col">
-      <h4>Institucional</h4>
-      <ul>
-        <li><a href="pages/quem-somos.html">Sobre Nós</a></li>
-        <li><a href="pages/proposta.html">A Proposta</a></li>
-        <li><a href="pages/ajuda.html">FAQ</a></li>
-        <li><a href="pages/ajuda.html">Contato</a></li>
-      </ul>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <h1>Seu voto não acaba na eleição</h1>
+    <div class="hero-tagline">
+      Seu voto <span class="tag-coloca">coloca</span>. Seu voto <span class="tag-tira">tira</span>.
     </div>
-  </div>
-  <div class="footer-bottom">
-    © 2026 MudaBrasil · Plataforma cívica de voto contínuo e revogável · Dados públicos via TSE, Câmara, Senado, Portal da Transparência e CNJ.
-  </div>
-</footer>
+    <p class="hero-sub">
+      No MudaBrasil, você expressa confiança de forma anônima e contínua. Acompanhe a atuação dos parlamentares com dados 100% públicos e revogue seu voto quando não cumprirem o prometido.
+    </p>
 
-<!-- ===================== MODAL LOGIN ===================== -->
-<div class="modal" id="modal-login">
-  <div class="modal-box">
-    <button class="modal-close" onclick="fecharModais()">×</button>
-    <h3>Entrar na sua conta</h3>
-    <p class="modal-sub">Acesse seu painel de votos e personalize seu radar.</p>
-
-    <div id="login-msg"></div>
-
-    <div class="modal-tabs">
-      <button class="modal-tab active" data-tab="email" onclick="trocarTab(this,'email')">📧 E-mail</button>
-      <button class="modal-tab" data-tab="tel" onclick="trocarTab(this,'tel')">📱 Celular</button>
+    <div class="hero-buttons">
+      <a href="pages/pesquisar.html" class="btn-oval">🗳️ Compare Candidatos</a>
+      <a href="pages/conferir.html" class="btn-oval outline">🔍 Conferir Voto</a>
+      <a href="pages/meu-voto.html" class="btn-oval outline">⚡ Revogar Voto</a>
     </div>
+  </section>
 
-    <form id="form-email-login" onsubmit="event.preventDefault(); enviarCodigoEmail()">
-      <div class="form-group">
-        <label>E-mail</label>
-        <input type="email" id="login-email" required placeholder="seu@email.com">
-      </div>
-      <button class="btn-submit" type="submit" id="btn-enviar-codigo">Enviar código de acesso</button>
-    </form>
+  <!-- 6 ABAS DA ESPECIFICAÇÃO -->
+  <section class="quick-section">
+    <h2 class="quick-title">As 6 Abas do MudaBrasil</h2>
+    <p class="quick-sub">Transparência total e participação cívica sem intervalo entre eleições.</p>
 
-    <form id="form-codigo" style="display:none" onsubmit="event.preventDefault(); verificarCodigoEmail()">
-      <div class="form-group">
-        <label>Código de 6 dígitos (enviado por e-mail)</label>
-        <input type="text" id="login-codigo" required maxlength="6" pattern="[0-9]{6}" placeholder="000000" inputmode="numeric">
-      </div>
-      <button class="btn-submit green" type="submit" id="btn-verificar-codigo">Verificar e entrar</button>
-      <p class="modal-foot"><a onclick="voltarEmail()">← Voltar</a></p>
-    </form>
-
-    <form id="form-tel-login" style="display:none" onsubmit="event.preventDefault(); enviarCodigoTel()">
-      <div class="form-group">
-        <label>Celular (com DDD)</label>
-        <input type="tel" id="login-tel" required placeholder="(11) 99999-9999">
-      </div>
-      <button class="btn-submit" type="submit">Enviar código SMS</button>
-    </form>
-
-    <div class="divider">ou</div>
-    <button class="btn-google" onclick="loginGoogle()">
-      <span style="font-size:1.1rem">🇬</span> Entrar com Google
-    </button>
-
-    <p class="modal-foot">Não tem conta? <a onclick="abrirModal('cadastro')">Cadastre-se</a></p>
-  </div>
-</div>
-
-<!-- ===================== MODAL CADASTRO ===================== -->
-<div class="modal" id="modal-cadastro">
-  <div class="modal-box">
-    <button class="modal-close" onclick="fecharModais()">×</button>
-    <h3>Criar conta</h3>
-    <p class="modal-sub">Anônimo. Seu voto nunca é vinculado a você.</p>
-    <div id="cad-msg"></div>
-    <form onsubmit="event.preventDefault(); fazerCadastro()">
-      <div class="form-group">
-        <label>E-mail (para login e revogação)</label>
-        <input type="email" id="cad-email" required placeholder="seu@email.com">
-      </div>
-      <div class="form-group">
-        <label>Celular (opcional, para recuperar)</label>
-        <input type="tel" id="cad-tel" placeholder="(11) 99999-9999">
-      </div>
-      <div class="form-group">
-        <label>Estado (UF)</label>
-        <input type="text" id="cad-uf" maxlength="2" placeholder="SP">
-      </div>
-      <button class="btn-submit green" type="submit">Criar conta anônima</button>
-    </form>
-    <p class="modal-foot">Já tem conta? <a onclick="abrirModal('login')">Entrar</a></p>
-  </div>
-</div>
-
-<script>
-  /* ====== Donuts ====== */
-  const CARGOS = [
-    {id:'presidente',nome:'Presidente'},
-    {id:'governador',nome:'Governador'},
-    {id:'senador',nome:'Senador'},
-    {id:'dep-federal',nome:'Dep. Federal'},
-    {id:'dep-estadual',nome:'Dep. Estadual'},
-    {id:'prefeito',nome:'Prefeito'},
-    {id:'vereador',nome:'Vereador'},
-  ];
-  const CANDIDATOS = [
-    {nome:'Maria Silva',cor:'#009739',pct:38},
-    {nome:'Carlos Souza',cor:'#3465A4',pct:24},
-    {nome:'Ana Beatriz',cor:'#fbbf24',pct:18},
-    {nome:'João Pereira',cor:'#dc2626',pct:12},
-    {nome:'Outros',cor:'#7c3aed',pct:8},
-  ];
-
-  function donutSVG(cargos, candidatos, size=150){
-    const r=55,cx=70,cy=70,circ=2*Math.PI*r;
-    let off=0;
-    const parts=candidatos.map(c=>{
-      const len=(c.pct/100)*circ;
-      const dash=`${len} ${circ-len}`;
-      const seg=`<circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="${c.cor}" stroke-width="22" stroke-dasharray="${dash}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"/>`;
-      off+=len;
-      return seg;
-    }).join('');
-    return `<svg class="donut-svg" viewBox="0 0 140 140" width="${size}" height="${size}">
-      <circle r="${r}" cx="${cx}" cy="${cy}" fill="none" stroke="#1f2c45" stroke-width="22"/>
-      ${parts}
-      <text x="70" y="76" text-anchor="middle" fill="#fff" font-family="Montserrat" font-weight="800" font-size="22">${cargos.nome==='Presidente'?'38%':''}</text>
-    </svg>`;
-  }
-
-  function renderDonuts(){
-    const grid=document.getElementById('donuts-grid');
-    grid.innerHTML=CARGOS.map(c=>{
-      const lead=CANDIDATOS[0];
-      const leadTxt=c.id==='presidente' ? '38%' : '';
-      return `
-      <div class="donut-card">
-        <h4 class="donut-titulo">${c.nome}</h4>
-        <div style="position:relative;display:flex;justify-content:center">
-          ${donutSVG(c,CANDIDATOS)}
-          ${c.id==='presidente'?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none"><div style="font-family:Montserrat;font-weight:800;font-size:1.4rem">38%</div><div style="color:#94A3B8;font-size:0.7rem">Maria</div></div>':''}
+    <div class="abas-grid">
+      <div class="aba-card" onclick="location.href='pages/pesquisar.html'">
+        <div class="aba-header">
+          <span class="aba-icon">🗳️</span>
+          <span class="aba-name">1. Compare Candidatos</span>
         </div>
-        <div class="donut-leg">
-          ${CANDIDATOS.map(ca=>`<div class="leg-row"><span class="leg-dot" style="background:${ca.cor}"></span><span>${ca.nome}</span><b>${ca.pct}%</b></div>`).join('')}
+        <p class="aba-desc">Dados 100% públicos (TSE, Portal da Transparência, Câmara/Senado, CNJ), índice de integridade e comparação lado a lado.</p>
+        <span class="aba-link">Acessar candidatos →</span>
+      </div>
+
+      <div class="aba-card" onclick="location.href='pages/conferir.html'">
+        <div class="aba-header">
+          <span class="aba-icon">🔍</span>
+          <span class="aba-name">2. Conferir Voto</span>
         </div>
-      </div>`;
-    }).join('');
-  }
+        <p class="aba-desc">Verifique a existência e o registro do seu voto de 20 dígitos (0000 0000 0000 0000 0000) com total anonimato e segurança.</p>
+        <span class="aba-link">Conferir meu código →</span>
+      </div>
 
-  /* ====== Newsletter ====== */
-  function newsletterOk(){
-    const e=document.getElementById('nl-email');
-    if(!e.value) return;
-    e.value='';
-    alert('Inscrição realizada! Você receberá as próximas atualizações.');
-  }
+      <div class="aba-card" onclick="location.href='pages/congresso.html'">
+        <div class="aba-header">
+          <span class="aba-icon">📜</span>
+          <span class="aba-name">3. PLs no Congresso</span>
+        </div>
+        <p class="aba-desc">Acompanhe Projetos de Lei por número, autor e partido. Expresse sua opinião com botões "Aprovo" ou "Não aprovo".</p>
+        <span class="aba-link">Ver projetos de lei →</span>
+      </div>
 
-  /* ====== Modais ====== */
-  function abrirModal(tipo){
-    fecharModais();
-    document.getElementById('modal-'+tipo).classList.add('open');
-    if(tipo==='login'){ trocarTab(document.querySelector('[data-tab=email]'),'email'); }
-  }
-  function fecharModais(){
-    document.querySelectorAll('.modal').forEach(m=>m.classList.remove('open'));
-  }
-  document.querySelectorAll('.modal').forEach(m=>{
-    m.addEventListener('click',e=>{ if(e.target===m) fecharModais(); });
-  });
-  function trocarTab(el,tab){
-    document.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
-    el.classList.add('active');
-    document.getElementById('form-email-login').style.display=tab==='email'?'block':'none';
-    document.getElementById('form-tel-login').style.display=tab==='tel'?'block':'none';
-    document.getElementById('form-codigo').style.display='none';
-  }
-  function voltarEmail(){
-    document.getElementById('form-codigo').style.display='none';
-    document.getElementById('form-email-login').style.display='block';
-  }
-  function loginGoogle(){
-    alert('Login com Google (demo). Em produção, abre OAuth real.');
-  }
+      <div class="aba-card" onclick="location.href='pages/revogados.html'">
+        <div class="aba-header">
+          <span class="aba-icon">⚡</span>
+          <span class="aba-name">4. Políticos Revogados</span>
+        </div>
+        <p class="aba-desc">Acompanhe gráficos dos políticos com mais revogações e o progresso rumo ao limite de 70% dos votos de eleição.</p>
+        <span class="aba-link">Ver ranking de revogações →</span>
+      </div>
 
-  /* ====== Auth API ====== */
-  function mostrarMsg(elId,texto,tipo){
-    const el=document.getElementById(elId);
-    el.className='msg-'+tipo;
-    el.textContent=texto;
-    el.style.display='block';
-    setTimeout(()=>{el.style.display='none'},6000);
-  }
-  async function enviarCodigoEmail(){
-    const email=document.getElementById('login-email').value.trim();
-    if(!email) return;
-    const btn=document.getElementById('btn-enviar-codigo');
-    btn.disabled=true;btn.textContent='Enviando...';
-    try{
-      const r=await fetch('/api/auth/email/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-      const j=await r.json();
-      if(!r.ok) throw new Error(j.error||'Erro ao enviar');
-      mostrarMsg('login-msg','Código enviado! Confira seu e-mail.','ok');
-      document.getElementById('form-email-login').style.display='none';
-      document.getElementById('form-codigo').style.display='block';
-    }catch(e){
-      mostrarMsg('login-msg',e.message,'erro');
-    }finally{
-      btn.disabled=false;btn.textContent='Enviar código de acesso';
-    }
-  }
-  async function verificarCodigoEmail(){
-    const email=document.getElementById('login-email').value.trim();
-    const code=document.getElementById('login-codigo').value.trim();
-    if(!code) return;
-    const btn=document.getElementById('btn-verificar-codigo');
-    btn.disabled=true;btn.textContent='Verificando...';
-    try{
-      const r=await fetch('/api/auth/email/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code})});
-      const j=await r.json();
-      if(!r.ok) throw new Error(j.error||'Código inválido');
-      localStorage.setItem('mb_session',JSON.stringify(j.session));
-      fecharModais();
-      location.reload();
-    }catch(e){
-      mostrarMsg('login-msg',e.message,'erro');
-    }finally{
-      btn.disabled=false;btn.textContent='Verificar e entrar';
-    }
-  }
-  async function enviarCodigoTel(){
-    const tel=document.getElementById('login-tel').value.trim();
-    if(!tel) return;
-    mostrarMsg('login-msg','SMS enviado (em produção).','ok');
-  }
-  async function fazerCadastro(){
-    const email=document.getElementById('cad-email').value.trim();
-    const tel=document.getElementById('cad-tel').value.trim();
-    const uf=document.getElementById('cad-uf').value.trim().toUpperCase();
-    if(!email){mostrarMsg('cad-msg','E-mail é obrigatório','erro');return;}
-    try{
-      const r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,tel,uf})});
-      const j=await r.json();
-      if(!r.ok) throw new Error(j.error||'Erro no cadastro');
-      localStorage.setItem('mb_session',JSON.stringify(j.session));
-      mostrarMsg('cad-msg','Conta criada! Redirecionando...','ok');
-      setTimeout(()=>{fecharModais();location.reload()},800);
-    }catch(e){
-      mostrarMsg('cad-msg',e.message,'erro');
-    }
-  }
+      <div class="aba-card" onclick="location.href='pages/radar.html'">
+        <div class="aba-header">
+          <span class="aba-icon">📡</span>
+          <span class="aba-name">5. Radar Político</span>
+        </div>
+        <p class="aba-desc">Cobre, acompanhe e elogie. Faça reclamações com anexos, veja respostas oficiais de parlamentares verificados e apoios.</p>
+        <span class="aba-link">Abrir radar cívico →</span>
+      </div>
 
-  /* ====== Init ====== */
-  renderDonuts();
-</script>
+      <div class="aba-card" onclick="location.href='pages/meu-voto.html'">
+        <div class="aba-header">
+          <span class="aba-icon">↩️</span>
+          <span class="aba-name">6. Revogar Voto</span>
+        </div>
+        <p class="aba-desc">Retire a confiança do parlamentar. Processo simulação com contagem regressiva de 10 segundos e confirmação transparente.</p>
+        <span class="aba-link">Gerenciar meus votos →</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>© 2026 MudaBrasil — Plataforma Cívica de Voto Contínuo e Revogável.</p>
+    <p style="margin-top: 6px; font-size: 0.78rem; color: #5A6B7E;">Fontes públicas oficiais: TSE · Portal da Transparência · Câmara dos Deputados · Senado Federal · CNJ</p>
+  </footer>
+
 </body>
 </html>

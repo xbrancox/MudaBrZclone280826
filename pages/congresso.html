@@ -10,8 +10,10 @@
   <style>
     body{margin:0;font-family:'Manrope',sans-serif;background:#0E1726;color:#fff;min-height:100vh}
     .wrap{max-width:1200px;margin:0 auto;padding:48px 24px 80px}
-    h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.8rem,3.5vw,2.6rem);margin:0 0 8px;background:linear-gradient(135deg,#AECF00,#4a7bc2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .sub{color:#94A3B8;margin:0 0 32px;font-size:1.05rem}
+    h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.8rem,3.5vw,2.6rem);margin:0 0 8px}
+    h1 .c-blue{color:#4a7bc2}
+    h1 .c-green{color:#009739}
+    .sub{color:#94A3B8;margin:0 0 32px;font-size:1.02rem;line-height:1.6}
     .back{display:inline-flex;align-items:center;gap:6px;color:#AECF00;text-decoration:none;font-weight:700;margin-bottom:24px;font-size:0.9rem}
     .back:hover{text-decoration:underline}
     .grid{display:grid;gap:18px}
@@ -26,69 +28,85 @@
     .pl h3{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.15rem;margin:0 0 8px;line-height:1.3}
     .pl-meta{color:#94A3B8;font-size:0.85rem;margin:0 0 16px}
     .pl-bar{height:8px;background:#1f2c45;border-radius:4px;overflow:hidden;display:flex;margin-bottom:8px}
-    .bar-sim{background:#009739;height:100%}
-    .bar-nao{background:#dc2626;height:100%}
+    .bar-sim{background:#AECF00;height:100%}
+    .bar-nao{background:#ff8c7a;height:100%}
     .pl-votes{display:flex;justify-content:space-between;font-size:0.8rem;color:#94A3B8;margin-bottom:14px}
     .pl-votes b{font-family:'Montserrat',sans-serif;color:#fff}
     .pl-actions{display:flex;gap:8px;flex-wrap:wrap}
-    .btn-vote{padding:8px 16px;border-radius:50px;font-size:0.78rem;font-weight:800;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em}
-    .btn-sim{background:rgba(0,151,57,0.18);color:#5fdf8a;border:1px solid rgba(0,151,57,0.35)}
-    .btn-nao{background:rgba(220,38,38,0.18);color:#fca5a5;border:1px solid rgba(220,38,38,0.35)}
-    .btn-vote:hover{transform:translateY(-1px)}
+    .btn-vote{padding:9px 18px;border-radius:9999px;font-size:0.8rem;font-weight:800;border:none;cursor:pointer}
+    .btn-sim{background:#AECF00;color:#0E1726}
+    .btn-nao{background:rgba(255,140,122,0.15);color:#ff8c7a;border:1px solid rgba(255,140,122,0.4)}
+    .btn-vote:hover{transform:translateY(-1px);filter:brightness(1.1)}
+    .pl-link{display:inline-block;margin-top:14px;font-size:0.8rem;font-weight:700;color:#7eb0e3;text-decoration:none}
+    .pl-link:hover{text-decoration:underline;color:#AECF00}
     .filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
-    .sel{background:#152339;color:#fff;border:1px solid rgba(90,107,126,0.28);padding:9px 14px;border-radius:10px;font-size:0.85rem;font-family:inherit}
+    .field{flex:1;min-width:180px}
+    .field label{display:block;font-size:0.68rem;font-weight:800;color:#5A6B7E;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+    .sel,.txt{width:100%;background:#152339;color:#fff;border:1px solid rgba(90,107,126,0.28);padding:10px 14px;border-radius:10px;font-size:0.85rem;font-family:inherit}
+    .txt:focus,.sel:focus{outline:none;border-color:#AECF00}
+    .count{font-size:0.8rem;color:#5A6B7E;margin:0 0 14px}
+    .count b{color:#AECF00}
   </style>
 </head>
 <body>
   <div class="wrap">
     <a href="../index.html" class="back">← Voltar para o Início</a>
-    <h1>📜 PLs no Congresso</h1>
-    <p class="sub">Acompanhe os projetos de lei em tramitação e dê seu apoio ou rejeição.</p>
+    <h1><span class="c-blue">PLs</span> no <span class="c-green">Congresso</span></h1>
+    <p class="sub">Acompanhe os projetos de lei em tramitação e diga se aprova ou não <strong>antes</strong> dos parlamentares votarem.</p>
 
     <div class="filter-bar">
-      <select class="sel" id="casa">
-        <option>Todas as casas</option>
-        <option>Câmara</option><option>Senado</option><option>Sanção Presidencial</option>
-      </select>
-      <select class="sel" id="tema">
-        <option>Todos os temas</option>
-        <option>Economia</option><option>Educação</option>
-        <option>Saúde</option><option>Meio Ambiente</option>
-        <option>Segurança</option>
-      </select>
+      <div class="field"><label>Nº do PL</label><input class="txt" id="f-num" placeholder="Ex.: PL 1234/2026" oninput="render()"></div>
+      <div class="field"><label>Autor</label><input class="txt" id="f-autor" placeholder="Nome do autor" oninput="render()"></div>
+      <div class="field"><label>Partido</label><select class="sel" id="f-partido" onchange="render()"></select></div>
     </div>
 
+    <p class="count" id="count"></p>
     <div class="grid" id="grid"></div>
   </div>
 
   <script>
     const PLS = [
-      {num:'PL 1234/2026',titulo:'Programa Nacional de Restauração Ambiental',autor:'Dep. Carlos Souza (MDB/RJ)',casa:'camara',tema:'Meio Ambiente',sim:62,nao:38},
-      {num:'PL 5678/2026',titulo:'Reforma do Ensino Médio com foco em tecnologia',autor:'Sen. Ana Beatriz (PSOL/BA)',casa:'senado',tema:'Educação',sim:54,nao:46},
-      {num:'PL 9101/2026',titulo:'Ampliação do programa Saúde da Família',autor:'Dep. Maria Silva (PT/SP)',casa:'camara',tema:'Saúde',sim:71,nao:29},
-      {num:'PL 2468/2026',titulo:'Redução de jornada de trabalho para 36h semanais',autor:'Sen. Felipe Santos (PP/MG)',casa:'senado',tema:'Economia',sim:48,nao:52},
-      {num:'PL 8024/2026',titulo:'Lei de Proteção de Dados Eleitorais',autor:'Sen. Juliana Costa (REDE/SP)',casa:'sancao',tema:'Segurança',sim:78,nao:22},
-      {num:'PL 3456/2026',titulo:'Criminalização do assédio em ambiente digital',autor:'Dep. Camila Rocha (PSB/RJ)',casa:'camara',tema:'Segurança',sim:65,nao:35},
+      {num:'PL 1234/2026',titulo:'Programa Nacional de Restauração Ambiental',autor:'Carlos Souza',partido:'MDB',casa:'camara',tema:'Meio Ambiente',sim:62,nao:38},
+      {num:'PL 5678/2026',titulo:'Reforma do Ensino Médio com foco em tecnologia',autor:'Ana Beatriz',partido:'PSOL',casa:'senado',tema:'Educação',sim:54,nao:46},
+      {num:'PL 9101/2026',titulo:'Ampliação do programa Saúde da Família',autor:'Maria Silva',partido:'PT',casa:'camara',tema:'Saúde',sim:71,nao:29},
+      {num:'PL 2468/2026',titulo:'Redução de jornada de trabalho para 36h semanais',autor:'Felipe Santos',partido:'PP',casa:'senado',tema:'Economia',sim:48,nao:52},
+      {num:'PL 8024/2026',titulo:'Lei de Proteção de Dados Eleitorais',autor:'Juliana Costa',partido:'REDE',casa:'sancao',tema:'Segurança',sim:78,nao:22},
+      {num:'PL 3456/2026',titulo:'Criminalização do assédio em ambiente digital',autor:'Camila Rocha',partido:'PSB',casa:'camara',tema:'Segurança',sim:65,nao:35},
     ];
     const stClass={camara:'st-camara',senado:'st-senado',sancao:'st-sancao'};
     const stLabel={camara:'Câmara',senado:'Senado',sancao:'Sanção'};
+    const partSel=document.getElementById('f-partido');
+    partSel.innerHTML='<option value="">Todos os partidos</option>'+[...new Set(PLS.map(p=>p.partido))].sort().map(pa=>`<option>${pa}</option>`).join('');
     const grid=document.getElementById('grid');
-    grid.innerHTML=PLS.map(p=>{
-      return `<article class="pl">
-        <div class="pl-top">
-          <span class="pl-num">${p.num}</span>
-          <span class="pl-status ${stClass[p.casa]}">${stLabel[p.casa]}</span>
-        </div>
-        <h3>${p.titulo}</h3>
-        <p class="pl-meta">${p.autor} · ${p.tema}</p>
-        <div class="pl-bar"><div class="bar-sim" style="width:${p.sim}%"></div><div class="bar-nao" style="width:${p.nao}%"></div></div>
-        <div class="pl-votes"><span>👍 Apoiar: <b>${p.sim}%</b></span><span>👎 Rejeitar: <b>${p.nao}%</b></span></div>
-        <div class="pl-actions">
-          <button class="btn-vote btn-sim" onclick="alert('Para votar, cadastre-se no MudaBrasil.')">👍 Apoiar</button>
-          <button class="btn-vote btn-nao" onclick="alert('Para votar, cadastre-se no MudaBrasil.')">👎 Rejeitar</button>
-        </div>
-      </article>`;
-    }).join('');
+    function render(){
+      const qn=document.getElementById('f-num').value.trim().toLowerCase();
+      const qa=document.getElementById('f-autor').value.trim().toLowerCase();
+      const qp=document.getElementById('f-partido').value;
+      const list=PLS.filter(p=>
+        (!qn||p.num.toLowerCase().includes(qn)||p.titulo.toLowerCase().includes(qn))&&
+        (!qa||p.autor.toLowerCase().includes(qa)||p.titulo.toLowerCase().includes(qa))&&
+        (!qp||p.partido===qp)
+      );
+      document.getElementById('count').innerHTML=`<b>${list.length}</b> projeto(s) de lei em tramitação`;
+      grid.innerHTML=list.map(p=>{
+        return `<article class="pl">
+          <div class="pl-top">
+            <span class="pl-num">${p.num}</span>
+            <span class="pl-status ${stClass[p.casa]}">${stLabel[p.casa]}</span>
+          </div>
+          <h3>${p.titulo}</h3>
+          <p class="pl-meta">${p.autor} (${p.partido}) · ${p.tema}</p>
+          <div class="pl-bar"><div class="bar-sim" style="width:${p.sim}%"></div><div class="bar-nao" style="width:${p.nao}%"></div></div>
+          <div class="pl-votes"><span>Aprovo: <b>${p.sim}%</b></span><span>Não aprovo: <b>${p.nao}%</b></span></div>
+          <div class="pl-actions">
+            <button class="btn-vote btn-sim" onclick="alert('Aprovação registrada! Para votar de verdade, cadastre-se no MudaBrasil.')">Aprovo</button>
+            <button class="btn-vote btn-nao" onclick="alert('Rejeição registrada! Para votar de verdade, cadastre-se no MudaBrasil.')">Não aprovo</button>
+          </div>
+          <a class="pl-link" href="#" onclick="alert('📄 Inteiro teor disponível em camara.leg.br / senado.leg.br — modo demo.');return false;">📄 Ler inteiro teor do PL</a>
+        </article>`;
+      }).join('');
+    }
+    render();
   </script>
 </body>
 </html>

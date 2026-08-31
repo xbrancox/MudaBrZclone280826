@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pesquisar Políticos — MudaBrasil</title>
-  <meta name="description" content="Pesquise qualquer político brasileiro: índice de integridade, reclamações, respostas, apoios e fontes públicas oficiais.">
+  <title>Compare Candidatos — MudaBrasil</title>
+  <meta name="description" content="Compare candidatos lado a lado: índice de integridade, transparência, processos, fontes públicas oficiais (TSE, Portal da Transparência, Câmara/Senado e CNJ).">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
@@ -226,7 +226,7 @@
     }
     .pp-integrity-fill {
       height: 100%; border-radius: 9999px;
-      background: linear-gradient(90deg, #AECF00, #009739);
+      background: linear-gradient(90deg, #AECF00, #3465A4);
       transition: width 0.5s ease;
     }
 
@@ -647,6 +647,138 @@
       color: var(--gray-2);
     }
 
+    /* Checkbox de comparar (canto superior direito, máx. 3) */
+    .pp-check-wrap {
+      position: absolute;
+      top: 12px; right: 12px;
+      width: 24px; height: 24px;
+      cursor: pointer;
+      z-index: 2;
+    }
+    .pp-check-input {
+      position: absolute; opacity: 0; width: 0; height: 0;
+    }
+    .pp-check-box {
+      position: absolute; inset: 0;
+      border: 2px solid rgba(90,107,126,0.6);
+      border-radius: 7px;
+      background: rgba(14,23,38,0.65);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .pp-check-input:checked + .pp-check-box {
+      background: var(--lime);
+      border-color: var(--lime);
+    }
+    .pp-check-input:checked + .pp-check-box::after {
+      content: '✓';
+      color: #0E1726;
+      font-size: 0.85rem;
+      font-weight: 800;
+    }
+    .pp-check-input:focus-visible + .pp-check-box {
+      box-shadow: 0 0 0 3px rgba(174,207,0,0.35);
+    }
+    .pp-card-head { padding-right: 30px; }
+
+    /* Anel azul no avatar */
+    .pp-avatar {
+      box-shadow: 0 0 0 3px var(--blue), 0 0 12px rgba(52,101,164,0.45);
+    }
+
+    /* Fonte no rodapé do card */
+    .pp-card-source {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(90,107,126,0.28);
+      font-size: 0.68rem;
+      color: var(--gray);
+      line-height: 1.45;
+    }
+
+    /* Banner modo demo (amarelo) */
+    .pp-demo-banner {
+      max-width: 720px;
+      margin: 0 auto 28px;
+      background: rgba(255, 198, 0, 0.12);
+      border: 1px solid rgba(255, 198, 0, 0.4);
+      color: #ffd94a;
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    /* Filtros com rótulo */
+    .pp-filter-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .pp-filter-field > span {
+      font-size: 0.66rem;
+      color: var(--gray);
+      text-align: center;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* Seção Dados 100% Públicos */
+    .pp-data-section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-top: 20px;
+    }
+    .pp-data-section h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.05rem;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .pp-data-section .pp-data-sub {
+      color: var(--gray-2);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+    .pp-data-row {
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(90,107,126,0.15);
+      font-size: 0.85rem;
+      align-items: start;
+    }
+    .pp-data-row:last-child { border-bottom: none; }
+    .pp-data-name { font-weight: 700; color: var(--gray-3); }
+    .pp-data-desc { color: var(--gray-2); margin-bottom: 4px; }
+    .pp-data-link a { color: var(--blue); font-size: 0.78rem; }
+    .pp-data-link a:hover { text-decoration: underline; }
+    .pp-data-footer {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(90,107,126,0.28);
+      font-size: 0.78rem;
+      color: var(--gray);
+      line-height: 1.5;
+    }
+
+    /* Banner Dica (azul) */
+    .pp-tip-banner {
+      background: rgba(52,101,164,0.15);
+      border: 1px solid rgba(52,101,164,0.45);
+      color: #a8c6ea;
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      font-size: 0.88rem;
+      line-height: 1.55;
+      margin-top: 20px;
+    }
+    .pp-tip-banner strong { color: #cfe0f5; }
+
     @media (max-width: 600px) {
       .pp-grid { grid-template-columns: 1fr; }
       .pp-ficha-grid { grid-template-columns: repeat(2, 1fr); }
@@ -668,8 +800,9 @@
        HERO
        ================================================================ -->
   <div class="pp-hero">
-    <h1>🔍 Pesquisar Políticos</h1>
-    <p>Digite nome, número, estado, partido ou área de atuação. Compare candidatos, veja reclamações, respostas e fontes públicas.</p>
+    <h1>Compare Candidatos</h1>
+    <p>Transparência total para o eleitor decidir. Todos os dados são estruturados a partir de <strong>fontes públicas oficiais</strong>: TSE, Portal da Transparência, Câmara/Senado e CNJ.</p>
+    <div class="pp-demo-banner">📌 <strong>Modo demo</strong> — dados sintéticos de exemplo (API de dados reais não acessível)</div>
 
     <!-- Barra de busca -->
     <div class="pp-search-wrap">
@@ -679,29 +812,41 @@
         autocomplete="off">
     </div>
 
-    <!-- Filtros -->
+    <!-- Filtros: Estado · Partido · Cargo · Ordenar por -->
     <div class="pp-filters">
-      <select id="pp-filter-cargo" class="pp-filter-select">
-        <option value="">Todos os cargos</option>
-        <option value="Deputado Federal">Deputado Federal</option>
-        <option value="Deputado Estadual">Deputado Estadual</option>
-        <option value="Senador">Senador</option>
-        <option value="Governador">Governador</option>
-        <option value="Prefeito">Prefeito</option>
-        <option value="Vereador">Vereador</option>
-      </select>
-      <select id="pp-filter-uf" class="pp-filter-select">
-        <option value="">Todos os estados</option>
-      </select>
-      <select id="pp-filter-partido" class="pp-filter-select">
-        <option value="">Todos os partidos</option>
-      </select>
-      <select id="pp-filter-sort" class="pp-filter-select">
-        <option value="integrity">Índice de Integridade</option>
-        <option value="name">Nome (A–Z)</option>
-        <option value="party">Partido</option>
-        <option value="transparency">Transparência</option>
-      </select>
+      <label class="pp-filter-field">
+        <span>Estado</span>
+        <select id="pp-filter-uf" class="pp-filter-select">
+          <option value="">Todos</option>
+        </select>
+      </label>
+      <label class="pp-filter-field">
+        <span>Partido</span>
+        <select id="pp-filter-partido" class="pp-filter-select">
+          <option value="">Todos</option>
+        </select>
+      </label>
+      <label class="pp-filter-field">
+        <span>Cargo</span>
+        <select id="pp-filter-cargo" class="pp-filter-select">
+          <option value="">Todos os cargos</option>
+          <option value="Deputado Federal">Deputado Federal</option>
+          <option value="Deputado Estadual">Deputado Estadual</option>
+          <option value="Senador">Senador</option>
+          <option value="Governador">Governador</option>
+          <option value="Prefeito">Prefeito</option>
+          <option value="Vereador">Vereador</option>
+        </select>
+      </label>
+      <label class="pp-filter-field">
+        <span>Ordenar por</span>
+        <select id="pp-filter-sort" class="pp-filter-select">
+          <option value="transparency" selected>Transparência (maior)</option>
+          <option value="integrity">Índice de Integridade</option>
+          <option value="name">Nome (A–Z)</option>
+          <option value="party">Partido</option>
+        </select>
+      </label>
     </div>
   </div>
 
@@ -710,7 +855,7 @@
        ================================================================ -->
   <div class="pp-result-info">
     <span class="pp-result-count">
-      <strong id="pp-count">0</strong> político(s) encontrado(s)
+      <strong id="pp-count">0</strong> candidato(s) encontrado(s)
     </span>
   </div>
 
@@ -730,6 +875,48 @@
 
   <!-- Comparacao panel -->
   <div id="pp-compare-panel"></div>
+
+  <!-- ================================================================
+       DADOS 100% PUBLICOS E VERIFICAVEIS
+       ================================================================ -->
+  <section class="pp-data-section">
+    <h2>🔎 Dados 100% Públicos e Verificáveis</h2>
+    <p class="pp-data-sub">Cada dado exibido nesta página vem de uma fonte oficial e pode ser conferido por qualquer cidadão.</p>
+    <div class="pp-data-table">
+      <div class="pp-data-row">
+        <div class="pp-data-name">🏛️ TSE</div>
+        <div>
+          <div class="pp-data-desc">Candidaturas, contas eleitorais, bens declarados e resultados de votação.</div>
+          <div class="pp-data-link"><a href="https://divulgacand.tse.jus.br/" target="_blank" rel="noopener">divulgacand.tse.jus.br ↗</a></div>
+        </div>
+      </div>
+      <div class="pp-data-row">
+        <div class="pp-data-name">💰 Portal da Transparência</div>
+        <div>
+          <div class="pp-data-desc">Gastos públicos, salários, diárias e sanções administrativas.</div>
+          <div class="pp-data-link"><a href="https://portaldatransparencia.gov.br/" target="_blank" rel="noopener">portaldatransparencia.gov.br ↗</a></div>
+        </div>
+      </div>
+      <div class="pp-data-row">
+        <div class="pp-data-name">🏛️ Câmara &amp; Senado</div>
+        <div>
+          <div class="pp-data-desc">Proposituras, discursos, presença e votações nominais.</div>
+          <div class="pp-data-link"><a href="https://www.camara.leg.br/" target="_blank" rel="noopener">camara.leg.br ↗</a></div>
+        </div>
+      </div>
+      <div class="pp-data-row">
+        <div class="pp-data-name">⚖️ CNJ</div>
+        <div>
+          <div class="pp-data-desc">Processos judiciais e sanções disciplinares contra agentes públicos.</div>
+          <div class="pp-data-link"><a href="https://www.cnj.jus.br/" target="_blank" rel="noopener">cnj.jus.br ↗</a></div>
+        </div>
+      </div>
+    </div>
+    <p class="pp-data-footer">⚙️ O Índice de Integridade é calculado automaticamente combinando transparência, processos judiciais e presença.</p>
+  </section>
+
+  <!-- Dica -->
+  <div class="pp-tip-banner">💡 <strong>Dica:</strong> selecione até 3 candidatos marcando o quadradinho no canto do card para compará-los lado a lado. Clique em <strong>VER DETALHES</strong> para conferir a ficha completa com as fontes.</div>
 
 </main>
 
@@ -1014,6 +1201,10 @@
       const numDisplay = p.number ? p.number : (p.camaraId ? p.camaraId : 's/ nº');
       return `
       <article class="pp-card" data-id="${esc(p.id)}">
+        <label class="pp-check-wrap" title="Selecionar para comparar (máx. 3)">
+          <input type="checkbox" class="pp-check-input" data-compare="${esc(p.id)}" ${isCompare ? 'checked' : ''}>
+          <span class="pp-check-box"></span>
+        </label>
         <div class="pp-card-head">
           <div class="pp-avatar" style="background:${avatarBg};color:#fff;">
             ${avatarHTML(p.name, p.photo)}
@@ -1040,10 +1231,8 @@
         </div>
         <div class="pp-card-actions">
           <button class="pp-btn-detail" data-open="${esc(p.id)}">VER DETALHES</button>
-          <button class="pp-btn-compare ${isCompare ? 'active' : ''}" data-compare="${esc(p.id)}" title="Selecionar para comparar">
-            ${isCompare ? '✓' : '⚖'}
-          </button>
         </div>
+        <div class="pp-card-source">📋 Fonte: TSE, Portal da Transparência, Câmara dos Deputados, CNJ</div>
       </article>`;
     }).join('');
 
@@ -1051,11 +1240,8 @@
     grid.querySelectorAll('[data-open]').forEach(btn => {
       btn.addEventListener('click', () => openDetail(btn.dataset.open));
     });
-    grid.querySelectorAll('[data-compare]').forEach(btn => {
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        toggleCompare(btn.dataset.compare);
-      });
+    grid.querySelectorAll('[data-compare]').forEach(cb => {
+      cb.addEventListener('change', () => toggleCompare(cb.dataset.compare));
     });
   }
 

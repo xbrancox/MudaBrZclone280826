@@ -3,62 +3,113 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MudaBrasil - Revogar Voto</title>
-  <meta http-equiv="refresh" content="2;url=meu-voto.html#conferir">
+  <title>Voto Revogado — MudaBrasil</title>
+  <meta name="description" content="Confirmação de revogação do voto. Veja o impacto na cassação do político. Simulação.">
   <link rel="stylesheet" href="../css/design-system.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
   <script src="../js/header.js"></script>
   <style>
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: var(--space-md);
-      text-align: center;
-    }
-    .redirect-box {
-      max-width: 480px;
-      padding: var(--space-2xl);
-      background: var(--surface-500);
-      border-radius: var(--border-radius-lg);
-      border: 1px solid var(--border-500);
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid var(--border-500);
-      border-top-color: var(--accent-500);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto var(--space-md);
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    body{margin:0;font-family:'Manrope',sans-serif;background:#0E1726;color:#fff;min-height:100vh}
+    .wrap{max-width:760px;margin:0 auto;padding:48px 24px 80px}
+    h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(1.8rem,3.5vw,2.6rem);margin:0 0 8px}
+    h1 .rv-blue{color:#4a7bc2}
+    h1 .rv-green{color:#009739}
+    .sub{color:#94A3B8;margin:0 0 32px;font-size:1.02rem;line-height:1.6}
+    .back{display:inline-flex;align-items:center;gap:6px;color:#AECF00;text-decoration:none;font-weight:700;margin-bottom:24px;font-size:0.9rem}
+    .back:hover{text-decoration:underline}
+
+    .ok-card{background:linear-gradient(155deg,#152339,#101D33);border:1px solid rgba(0,151,57,0.4);border-radius:18px;padding:28px}
+    .ok-title{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.3rem;color:#5fdf8a;margin:0 0 6px}
+    .ok-sub{color:#94A3B8;margin:0 0 20px;font-size:0.92rem;line-height:1.5}
+    .row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(90,107,126,0.2);font-size:0.9rem;gap:16px}
+    .row:last-child{border:none}
+    .row span{color:#94A3B8;flex-shrink:0}
+    .row b{color:#fff;font-family:'Montserrat',sans-serif;text-align:right}
+
+    .progress-card{margin-top:16px;background:linear-gradient(155deg,#152339,#101D33);border:1px solid rgba(90,107,126,0.28);border-radius:18px;padding:24px}
+    .progress-label{display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:8px;color:#94A3B8}
+    .progress-label b{color:#fff;font-family:'Montserrat',sans-serif}
+    .progress-wrap{background:#0E1726;border-radius:9999px;height:14px;overflow:hidden}
+    .progress-fill{height:100%;border-radius:9999px;background:linear-gradient(90deg,#AECF00,#3465A4);transition:width 1s ease}
+    .progress-note{margin:12px 0 0;font-size:0.8rem;color:#94A3B8}
+
+    .info{margin-top:24px;padding:18px;background:rgba(174,207,0,0.08);border-left:3px solid #AECF00;border-radius:8px;font-size:0.88rem;color:#c4e034;line-height:1.6}
+    .info b{color:#fff}
+    .info.danger{background:rgba(255,140,122,0.08);border-left-color:#ff8c7a;color:#ffb4a6}
+
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+    .act-primary{flex:1;min-width:180px;padding:14px;background:#AECF00;color:#0E1726;border:none;border-radius:9999px;font-weight:800;font-size:0.95rem;cursor:pointer;text-align:center;text-decoration:none;transition:filter 0.2s}
+    .act-primary:hover{filter:brightness(1.1)}
+    .act-ghost{flex:1;min-width:180px;padding:13px;background:transparent;color:#C6D0DD;border:1px solid rgba(90,107,126,0.5);border-radius:9999px;font-weight:700;font-size:0.95rem;cursor:pointer;text-align:center;text-decoration:none}
+    .act-ghost:hover{border-color:#94A3B8}
   </style>
 </head>
 <body>
-  <div class="redirect-box">
-    <div class="spinner"></div>
-    <h2>↩ Revogar está em "Meu Voto"</h2>
-    <p style="color:var(--text-secondary); margin-bottom:var(--space-lg);">
-      A opção de conferir e revogar seu voto agora fica na aba
-      <strong>"Conferir / Revogar"</strong> dentro de <strong>Meu Voto</strong>.
-      É só colar seu código e escolher a ação.
-    </p>
-    <p style="font-size:var(--text-sm); color:var(--text-muted);">
-      Redirecionando em 2 segundos...
-    </p>
-    <a href="meu-voto.html#conferir" class="btn btn-accent" style="display:inline-block; margin-top:var(--space-md);">
-      Ir agora →
-    </a>
+  <div class="wrap">
+    <a href="meu-voto.html" class="back">← Voltar para Revogar Voto</a>
+    <h1><span class="rv-green">Voto</span> <span class="rv-blue">revogado</span></h1>
+    <p class="sub">Sua confiança foi retirada. Veja abaixo o impacto disso na cassação do político — <b style="color:#c4e034">70%</b> dos votos que o elegeram é o mínimo exigido.</p>
+
+    <div class="ok-card" id="ok-card">
+      <div class="ok-title">✅ Revogação confirmada</div>
+      <p class="ok-sub" id="ok-sub">Seu voto de confiança foi revogado com sucesso.</p>
+      <div class="row"><span>Político</span><b id="d-nome">—</b></div>
+      <div class="row"><span>Partido</span><b id="d-partido">—</b></div>
+      <div class="row"><span>Cargo</span><b id="d-cargo">—</b></div>
+      <div class="row"><span>Votos que o elegeram</span><b id="d-votos">—</b></div>
+      <div class="row"><span>Votos revogados agora</span><b id="d-revogados" style="color:#ffb4a6">—</b></div>
+    </div>
+
+    <div class="progress-card">
+      <div class="progress-label"><span>Progresso para cassação (70%)</span><b id="p-pct">0%</b></div>
+      <div class="progress-wrap"><div class="progress-fill" id="p-bar" style="width:0%"></div></div>
+      <p class="progress-note" id="p-note">—</p>
+    </div>
+
+    <div class="info danger">
+      <b>🧪 Simulação — leia com atenção:</b> esta revogação é <b>apenas uma demonstração</b>.
+      No MudaBrasil real, cada cidadão pode revogar o voto de confiança dado a um político a qualquer momento.
+      Quando <b>70% dos votos que elegeram</b> o político são revogados, ele perde o mandato e uma nova eleição é convocada — é o "voto contínuo e revogável".
+      Nesta página, <b>nenhum voto real foi alterado</b> e nenhum político foi cassado.
+    </div>
+
+    <div class="actions">
+      <a class="act-primary" href="../index.html">🏠 Voltar para o Início</a>
+      <a class="act-ghost" href="revogados.html">👀 Ver Políticos Revogados</a>
+    </div>
   </div>
+
   <script>
-    setTimeout(function() {
-      window.location.href = 'meu-voto.html#conferir';
-    }, 2000);
+    const MIN_PCT = 70;
+    const CANDIDATOS = {
+      'Maria Silva':  { partido: 'PT',  estado: 'SP', cargo: 'Deputada Federal', votos: 12480, revogados: 5390 },
+      'Carlos Souza': { partido: 'MDB', estado: 'RJ', cargo: 'Deputado Federal', votos: 9870,  revogados: 2100 }
+    };
+
+    function fmt(n) { return n.toLocaleString('pt-BR'); }
+
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      const nome = params.get('nome') || 'Maria Silva';
+      const c = CANDIDATOS[nome] || CANDIDATOS['Maria Silva'];
+
+      document.getElementById('ok-sub').innerHTML = 'Seu voto de confiança em <b style="color:#fff">' + nome + '</b> foi revogado com sucesso.';
+      document.getElementById('d-nome').textContent = nome;
+      document.getElementById('d-partido').textContent = c.partido + ' · ' + c.estado;
+      document.getElementById('d-cargo').textContent = c.cargo;
+      document.getElementById('d-votos').textContent = fmt(c.votos) + ' votos';
+      document.getElementById('d-revogados').textContent = fmt(c.revogados) + ' votos';
+
+      const metaCassacao = Math.round(c.votos * MIN_PCT / 100);
+      const pct = Math.round(c.revogados * 100 / c.votos);
+      const faltam = metaCassacao - c.revogados;
+
+      document.getElementById('p-pct').textContent = pct + '%';
+      document.getElementById('p-bar').style.width = Math.min(pct, 100) + '%';
+      document.getElementById('p-note').textContent =
+        'São necessários ' + fmt(metaCassacao) + ' votos revogados (' + MIN_PCT + '% de ' + fmt(c.votos) + ') para cassar. ' +
+        (faltam > 0 ? 'Ainda faltam ' + fmt(faltam) + ' votos.' : 'O mínimo foi atingido!');
+    })();
   </script>
 </body>
 </html>
