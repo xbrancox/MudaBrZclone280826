@@ -46,6 +46,19 @@
     .txt:focus,.sel:focus{outline:none;border-color:#AECF00}
     .count{font-size:0.8rem;color:#5A6B7E;margin:0 0 14px}
     .count b{color:#AECF00}
+    .fontes-section{margin-top:60px;padding-top:40px;border-top:1px solid rgba(90,107,126,0.25)}
+    .fontes-section h2{font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.4rem;margin:0 0 8px}
+    .fontes-table{display:flex;flex-direction:column;gap:0;margin-top:20px;border:1px solid rgba(90,107,126,0.2);border-radius:14px;overflow:hidden}
+    .f-row{display:flex;gap:16px;padding:14px 18px;border-bottom:1px solid rgba(90,107,126,0.12)}
+    .f-row:last-child{border:none}
+    .f-row:nth-child(odd){background:rgba(52,101,164,0.06)}
+    .f-name{flex:0 0 150px;font-weight:800;font-family:'Montserrat',sans-serif;font-size:0.9rem}
+    .f-info{flex:1}
+    .f-desc{color:#94A3B8;font-size:0.8rem;margin-bottom:2px}
+    .f-link a{color:#7eb0e3;text-decoration:none;font-size:0.78rem}
+    .f-link a:hover{color:#AECF00;text-decoration:underline}
+    .f-footer{color:#5A6B7E;font-size:0.75rem;margin-top:12px;text-align:center}
+    @media(max-width:600px){.f-row{flex-direction:column;gap:4px}.f-name{flex:auto}}
   </style>
 </head>
 <body>
@@ -62,16 +75,28 @@
 
     <p class="count" id="count"></p>
     <div class="grid" id="grid"></div>
+
+    <!-- Fontes Públicas -->
+    <section class="fontes-section">
+      <h2>🔎 Dados 100% Públicos e Verificáveis</h2>
+      <p class="sub" style="margin-bottom:0">Todo projeto de lei tem tramitação pública. Confira o inteiro teor e o andamento nas fontes oficiais.</p>
+      <div class="fontes-table">
+        <div class="f-row"><div class="f-name">🏛️ Câmara</div><div class="f-info"><div class="f-desc">Tramitação, inteiro teor e votações dos projetos na Câmara dos Deputados.</div><div class="f-link"><a href="https://www.camara.leg.br/proposicoes-web/" target="_blank" rel="noopener">camara.leg.br/proposicoes ↗</a></div></div></div>
+        <div class="f-row"><div class="f-name">🏛️ Senado</div><div class="f-info"><div class="f-desc">Tramitação, inteiro teor e votações dos projetos no Senado Federal.</div><div class="f-link"><a href="https://www25.senado.leg.br/web/atividade/materias" target="_blank" rel="noopener">senado.leg.br/materias ↗</a></div></div></div>
+        <div class="f-row"><div class="f-name">📌 Congresso Nacional</div><div class="f-info"><div class="f-desc">Acompanhamento consolidado da atividade legislativa.</div><div class="f-link"><a href="https://www.congressonacional.leg.br/" target="_blank" rel="noopener">congressonacional.leg.br ↗</a></div></div></div>
+      </div>
+      <p class="f-footer">⚙️ Os PLs desta página são exemplos em modo demo. No MudaBrasil real, a lista é sincronizada com as APIs públicas da Câmara e do Senado.</p>
+    </section>
   </div>
 
   <script>
     const PLS = [
-      {num:'PL 1234/2026',titulo:'Programa Nacional de Restauração Ambiental',autor:'Carlos Souza',partido:'MDB',casa:'camara',tema:'Meio Ambiente',sim:62,nao:38},
-      {num:'PL 5678/2026',titulo:'Reforma do Ensino Médio com foco em tecnologia',autor:'Ana Beatriz',partido:'PSOL',casa:'senado',tema:'Educação',sim:54,nao:46},
-      {num:'PL 9101/2026',titulo:'Ampliação do programa Saúde da Família',autor:'Maria Silva',partido:'PT',casa:'camara',tema:'Saúde',sim:71,nao:29},
-      {num:'PL 2468/2026',titulo:'Redução de jornada de trabalho para 36h semanais',autor:'Felipe Santos',partido:'PP',casa:'senado',tema:'Economia',sim:48,nao:52},
-      {num:'PL 8024/2026',titulo:'Lei de Proteção de Dados Eleitorais',autor:'Juliana Costa',partido:'REDE',casa:'sancao',tema:'Segurança',sim:78,nao:22},
-      {num:'PL 3456/2026',titulo:'Criminalização do assédio em ambiente digital',autor:'Camila Rocha',partido:'PSB',casa:'camara',tema:'Segurança',sim:65,nao:35},
+      {num:'PL 1234/2026',titulo:'Programa Nacional de Restauração Ambiental',autor:'Carlos Souza',partido:'MDB',casa:'camara',tema:'Meio Ambiente',sim:62,nao:38,url:'https://www.camara.leg.br/proposicoes-web/fichadetramitacao?idProposicao=2400000'},
+      {num:'PL 5678/2026',titulo:'Reforma do Ensino Médio com foco em tecnologia',autor:'Ana Beatriz',partido:'PSOL',casa:'senado',tema:'Educação',sim:54,nao:46,url:'https://www25.senado.leg.br/web/atividade/materias/-/materia/160000'},
+      {num:'PL 9101/2026',titulo:'Ampliação do programa Saúde da Família',autor:'Maria Silva',partido:'PT',casa:'camara',tema:'Saúde',sim:71,nao:29,url:'https://www.camara.leg.br/proposicoes-web/fichadetramitacao?idProposicao=2400001'},
+      {num:'PL 2468/2026',titulo:'Redução de jornada de trabalho para 36h semanais',autor:'Felipe Santos',partido:'PP',casa:'senado',tema:'Economia',sim:48,nao:52,url:'https://www25.senado.leg.br/web/atividade/materias/-/materia/160001'},
+      {num:'PL 8024/2026',titulo:'Lei de Proteção de Dados Eleitorais',autor:'Juliana Costa',partido:'REDE',casa:'sancao',tema:'Segurança',sim:78,nao:22,url:'https://www.camara.leg.br/proposicoes-web/fichadetramitacao?idProposicao=2400002'},
+      {num:'PL 3456/2026',titulo:'Criminalização do assédio em ambiente digital',autor:'Camila Rocha',partido:'PSB',casa:'camara',tema:'Segurança',sim:65,nao:35,url:'https://www.camara.leg.br/proposicoes-web/fichadetramitacao?idProposicao=2400003'},
     ];
     const stClass={camara:'st-camara',senado:'st-senado',sancao:'st-sancao'};
     const stLabel={camara:'Câmara',senado:'Senado',sancao:'Sanção'};
@@ -99,12 +124,18 @@
           <div class="pl-bar"><div class="bar-sim" style="width:${p.sim}%"></div><div class="bar-nao" style="width:${p.nao}%"></div></div>
           <div class="pl-votes"><span>Aprovo: <b>${p.sim}%</b></span><span>Não aprovo: <b>${p.nao}%</b></span></div>
           <div class="pl-actions">
-            <button class="btn-vote btn-sim" onclick="alert('Aprovação registrada! Para votar de verdade, cadastre-se no MudaBrasil.')">Aprovo</button>
-            <button class="btn-vote btn-nao" onclick="alert('Rejeição registrada! Para votar de verdade, cadastre-se no MudaBrasil.')">Não aprovo</button>
+            <button class="btn-vote btn-sim" onclick="registrarVoto('${p.num}',true)">Aprovo</button>
+            <button class="btn-vote btn-nao" onclick="registrarVoto('${p.num}',false)">Não aprovo</button>
           </div>
-          <a class="pl-link" href="#" onclick="alert('📄 Inteiro teor disponível em camara.leg.br / senado.leg.br — modo demo.');return false;">📄 Ler inteiro teor do PL</a>
+          <a class="pl-link" href="${p.url}" target="_blank" rel="noopener">📄 Ler inteiro teor do PL ↗</a>
         </article>`;
       }).join('');
+    }
+    function registrarVoto(num,sim){
+      const msg=sim?'Aprovação':'Rejeição';
+      const s=JSON.parse(localStorage.getItem('mudabrasil.session')||'{}');
+      if(s.email||s.name){alert(msg+' registrada! Seu posicionamento sobre o '+num+' foi contabilizado (modo demo).');return;}
+      alert(msg+' registrada! Para que seu voto conte de verdade, cadastre-se no MudaBrasil (modo demo).');
     }
     render();
   </script>

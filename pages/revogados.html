@@ -29,7 +29,7 @@
     .top-votes{color:#AECF00;white-space:nowrap}
 
     .filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
-    .field{flex:1;min-width:160px}
+    .field{flex:1;min-width:150px}
     .field label{display:block;font-size:0.68rem;font-weight:800;color:#5A6B7E;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
     .sel,.txt{width:100%;background:#152339;color:#fff;border:1px solid rgba(90,107,126,0.28);padding:10px 14px;border-radius:10px;font-size:0.85rem;font-family:inherit}
     .txt:focus,.sel:focus{outline:none;border-color:#AECF00}
@@ -40,10 +40,13 @@
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
     .card{background:linear-gradient(155deg,#152339,#101D33);border:1px solid rgba(90,107,126,0.28);border-radius:16px;padding:22px;position:relative;overflow:hidden}
     .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#AECF00,#3465A4)}
-    .nome{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.05rem;margin:0 0 2px}
-    .poli-meta{color:#94A3B8;font-size:0.82rem;margin:0 0 12px}
+    .card-head{display:flex;align-items:center;gap:12px;margin-bottom:2px}
+    .avatar{width:46px;height:46px;border-radius:50%;background:#3465A4;box-shadow:0 0 0 3px rgba(52,101,164,0.45);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;color:#fff;flex-shrink:0}
+    .nome{font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.05rem;margin:0}
+    .poli-meta{color:#94A3B8;font-size:0.82rem;margin:2px 0 12px}
     .poli-meta span{display:inline-block;margin-right:8px}
     .poli-meta .b{color:#7eb0e3}
+    .num-urna{display:inline-block;background:rgba(52,101,164,0.18);color:#7eb0e3;border-radius:6px;padding:1px 7px;font-size:0.72rem;font-weight:700;margin-right:6px}
     .motivo{background:rgba(174,207,0,0.07);border-left:3px solid #AECF00;padding:10px 12px;border-radius:6px;font-size:0.85rem;color:#c4e034;margin:12px 0;line-height:1.5}
     .progress-wrap{margin:12px 0}
     .progress-label{display:flex;justify-content:space-between;font-size:0.78rem;color:#94A3B8;margin-bottom:4px}
@@ -52,10 +55,27 @@
     .progress-fill{height:100%;background:linear-gradient(90deg,#AECF00,#3465A4);border-radius:4px;transition:width 0.4s}
     .meta{display:flex;justify-content:space-between;font-size:0.78rem;color:#94A3B8;padding-top:12px;border-top:1px solid rgba(90,107,126,0.2)}
     .meta b{color:#fff;font-family:'Montserrat',sans-serif}
+    .card-sources{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px}
+    .card-src{font-size:0.68rem;color:#7eb0e3;text-decoration:none;padding:2px 8px;border-radius:6px;background:rgba(52,101,164,0.12);transition:background 0.2s}
+    .card-src:hover{background:rgba(52,101,164,0.3);color:#fff}
 
     .pct-high{color:#5fdf8a}
     .pct-mid{color:#c4e034}
     .pct-low{color:#ffc94d}
+
+    .fontes-section{margin-top:60px;padding-top:40px;border-top:1px solid rgba(90,107,126,0.25)}
+    .fontes-section h2{font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.4rem;margin:0 0 8px}
+    .fontes-table{display:flex;flex-direction:column;gap:0;margin-top:20px;border:1px solid rgba(90,107,126,0.2);border-radius:14px;overflow:hidden}
+    .f-row{display:flex;gap:16px;padding:14px 18px;border-bottom:1px solid rgba(90,107,126,0.12)}
+    .f-row:last-child{border:none}
+    .f-row:nth-child(odd){background:rgba(52,101,164,0.06)}
+    .f-name{flex:0 0 150px;font-weight:800;font-family:'Montserrat',sans-serif;font-size:0.9rem}
+    .f-info{flex:1}
+    .f-desc{color:#94A3B8;font-size:0.8rem;margin-bottom:2px}
+    .f-link a{color:#7eb0e3;text-decoration:none;font-size:0.78rem}
+    .f-link a:hover{color:#AECF00;text-decoration:underline}
+    .f-footer{color:#5A6B7E;font-size:0.75rem;margin-top:12px;text-align:center}
+    @media(max-width:600px){.f-row{flex-direction:column;gap:4px}.f-name{flex:auto}}
   </style>
 </head>
 <body>
@@ -71,28 +91,52 @@
       <div class="stat"><div class="stat-n">73%</div><div class="stat-l">Por descumprimento</div></div>
     </div>
 
-    <p class="count" style="color:#94A3B8;margin-bottom:8px;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em">🏆 Top 3 Mais Revogados</p>
+    <p class="count" style="color:#94A3B8;margin-bottom:8px;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em">🏆 Top 10 Mais Revogados</p>
     <div class="top-list" id="top-list"></div>
 
     <div class="filter-bar">
       <div class="field"><label>Nome</label><input class="txt" id="f-nome" placeholder="Buscar por nome" oninput="render()"></div>
+      <div class="field"><label>Nº do político</label><input class="txt" id="f-num" placeholder="Ex.: 1515" oninput="render()"></div>
       <div class="field"><label>Partido</label><select class="sel" id="f-partido" onchange="render()"></select></div>
       <div class="field"><label>Estado</label><select class="sel" id="f-estado" onchange="render()"></select></div>
     </div>
 
     <p class="count" id="count"></p>
     <div class="grid" id="grid"></div>
+
+    <!-- Fontes Públicas -->
+    <section class="fontes-section">
+      <h2>🔎 Dados 100% Públicos e Verificáveis</h2>
+      <p class="sub" style="margin-bottom:0">As revogações são contabilizadas a partir de registros públicos. Confira nas fontes oficiais.</p>
+      <div class="fontes-table">
+        <div class="f-row"><div class="f-name">🏛️ TSE</div><div class="f-info"><div class="f-desc">Registro de candidatura, votos recebidos e contas eleitorais.</div><div class="f-link"><a href="https://divulgacand.tse.jus.br/" target="_blank" rel="noopener">divulgacand.tse.jus.br ↗</a></div></div></div>
+        <div class="f-row"><div class="f-name">🏛️ Câmara</div><div class="f-info"><div class="f-desc">Proposituras, presença e votações nominais dos deputados.</div><div class="f-link"><a href="https://www.camara.leg.br/deputados/quem-e-quem/" target="_blank" rel="noopener">camara.leg.br ↗</a></div></div></div>
+        <div class="f-row"><div class="f-name">🏛️ Senado</div><div class="f-info"><div class="f-desc">Atuação dos senadores, comissões e votações no plenário.</div><div class="f-link"><a href="https://www25.senado.leg.br/web/senadores/" target="_blank" rel="noopener">senado.leg.br ↗</a></div></div></div>
+        <div class="f-row"><div class="f-name">⚖️ CNJ</div><div class="f-info"><div class="f-desc">Processos judiciais e sanções disciplinares contra agentes públicos.</div><div class="f-link"><a href="https://www.cnj.jus.br/" target="_blank" rel="noopener">cnj.jus.br ↗</a></div></div></div>
+      </div>
+      <p class="f-footer">⚙️ A cassação acontece quando 70% dos votos que elegeram o político são revogados. Dados de exemplo em modo demo.</p>
+    </section>
   </div>
 
   <script>
     const REVOGADOS = [
-      {nome:'Roberto Alves',partido:'NOVO',estado:'PR',cargo:'Vereador',motivo:'Prometeu transparência total e votou a favor de aumento do próprio salário em 2025.',votos:342,meta:500,quando:'há 3 dias'},
-      {nome:'Felipe Santos',partido:'PP',estado:'MG',cargo:'Senador',motivo:'Mudou de posição sobre reforma tributária após lobby de grandes empresas.',votos:1287,meta:1840,quando:'há 1 semana'},
-      {nome:'João Pereira',partido:'PL',estado:'MG',cargo:'Dep. Estadual',motivo:'Abandonou 18 sessões consecutivas sem justificativa válida.',votos:892,meta:1275,quando:'há 2 semanas'},
-      {nome:'Patrícia Lima',partido:'PSD',estado:'RS',cargo:'Prefeita',motivo:'Envolvida em esquema de superfaturamento de obras públicas.',votos:2154,meta:3078,quando:'há 3 semanas'},
-      {nome:'Camila Rocha',partido:'PSB',estado:'RJ',cargo:'Dep. Estadual',motivo:'Votou contra projeto de proteção ambiental de sua própria base eleitoral.',votos:567,meta:810,quando:'há 1 mês'},
-      {nome:'Renato Vieira',partido:'PTB',estado:'SP',cargo:'Dep. Federal',motivo:'Prometeu combate à corrupção e foi flagrado em operação da PF.',votos:3421,meta:4888,quando:'há 2 meses'},
+      {nome:'Roberto Alves',iniciais:'RA',numero:101,partido:'NOVO',estado:'PR',cargo:'Vereador',motivo:'Prometeu transparência total e votou a favor de aumento do próprio salário em 2025.',votos:342,meta:500,quando:'há 3 dias'},
+      {nome:'Felipe Santos',iniciais:'FS',numero:111,partido:'PP',estado:'MG',cargo:'Senador',motivo:'Mudou de posição sobre reforma tributária após lobby de grandes empresas.',votos:1287,meta:1840,quando:'há 1 semana'},
+      {nome:'João Pereira',iniciais:'JP',numero:3333,partido:'PL',estado:'MG',cargo:'Dep. Estadual',motivo:'Abandonou 18 sessões consecutivas sem justificativa válida.',votos:892,meta:1275,quando:'há 2 semanas'},
+      {nome:'Patrícia Lima',iniciais:'PL',numero:55,partido:'PSD',estado:'RS',cargo:'Prefeita',motivo:'Envolvida em esquema de superfaturamento de obras públicas.',votos:2154,meta:3078,quando:'há 3 semanas'},
+      {nome:'Camila Rocha',iniciais:'CR',numero:4411,partido:'PSB',estado:'RJ',cargo:'Dep. Estadual',motivo:'Votou contra projeto de proteção ambiental de sua própria base eleitoral.',votos:567,meta:810,quando:'há 1 mês'},
+      {nome:'Renato Vieira',iniciais:'RV',numero:1414,partido:'PTB',estado:'SP',cargo:'Dep. Federal',motivo:'Prometeu combate à corrupção e foi flagrado em operação da PF.',votos:3421,meta:4888,quando:'há 2 meses'},
+      {nome:'Marcos Vieira',iniciais:'MV',numero:333,partido:'MDB',estado:'BA',cargo:'Senador',motivo:'Indicou parente para cargo comissionado no seu gabinete.',votos:998,meta:1425,quando:'há 2 meses'},
+      {nome:'Beatriz Mendes',iniciais:'BM',numero:1212,partido:'PDT',estado:'RS',cargo:'Dep. Federal',motivo:'Usou verba de gabinete em despesas pessoais reveladas pelo Portal da Transparência.',votos:654,meta:935,quando:'há 3 meses'},
     ];
+
+    function fontesDe(p){
+      const links=[{t:'TSE',u:'https://divulgacand.tse.jus.br/'},{t:'Transparência',u:'https://portaldatransparencia.gov.br/'}];
+      if(p.cargo==='Senador'){links.unshift({t:'Senado',u:'https://www25.senado.leg.br/web/senadores/'});}
+      else if(p.cargo==='Dep. Federal'){links.unshift({t:'Câmara',u:'https://www.camara.leg.br/deputados/quem-e-quem/'});}
+      else {links.unshift({t:'CNJ',u:'https://www.cnj.jus.br/'});}
+      return links;
+    }
 
     const partSel=document.getElementById('f-partido');
     partSel.innerHTML='<option value="">Todos os partidos</option>'+[...new Set(REVOGADOS.map(p=>p.partido))].sort().map(pa=>`<option>${pa}</option>`).join('');
@@ -108,10 +152,12 @@
 
     function render(){
       const qn=document.getElementById('f-nome').value.trim().toLowerCase();
+      const qnum=document.getElementById('f-num').value.trim();
       const qp=document.getElementById('f-partido').value;
       const qe=document.getElementById('f-estado').value;
       const list=REVOGADOS.filter(p=>
         (!qn||p.nome.toLowerCase().includes(qn)||p.partido.toLowerCase().includes(qn)||p.cargo.toLowerCase().includes(qn))&&
+        (!qnum||String(p.numero).includes(qnum))&&
         (!qp||p.partido===qp)&&
         (!qe||p.estado===qe)
       );
@@ -120,9 +166,15 @@
       grid.innerHTML=list.map(p=>{
         const pct=Math.min(p.votos/p.meta*100,100);
         const cls=pctClass(p.votos,p.meta);
+        const srcs=fontesDe(p).map(s=>`<a class="card-src" href="${s.u}" target="_blank" rel="noopener">${s.t} ↗</a>`).join('');
         return `<div class="card">
-          <h3 class="nome">${p.nome}</h3>
-          <p class="poli-meta"><span class="b">${p.partido}</span> / ${p.estado} · ${p.cargo}</p>
+          <div class="card-head">
+            <div class="avatar">${p.iniciais}</div>
+            <div>
+              <h3 class="nome">${p.nome}</h3>
+              <div class="poli-meta"><span class="num-urna">#${p.numero}</span><span class="b">${p.partido}</span> / ${p.estado} · ${p.cargo}</div>
+            </div>
+          </div>
           <div class="motivo"><b>Motivo:</b> ${p.motivo}</div>
           <div class="progress-wrap">
             <div class="progress-label"><span>Votos revogados: <b>${p.votos.toLocaleString('pt-BR')}</b> / ${p.meta.toLocaleString('pt-BR')}</span><span class="${cls}"><b>${pct.toFixed(0)}%</b></span></div>
@@ -130,11 +182,12 @@
             <div style="font-size:0.7rem;color:#5A6B7E;margin-top:3px">Mínimo 70% para cassação</div>
           </div>
           <div class="meta"><span>Votos necessários: <b>${Math.max(0,p.meta-p.votos).toLocaleString('pt-BR')}</b></span><span>${p.quando}</span></div>
+          <div class="card-sources">${srcs}</div>
         </div>`;
       }).join('');
 
-      // Top 3
-      const top=[...REVOGADOS].sort((a,b)=>b.votos-a.votos).slice(0,3);
+      // Top 10
+      const top=[...REVOGADOS].sort((a,b)=>b.votos-a.votos).slice(0,10);
       document.getElementById('top-list').innerHTML=top.map((p,i)=>`<div class="top-badge"><span class="top-pos">${i+1}</span><span class="top-name">${p.nome}</span><span class="top-votes">${p.votos.toLocaleString('pt-BR')} revogados</span></div>`).join('');
     }
     render();
