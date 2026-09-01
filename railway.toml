@@ -1,0 +1,21 @@
+# Railway Configuration for MudaBrasil Backend
+# Docs: https://docs.railway.app/develop/railway-toml
+#
+# Fase 2: build via Dockerfile (Node 22-alpine com node:sqlite nativo).
+# O servidor serve tanto a API quanto as páginas estáticas do projeto.
+
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+startCommand = "node server/index.js"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+
+[env]
+PORT = "8080"
+NODE_ENV = "production"
+MB_REFRESH_HOURS = "24"
+MB_STORAGE = "sqlite"

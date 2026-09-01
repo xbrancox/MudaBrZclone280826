@@ -208,6 +208,13 @@
     .pp-badge-num { background: rgba(52,101,164,0.2); color: #7aa8d8; }
     .pp-badge-clean { background: rgba(0,151,57,0.2); color: #5fdf8a; }
     .pp-badge-warn { background: rgba(255,140,0,0.2); color: #ffb86c; }
+    .pp-badge-official { background: rgba(0,151,57,0.22); color: #5fdf8a; }
+
+    /* Links de ficha oficial no modal */
+    .pp-modal-ficha {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-top: 10px;
+    }
 
     /* Barra de integridade */
     .pp-integrity { margin-bottom: 14px; }
@@ -244,6 +251,33 @@
       transition: filter 0.2s;
     }
     .pp-btn-detail:hover { filter: brightness(1.15); }
+    .pp-btn-ficha {
+      flex-shrink: 0;
+      background: transparent;
+      border: 1px solid rgba(52,101,164,0.6);
+      color: #7aa8d8;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem; font-weight: 600;
+      text-decoration: none;
+      display: inline-flex; align-items: center;
+      transition: all 0.2s;
+    }
+    .pp-btn-ficha:hover { border-color: var(--lime); color: var(--lime); }
+
+    /* Stats extras no card (presença, PLs) — só aparecem quando há dado real */
+    .pp-card-stats {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .pp-card-stat {
+      font-size: 0.72rem;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      background: rgba(52,101,164,0.12);
+      border: 1px solid rgba(52,101,164,0.35);
+      color: var(--gray-3);
+    }
     .pp-btn-compare {
       background: transparent;
       border: 1px solid var(--line);
@@ -696,8 +730,9 @@
       line-height: 1.45;
     }
 
-    /* Banner modo demo (amarelo) */
+    /* Banner modo demo (amarelo) — visível apenas quando a API real não responde */
     .pp-demo-banner {
+      display: none;
       max-width: 720px;
       margin: 0 auto 28px;
       background: rgba(255, 198, 0, 0.12);
@@ -709,6 +744,7 @@
       text-align: left;
       line-height: 1.5;
     }
+    .pp-demo-banner.show { display: block; }
 
     /* Filtros com rótulo */
     .pp-filter-field {
@@ -802,7 +838,7 @@
   <div class="pp-hero">
     <h1>Compare Candidatos</h1>
     <p>Transparência total para o eleitor decidir. Todos os dados são estruturados a partir de <strong>fontes públicas oficiais</strong>: TSE, Portal da Transparência, Câmara/Senado e CNJ.</p>
-    <div class="pp-demo-banner">📌 <strong>Modo demo</strong> — dados sintéticos de exemplo (API de dados reais não acessível)</div>
+    <div class="pp-demo-banner" id="pp-demo-banner">📌 <strong>Modo demo</strong> — dados sintéticos de exemplo (API de dados reais não acessível)</div>
 
     <!-- Barra de busca -->
     <div class="pp-search-wrap">
@@ -1060,6 +1096,34 @@
     return getInitials(name);
   }
 
+  /* Links oficiais individuais do político.
+     - camara-<id numérico> -> ficha na Câmara
+     - senado-<código>       -> ficha no Senado
+     - sem id oficial        -> busca oficial por nome */
+  function oficialLinks(p) {
+    const links = [];
+    const src = p.id ? String(p.id) : '';
+    const nameQ = encodeURIComponent((p.name || '').trim());
+    if (src.indexOf('camara-') === 0) {
+      const num = src.slice(7).trim();
+      if (/^\d+$/.test(num)) links.push({ label: 'Ficha na Câmara', href: 'https://www.camara.leg.br/deputados/quem-e-quem/' + num });
+    } else if (src.indexOf('senado-') === 0) {
+      const cod = src.slice(7).replace(/^https?:\/\/.*\//, '').trim();
+      if (/^\d+$/.test(cod)) links.push({ label: 'Ficha no Senado', href: 'https://www25.senado.leg.br/web/senadores/-/senador/' + cod });
+    }
+    if (!links.length && nameQ) {
+      links.push({ label: 'Buscar na Câmara', href: 'https://www.camara.leg.br/busca/?query=' + nameQ });
+      links.push({ label: 'Buscar no Senado', href: 'https://www25.senado.leg.br/web/senadores/' });
+    }
+    return links;
+  }
+
+  function fichaLinkHTML(p) {
+    const links = oficialLinks(p);
+    if (!links.length) return '';
+    return `<a class="pp-btn-ficha" href="${esc(links[0].href)}" target="_blank" rel="noopener" title="${esc(links[0].label)}">🏛️ ${esc(links[0].label)} ↗</a>`;
+  }
+
   function timeAgo(ts) {
     if (!ts) return 'agora';
     const d = new Date(ts);
@@ -1081,6 +1145,7 @@
     currentDetailId: null,
     detailTab: 'reclamacoes',
     reclameType: 'reclamacao', // 'reclamacao' | 'apoio'
+    realData: false, // true quando a API de dados reais respondeu
   };
 
   /* ============================================================
@@ -1107,14 +1172,19 @@
   async function loadPoliticians() {
     const loading = $('#pp-loading');
     if (loading) loading.textContent = '⏳ Carregando políticos…';
+    const demoBanner = $('#pp-demo-banner');
     try {
       const r = await fetch('/api/candidatos');
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const d = await r.json();
       state.all = (d.candidatos && d.candidatos.length) ? d.candidatos : FALLBACK;
+      state.realData = !!(d.candidatos && d.candidatos.length);
     } catch (e) {
       state.all = FALLBACK;
+      state.realData = false;
     }
+    // Banner de modo demo: mostra apenas quando a API real não está acessível
+    if (demoBanner) demoBanner.classList.toggle('show', !state.realData);
     populateFilters();
     applyFilters();
   }
@@ -1199,6 +1269,16 @@
       const avatarBg = hashColor(p.name);
       // Número: urna (number) tem prioridade, senão usa id da Câmara como fallback
       const numDisplay = p.number ? p.number : (p.camaraId ? p.camaraId : 's/ nº');
+      // Stats extras quando os dados reais existem
+      const extraStats = (p.attendanceRate != null || p.billsAuthored != null) ? `
+        <div class="pp-card-stats">
+          ${p.attendanceRate != null ? `<span class="pp-card-stat" title="Presença em votações">📅 Presença ${p.attendanceRate}%</span>` : ''}
+          ${p.billsAuthored != null ? `<span class="pp-card-stat" title="Projetos de lei de autoria">📄 ${p.billsAuthored} PLs</span>` : ''}
+        </div>` : '';
+      const isReal = state.realData && (p.source === 'camara' || p.source === 'senado');
+      const sourceFoot = isReal
+        ? `📋 <strong>Dados reais</strong>: ${p.source === 'senado' ? 'Senado Federal' : 'Câmara dos Deputados'} · Fonte: TSE, Transparência, CNJ`
+        : '📋 Fonte: TSE, Portal da Transparência, Câmara dos Deputados, CNJ';
       return `
       <article class="pp-card" data-id="${esc(p.id)}">
         <label class="pp-check-wrap" title="Selecionar para comparar (máx. 3)">
@@ -1229,10 +1309,12 @@
             <div class="pp-integrity-fill" style="width:${integrity != null ? Math.max(integrity, 5) : 0}%"></div>
           </div>
         </div>
+        ${extraStats}
         <div class="pp-card-actions">
           <button class="pp-btn-detail" data-open="${esc(p.id)}">VER DETALHES</button>
+          ${fichaLinkHTML(p)}
         </div>
-        <div class="pp-card-source">📋 Fonte: TSE, Portal da Transparência, Câmara dos Deputados, CNJ</div>
+        <div class="pp-card-source">${sourceFoot}</div>
       </article>`;
     }).join('');
 
@@ -1452,6 +1534,11 @@
     const avatarBg = hashColor(p.name);
     const integrity = p.integrityIndex != null ? p.integrityIndex : 0;
     const processes = p.lawsuits || 0;
+    const hasOfficial = !!(p.hasFullData || (p.dataSources && p.dataSources.length));
+    const fichaLinks = oficialLinks(p);
+    const fichaHTML = fichaLinks.map(l =>
+      `<a class="pp-btn-ficha" href="${esc(l.href)}" target="_blank" rel="noopener">🏛️ ${esc(l.label)} ↗</a>`
+    ).join('');
 
     // Fontes
     const sources = p.sources || {};
@@ -1482,7 +1569,9 @@
             ${integrity >= 70
               ? `<span class="pp-badge pp-badge-clean">Integridade ${integrity}/100</span>`
               : `<span class="pp-badge pp-badge-warn">Integridade ${integrity}/100</span>`}
+            ${hasOfficial ? '<span class="pp-badge pp-badge-official">✅ Dados oficiais</span>' : ''}
           </div>
+          ${fichaHTML ? `<div class="pp-modal-ficha">${fichaHTML}</div>` : ''}
         </div>
       </div>
 
@@ -1522,6 +1611,20 @@
             <div class="pp-ficha-label">Área de Atuação</div>
             <div class="pp-ficha-value" style="font-size:0.8rem;">${esc(p.focusArea || '—')}</div>
           </div>
+          ${p.email ? `
+          <div class="pp-ficha-cell" style="grid-column:1/-1;">
+            <div class="pp-ficha-label">Contato oficial</div>
+            <div class="pp-ficha-value" style="font-size:0.85rem;color:var(--blue);overflow-wrap:anywhere;">
+              <a href="mailto:${esc(p.email)}" style="color:#7aa8d8;">${esc(p.email)}</a>
+            </div>
+          </div>` : ''}
+          ${p.dataSources && p.dataSources.length ? `
+          <div class="pp-ficha-cell" style="grid-column:1/-1;">
+            <div class="pp-ficha-label">Fonte dos dados deste perfil</div>
+            <div class="pp-ficha-value" style="font-size:0.8rem;color:var(--gray-3);font-weight:500;">
+              ${esc(p.dataSources.join(' · '))}
+            </div>
+          </div>` : ''}
         </div>
 
         <!-- TABS: Recentes -->

@@ -39,6 +39,8 @@
     .card-sources{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;padding-top:10px;border-top:1px solid rgba(90,107,126,0.18)}
     .card-src{font-size:0.68rem;color:#7eb0e3;text-decoration:none;padding:2px 8px;border-radius:6px;background:rgba(52,101,164,0.12);transition:background 0.2s}
     .card-src:hover{background:rgba(52,101,164,0.3);color:#fff}
+    .card-src.ficha{color:#AECF00;background:rgba(174,207,0,0.1);font-weight:700}
+    .card-src.ficha:hover{background:rgba(174,207,0,0.25);color:#fff}
     .bp{display:inline-block;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:6px}
     .bp-clean{background:rgba(0,151,57,0.12);color:#5fdf8a}
     .bp-warn{background:rgba(220,38,38,0.12);color:#fca5a5}
@@ -252,6 +254,18 @@
       return links;
     }
 
+    /* Link da ficha oficial individual: busca por nome no site oficial */
+    function fichaOficialLink(p){
+      const nome=encodeURIComponent((p.nome||'').trim());
+      if(!nome)return '';
+      const isSenado=(p.cargo==='Senador'||p.cargo==='Senadora'||p.cargo==='Governadora'||p.cargo==='Prefeita');
+      const url=isSenado
+        ? 'https://www25.senado.leg.br/web/senadores/'
+        : 'https://www.camara.leg.br/busca/?query='+nome;
+      const rotulo=isSenado?'Buscar ficha (Senado)':'Buscar ficha (Câmara)';
+      return `<a class="card-src ficha" href="${url}" target="_blank" rel="noopener" title="${rotulo}">🏛️ Ficha oficial ↗</a>`;
+    }
+
     let tabAtiva='alta';
     document.querySelectorAll('.tab').forEach(b=>{
       b.addEventListener('click',()=>{
@@ -287,6 +301,7 @@
           ? '<span class="bp bp-clean">✅ Sem processos</span>'
           : `<span class="bp bp-warn">⚠️ ${p.processos} processo(s)</span>`;
         const srcs=fontesDe(p).map(s=>`<a class="card-src" href="${s.u}" target="_blank" rel="noopener">${s.t} ↗</a>`).join('');
+        const ficha=fichaOficialLink(p);
         return `<div class="card">
           <div class="card-top">
             <div class="rank">#${p.rank}</div>
@@ -304,7 +319,7 @@
           </div>
           ${bp}
           <div><span class="trend ${down?'down':''}">${down?'▼':'▲'} ${p.tendencia} esta semana</span></div>
-          <div class="card-sources">${srcs}</div>
+          <div class="card-sources">${ficha}${srcs}</div>
         </div>`;
       }).join('');
     }

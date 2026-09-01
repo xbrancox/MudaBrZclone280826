@@ -1,0 +1,25 @@
+# Dependências
+node_modules
+
+# Git
+.git
+.gitignore
+
+# Documentação e arquivos de projeto
+*.md
+docs/
+
+# Testes / ferramentas de dev
+tests/
+test/
+playwright-report/
+test-results/
+
+# Ambiente local
+.env
+.env.local
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db

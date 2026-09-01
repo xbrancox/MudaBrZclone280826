@@ -118,7 +118,7 @@ async function enrichBills(camaraId) {
     try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) {}
   }
   try {
-    const res = await fetch(API_BASE + '/proposicoes?autores=' + encodeURIComponent(camaraId), {
+    const res = await fetch(API_BASE + '/proposicoes?autorId=' + encodeURIComponent(camaraId), {
       headers: { 'User-Agent': UA, 'Accept': 'application/json' }
     });
     if (!res.ok) return { billsAuthored: null, error: 'HTTP ' + res.status };

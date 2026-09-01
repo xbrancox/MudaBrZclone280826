@@ -1,5 +1,21 @@
 {
-  "dependencies": {
+  "name": "mudabrasil-backend",
+  "version": "1.0.0",
+  "description": "MudaBrasil — Backend de voto contínuo e revogável",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "test": "playwright test"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
     "playwright": "^1.62.1"
-  }
+  },
+  "keywords": ["civic", "transparency", "brazil"],
+  "author": "MudaBrasil",
+  "license": "MIT"
 }

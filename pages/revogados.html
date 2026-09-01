@@ -58,6 +58,8 @@
     .card-sources{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px}
     .card-src{font-size:0.68rem;color:#7eb0e3;text-decoration:none;padding:2px 8px;border-radius:6px;background:rgba(52,101,164,0.12);transition:background 0.2s}
     .card-src:hover{background:rgba(52,101,164,0.3);color:#fff}
+    .card-src.ficha{color:#AECF00;background:rgba(174,207,0,0.1);font-weight:700}
+    .card-src.ficha:hover{background:rgba(174,207,0,0.25);color:#fff}
 
     .pct-high{color:#5fdf8a}
     .pct-mid{color:#c4e034}
@@ -138,6 +140,17 @@
       return links;
     }
 
+    function fichaOficialLink(p){
+      const nome=encodeURIComponent((p.nome||'').trim());
+      if(!nome)return '';
+      const isSenado=(p.cargo==='Senador');
+      const url=isSenado
+        ? 'https://www25.senado.leg.br/web/senadores/'
+        : 'https://www.camara.leg.br/busca/?query='+nome;
+      const rotulo=isSenado?'Buscar ficha (Senado)':'Buscar ficha (Câmara)';
+      return `<a class="card-src ficha" href="${url}" target="_blank" rel="noopener" title="${rotulo}">🏛️ Ficha oficial ↗</a>`;
+    }
+
     const partSel=document.getElementById('f-partido');
     partSel.innerHTML='<option value="">Todos os partidos</option>'+[...new Set(REVOGADOS.map(p=>p.partido))].sort().map(pa=>`<option>${pa}</option>`).join('');
     const estSel=document.getElementById('f-estado');
@@ -167,6 +180,7 @@
         const pct=Math.min(p.votos/p.meta*100,100);
         const cls=pctClass(p.votos,p.meta);
         const srcs=fontesDe(p).map(s=>`<a class="card-src" href="${s.u}" target="_blank" rel="noopener">${s.t} ↗</a>`).join('');
+        const ficha=fichaOficialLink(p);
         return `<div class="card">
           <div class="card-head">
             <div class="avatar">${p.iniciais}</div>
@@ -182,7 +196,7 @@
             <div style="font-size:0.7rem;color:#5A6B7E;margin-top:3px">Mínimo 70% para cassação</div>
           </div>
           <div class="meta"><span>Votos necessários: <b>${Math.max(0,p.meta-p.votos).toLocaleString('pt-BR')}</b></span><span>${p.quando}</span></div>
-          <div class="card-sources">${srcs}</div>
+          <div class="card-sources">${ficha}${srcs}</div>
         </div>`;
       }).join('');
 
