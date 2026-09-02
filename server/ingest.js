@@ -118,7 +118,7 @@ async function enrichBills(camaraId) {
     try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) {}
   }
   try {
-    const res = await fetch(API_BASE + '/proposicoes?autorId=' + encodeURIComponent(camaraId), {
+    const res = await fetch(API_BASE + '/proposicoes?idDeputadoAutor=' + encodeURIComponent(camaraId), {
       headers: { 'User-Agent': UA, 'Accept': 'application/json' }
     });
     if (!res.ok) return { billsAuthored: null, error: 'HTTP ' + res.status };
@@ -132,4 +132,45 @@ async function enrichBills(camaraId) {
   }
 }
 
-module.exports = { fetchDeputados, enrichBills, normalizeDep, DATA_DIR, DEP_FILE };
+/**
+ * Leitura síncrona do cache de enriquecimento (sem chamada de API).
+ * Usada pela listagem para exibir estatísticas já conhecidas.
+ * @param {string|number} camaraId
+ * @returns {{billsAuthored:number, updatedAt?:string}|null}
+ */
+function readEnrichCache(camaraId) {
+  const f = path.join(ENRICH_DIR, String(camaraId) + '.json');
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) { return null; }
+}
+
+/**
+ * Pré-enriquecimento em lote: percorre todos os deputados reais e
+ * popula o cache de proposições de autoria, com intervalo entre
+ * chamadas para respeitar a API. Roda em background, não bloqueia.
+ * Deputados já cacheados são pulados instantaneamente.
+ * @param {{delayMs?:number}} opts
+ */
+async function enrichAllDeputies({ delayMs = 250 } = {}) {
+  ensureDirs();
+  const depFile = path.join(DATA_DIR, 'deputados.json');
+  let ids = [];
+  try {
+    const cached = JSON.parse(fs.readFileSync(depFile, 'utf8'));
+    ids = (cached.dados || []).map(d => d.id).filter(Boolean);
+  } catch (_) { return; /* cache da lista ainda não existe */ }
+  if (ids.length === 0) return;
+  let ok = 0, fail = 0, skip = 0;
+  const start = Date.now();
+  for (const id of ids) {
+    if (readEnrichCache(id)) { skip++; continue; }
+    try {
+      const r = await enrichBills(id);
+      if (r && r.billsAuthored != null) ok++; else fail++;
+    } catch (_) { fail++; }
+    await new Promise(res => setTimeout(res, delayMs));
+  }
+  const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+  console.log('[enrich] lote: ' + ok + ' ok, ' + fail + ' falhas, ' + skip + ' em cache (' + ids.length + ' total) em ' + elapsed + 's');
+}
+
+module.exports = { fetchDeputados, enrichBills, readEnrichCache, enrichAllDeputies, normalizeDep, DATA_DIR, DEP_FILE };

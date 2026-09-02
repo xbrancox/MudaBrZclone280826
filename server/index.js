@@ -29,7 +29,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { fetchDeputados, enrichBills, DEP_FILE } = require('./ingest');
+const { fetchDeputados, enrichBills, readEnrichCache, enrichAllDeputies, DEP_FILE } = require('./ingest');
 const { fetchSenadores, SENADO_FILE } = require('./senado');
 const votes = require('./votes');
 const db = require('./db');
@@ -244,6 +244,17 @@ async function handleApi(req, res, url) {
       const deputados = depResult.list.map(d => ({ ...d, position: 'Deputado Federal' }));
       const senadores = senResult.list.map(s => ({ ...s, position: 'Senador Federal' }));
       const todos = [...deputados, ...senadores];
+      // Estatísticas já enriquecidas (cache em disco) entram na listagem,
+      // sem novas chamadas à API — cada card ganha "N PLs" quando disponível.
+      for (const c of todos) {
+        if (c.id && c.id.indexOf('camara-') === 0) {
+          const enrich = readEnrichCache(c.id.slice(7));
+          if (enrich && enrich.billsAuthored != null) {
+            c.billsAuthored = enrich.billsAuthored;
+            c.hasFullData = true;
+          }
+        }
+      }
       const candidatos = applyQuery(todos, q);
       return sendJson(res, 200, {
         mode: 'real',
@@ -726,6 +737,12 @@ server.listen(PORT, () => {
   if (migrated > 0) console.log('    Migração:       ' + migrated + ' cédulas importadas de votos.json → votos.db');
   console.log('    Atualização:    dados públicos a cada ' + REFRESH_HOURS + 'h (automática)');
   console.log('    Encerramento:   Ctrl+C / SIGTERM fecham o banco com segurança\n');
+  // Pré-enriquecimento em background: popula o cache de proposições de
+  // autoria dos deputados em ritmo suave (250ms entre chamadas), para os
+  // cards da listagem exibirem "N PLs" sem esperar o usuário abrir o detalhe.
+  enrichAllDeputies({ delayMs: 250 }).catch(err =>
+    console.warn('[enrich] lote em segundo plano falhou: ' + err.message)
+  );
 });
 
 /* ---- Encerramento gracioso ----

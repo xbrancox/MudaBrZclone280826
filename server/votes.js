@@ -185,7 +185,7 @@ async function castVote(input, ip) {
     revoked: false,
     revokedAt: null
   };
-  db.upsert(ballot);
+  db.upsertBallot(ballot);
   notifyChange('voto');
 
   // Retorna o código UMA vez (nunca mais). O eleitor deve guardá-lo.
@@ -201,13 +201,13 @@ function revokeVote(code, ip) {
   if (!rl.allowed) return { ok: false, status: 429, error: 'Muitas ações em pouco tempo. Aguarde um instante.' };
 
   const ballotId = hashCode(code);
-  const ballot = db.get(ballotId);
+  const ballot = db.getBallot(ballotId);
   if (!ballot) return { ok: false, status: 404, error: 'Código inválido ou não encontrado' };
   if (ballot.revoked) return { ok: false, status: 409, error: 'Este voto já foi revogado' };
 
   ballot.revoked = true;
   ballot.revokedAt = Date.now();
-  db.upsert(ballot);
+  db.upsertBallot(ballot);
   notifyChange('revogacao');
   return { ok: true, revoked: true, politicianId: ballot.politicianId };
 }
@@ -221,12 +221,12 @@ function reaffirmVote(code, ip) {
   if (!rl.allowed) return { ok: false, status: 429, error: 'Muitas ações em pouco tempo. Aguarde um instante.' };
 
   const ballotId = hashCode(code);
-  const ballot = db.get(ballotId);
+  const ballot = db.getBallot(ballotId);
   if (!ballot) return { ok: false, status: 404, error: 'Código inválido ou não encontrado' };
   if (ballot.revoked) return { ok: false, status: 409, error: 'Este voto já foi revogado e não pode ser reafirmado' };
 
   ballot.reaffirmedAt = Date.now();
-  db.upsert(ballot);
+  db.upsertBallot(ballot);
   notifyChange('manutencao');
   return { ok: true, reaffirmedAt: ballot.reaffirmedAt };
 }
@@ -238,7 +238,7 @@ function reaffirmVote(code, ip) {
  */
 function viewVote(code) {
   const ballotId = hashCode(code);
-  const ballot = db.get(ballotId);
+  const ballot = db.getBallot(ballotId);
   if (!ballot) return { ok: false, status: 404, error: 'Código inválido ou não encontrado' };
 
   const anchor = ballot.reaffirmedAt || ballot.createdAt;
