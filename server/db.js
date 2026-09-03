@@ -284,8 +284,11 @@ function init() {
     const n = db.prepare('SELECT COUNT(*) AS n FROM ballots').get().n;
     if (n === 0) {
       const legacy = jsonReadFile('ballots');
-      const list = Object.values(legacy);
-      if (list.length) { importAllBallots(legacy); migrated = list.length; }
+      // Aceita tanto formato { ballots: {...} } (novo) quanto ballots direto (antigo)
+      const ballots = (legacy && typeof legacy.ballots === 'object' && legacy.ballots !== null)
+        ? legacy.ballots : legacy;
+      const list = Object.values(ballots).filter(b => b && typeof b === 'object' && b.ballotId);
+      if (list.length) { importAllBallots(ballots); migrated = list.length; }
     }
   }
   return { backend: BACKEND, migrated };
@@ -1021,6 +1024,7 @@ function computeIntegrityIndex(p) {
 module.exports = {
   init, close, backend, file,
   getBallot, upsertBallot, readAllBallots, countBallots, clearBallots, importAllBallots,
+  clear: clearBallots, importAll: importAllBallots,
   upsertPolitician, getPolitician, getAllPoliticians, getPoliticiansByFilters, getPoliticianFullDetails,
   setVerification, getVerification, getAllVerifications, getVerifiedPoliticians,
   createComplaint, getComplaint, getComplaintsByPolitician, countComplaintsByPolitician, getAllComplaints,
