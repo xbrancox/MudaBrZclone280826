@@ -42,6 +42,8 @@
     activeTab: 'candidatos',
     pls: [],
     revStats: [],
+    radarFeed: [],
+    detail: { id: null, tab: 'reclamacoes' },
   };
 
   /* ============================================================
@@ -50,6 +52,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     setupTabs();
     setupAuthModal();
+    setupComplaint();
     await loadCandidatos();
     await loadRadar();
     await loadPls();
@@ -63,14 +66,22 @@
      TABS
      ============================================================ */
   function setupTabs() {
+    const TABS = ['candidatos', 'radar', 'pls', 'revogados', 'conferir', 'revogar'];
+    function activateTab(name, updateHash) {
+      if (!TABS.includes(name)) return;
+      const tab = document.querySelector('.mb-tab[data-tab="' + name + '"]');
+      if (!tab) return;
+      $$('.mb-tab').forEach(t => t.classList.toggle('active', t === tab));
+      $$('.mb-tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+      state.activeTab = name;
+      if (updateHash && location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
+    }
     $$('.mb-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        const name = tab.dataset.tab;
-        $$('.mb-tab').forEach(t => t.classList.toggle('active', t === tab));
-        $$('.mb-tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
-        state.activeTab = name;
-      });
+      tab.addEventListener('click', () => activateTab(tab.dataset.tab, true));
     });
+    // Deep-link: /parlamentares.html#radar abre direto a aba
+    const initial = (location.hash || '').replace('#', '');
+    if (initial) activateTab(initial, false);
   }
 
   /* ============================================================
@@ -99,18 +110,67 @@
   ];
 
   async function loadCandidatos() {
+    // 1) Servidor Node com dados reais (desenvolvimento/produção com backend)
     try {
       const r = await fetch('/api/candidatos');
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d = await r.json();
-      state.allPoliticians = (d.candidatos && d.candidatos.length) ? d.candidatos : FALLBACK_POLITICOS;
-    } catch (e) {
-      console.warn('loadCandidatos usando fallback:', e.message);
-      state.allPoliticians = FALLBACK_POLITICOS;
+      if (r.ok) {
+        const d = await r.json();
+        if (d.candidatos && d.candidatos.length) {
+          state.allPoliticians = d.candidatos;
+          state.dataMode = 'real';
+          state.dataSource = d.source || 'Câmara dos Deputados + Senado Federal';
+        }
+      }
+    } catch (e) { /* tenta snapshot estático */ }
+
+    // 2) Snapshot estático embutido no deploy (GitHub Pages — dados reais de 24/08/2026)
+    if (!state.allPoliticians.length) {
+      try {
+        const r2 = await fetch('../data/politicos.json');
+        if (r2.ok) {
+          const d2 = await r2.json();
+          if (d2.candidatos && d2.candidatos.length) {
+            state.allPoliticians = d2.candidatos;
+            state.dataMode = d2.mode === 'real' ? 'real' : 'snapshot';
+            state.dataSource = d2.source;
+            state.dataUpdatedAt = d2.atualizadoEm;
+          }
+        }
+      } catch (e) { /* último recurso: sintéticos */ }
     }
+
+    // 3) Sintéticos (file:// ou offline)
+    if (!state.allPoliticians.length) {
+      state.allPoliticians = FALLBACK_POLITICOS;
+      state.dataMode = 'demo';
+    }
+
+    updateDataBanner();
     populateFilterOptions();
     attachFilterHandlers();
     applyFilters();
+  }
+
+  function updateDataBanner() {
+    const banner = $('.mb-demo-banner');
+    if (!banner) return;
+    const sub = $('.mb-hero-sub');
+    if (state.dataMode === 'real' || state.dataMode === 'snapshot') {
+      const n = state.allPoliticians.length;
+      const dep = (state.allPoliticians.filter(p => p.source === 'camara')).length;
+      const sen = n - dep;
+      const quando = state.dataUpdatedAt
+        ? new Date(state.dataUpdatedAt).toLocaleDateString('pt-BR')
+        : '';
+      banner.innerHTML = `
+        <span class="mb-pill-icon">📡</span>
+        <span><strong>Dados reais</strong> — ${dep} deputados federais + ${sen} senadores (${n} parlamentares)` +
+        (quando ? ` · snapshot de ${quando}` : '') +
+        `. Fontes: Câmara dos Deputados e Senado Federal.</span>`;
+      banner.style.borderColor = 'rgba(0,151,57,0.45)';
+      banner.style.background = 'rgba(0,151,57,0.08)';
+      if (sub) sub.innerHTML = 'Transparência total para o eleitor decidir. Lista <strong>real</strong> de parlamentares em exercício, obtida dos dados abertos oficiais.';
+    }
   }
 
   function populateFilterOptions() {
@@ -153,23 +213,64 @@
       return true;
     });
 
-    if (sort === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    else if (sort === 'party') list.sort((a, b) => (a.party || '').localeCompare(b.party || ''));
-    else if (sort === 'integrity') list.sort((a, b) => (b.integrityIndex || 0) - (a.integrityIndex || 0));
-    else list.sort((a, b) => (b.transparencyScore || 0) - (a.transparencyScore || 0));
+    if (sort === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+    else if (sort === 'party') list.sort((a, b) => (a.party || '').localeCompare(b.party || '', 'pt-BR') || (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+    else if (sort === 'integrity') list.sort(byNumericDesc('integrityIndex', 'lawsuits'));
+    else list.sort(byNumericDesc('transparencyScore'));
+    // Ambos os sorts numéricos empurram "sem dados" para o fim e desempatam por nome
+    function byNumericDesc(primary, secondary) {
+      return (a, b) => {
+        let va = a[primary] != null ? a[primary] : null;
+        let vb = b[primary] != null ? b[primary] : null;
+        if (va == null && secondary) va = a[secondary] === 0 ? 100 : null;
+        if (vb == null && secondary) vb = b[secondary] === 0 ? 100 : null;
+        if (va == null && vb == null) return (a.name || '').localeCompare(b.name || '', 'pt-BR');
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        return vb - va || (a.name || '').localeCompare(b.name || '', 'pt-BR');
+      };
+    }
 
-    state.filteredPoliticians = list.slice(0, 60);
-    $('#cand-count').textContent = state.filteredPoliticians.length;
+    state.filteredPoliticians = list;
+    state.visibleCount = 60;
+    const total = list.length;
+    $('#cand-count').textContent = total;
+    const countNote = $('#cand-count-note');
+    if (countNote) countNote.textContent = total > state.visibleCount
+      ? ` — exibindo ${state.visibleCount}; use os filtros ou clique em "Carregar mais"`
+      : '';
+    renderCandidatos();
+  }
+
+  function loadMoreCandidatos() {
+    state.visibleCount += 60;
     renderCandidatos();
   }
 
   function renderCandidatos() {
     const grid = $('#cand-grid');
-    grid.innerHTML = state.filteredPoliticians.map(p => {
-      const integrity = p.integrityIndex != null ? p.integrityIndex : 100 - Math.min(60, (p.lawsuits || 0) * 8);
+    const visible = state.filteredPoliticians.slice(0, state.visibleCount || 60);
+    grid.innerHTML = visible.map(p => {
+      // Só exibe integridade quando há base de cálculo real (transparência/processos)
+      const hasIntegrityData = p.integrityIndex != null || p.lawsuits != null || p.transparencyScore != null;
+      const integrity = p.integrityIndex != null ? p.integrityIndex
+        : (hasIntegrityData ? 100 - Math.min(60, (p.lawsuits || 0) * 8) : null);
       const processes = p.lawsuits || 0;
       const initials = getInitials(p.name);
       const photo = p.photo ? `<img src="${escapeHtml(p.photo)}" alt="" onerror="this.style.display='none';this.parentNode.textContent='${initials}'">` : initials;
+      const integrityBlock = integrity == null ? `
+        <div class="mb-integrity">
+          <div class="mb-integrity-label"><span>Índice de Integridade</span><span class="mb-integrity-value">—</span></div>
+          <div class="mb-integrity-bar"></div>
+          <div class="mb-muted-sm" style="margin-top:4px;">Sem dados de processos/transparência nesta fonte</div>
+        </div>` : `
+        <div class="mb-integrity">
+          <div class="mb-integrity-label">
+            <span>Índice de Integridade</span>
+            <span class="mb-integrity-value">${integrity}</span>
+          </div>
+          <div class="mb-integrity-bar"><div class="mb-integrity-fill" style="width:${integrity}%"></div></div>
+        </div>`;
       return `
       <article class="mb-cand-card" data-id="${escapeHtml(p.id)}">
         <div class="mb-cand-compare" data-id="${escapeHtml(p.id)}" title="Selecionar para comparar">${state.compareSelection.has(p.id) ? '✓' : ''}</div>
@@ -181,22 +282,19 @@
           </div>
         </div>
         <div class="mb-cand-tags">
-          <span class="mb-tag-num">#${p.number || '—'}</span>
-          ${processes === 0
-            ? '<span class="mb-tag-clean">✅ Sem processos</span>'
-            : `<span class="mb-tag-warn">⚠️ ${processes} processo(s)</span>`}
+          ${p.number ? `<span class="mb-tag-num">#${p.number}</span>` : ''}
+          ${hasIntegrityData
+            ? (processes === 0
+                ? '<span class="mb-tag-clean">✅ Sem processos</span>'
+                : `<span class="mb-tag-warn">⚠️ ${processes} processo(s)</span>`)
+            : ''}
+          ${p.email ? '<span class="mb-tag-clean">✉️ Contato oficial</span>' : ''}
         </div>
-        <div class="mb-integrity">
-          <div class="mb-integrity-label">
-            <span>Índice de Integridade</span>
-            <span class="mb-integrity-value">${integrity}</span>
-          </div>
-          <div class="mb-integrity-bar"><div class="mb-integrity-fill" style="width:${integrity}%"></div></div>
-        </div>
+        ${integrityBlock}
         <div class="mb-cand-actions">
           <button class="mb-btn-secondary" data-action="details" data-id="${escapeHtml(p.id)}">VER DETALHES</button>
         </div>
-        <div class="mb-cand-source">📋 Fonte: TSE, Portal da Transparência, ${p.position && p.position.toLowerCase().includes('senador') ? 'Senado' : 'Câmara dos Deputados'}, CNJ</div>
+        <div class="mb-cand-source">📋 Fonte: ${p.dataSources && p.dataSources.length ? escapeHtml(p.dataSources.join(', ')) : 'TSE, Portal da Transparência, Câmara/Senado, CNJ'}</div>
       </article>`;
     }).join('');
 
@@ -205,6 +303,21 @@
       e.stopPropagation();
       toggleCompare(e.currentTarget.dataset.id);
     }));
+
+    // Botão "Carregar mais" quando há mais resultados além dos visíveis
+    const holder = $('#cand-load-more-holder');
+    if (holder) {
+      if (state.filteredPoliticians.length > visible.length) {
+        holder.hidden = false;
+        const btn = $('#cand-load-more');
+        if (btn) {
+          btn.onclick = loadMoreCandidatos;
+          btn.textContent = `⬇️ Carregar mais (${state.filteredPoliticians.length - visible.length} restantes)`;
+        }
+      } else {
+        holder.hidden = true;
+      }
+    }
   }
 
   function toggleCompare(id) {
@@ -230,13 +343,20 @@
 
   async function runCompare() {
     const ids = Array.from(state.compareSelection);
-    const r = await fetch('/api/candidatos/comparar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids })
-    });
-    const d = await r.json();
-    if (!d.ok) { toast(d.error, 'error'); return; }
-    renderCompare(d.candidatos);
+    try {
+      const r = await fetch('/api/candidatos/comparar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || 'erro');
+      renderCompare(d.candidatos);
+    } catch (e) {
+      // Sem servidor (GitHub Pages): compara com os dados carregados localmente
+      const cands = ids.map(id => state.allPoliticians.find(p => p.id === id)).filter(Boolean);
+      if (cands.length >= 2) renderCompare(cands);
+      else toast('Não foi possível comparar agora', 'error');
+    }
   }
 
   function renderCompare(cands) {
@@ -272,13 +392,27 @@
   }
 
   /* ============================================================
-     DETALHES DO CANDIDATO
+     DETALHES DO CANDIDATO (com interações: reclamações/respostas/apoios)
      ============================================================ */
   async function openCandidato(id) {
-    const r = await fetch('/api/candidatos/detalhes/' + encodeURIComponent(id));
-    const d = await r.json();
-    if (!d.ok) { toast('Candidato não encontrado', 'error'); return; }
-    const c = d.candidato;
+    state.detail.id = id;
+    state.detail.tab = 'reclamacoes';
+    let c = state.allPoliticians.find(p => p.id === id) || null;
+
+    // Mostra imediatamente com dados locais; enriquece com API em seguida
+    if (c) renderCandidatoModal(c);
+
+    try {
+      const r = await fetch('/api/candidatos/detalhes/' + encodeURIComponent(id));
+      const d = await r.json();
+      if (d.ok && d.candidato) { c = d.candidato; renderCandidatoModal(c); }
+    } catch (e) { /* já mostrou fallback local */ }
+
+    if (!c) { toast('Candidato não encontrado', 'error'); return; }
+    loadDetailInteractions();
+  }
+
+  function renderCandidatoModal(c) {
     const initials = getInitials(c.name);
     const sources = c.sources || {};
     const sourceList = Object.values(sources).map(s => `
@@ -287,6 +421,7 @@
         <div>${escapeHtml(s.data)}</div>
         <div><a href="${escapeHtml(s.link)}" target="_blank" rel="noopener">${escapeHtml(s.link.replace(/^https?:\/\//, ''))}</a></div>
       </div>`).join('');
+    const integrity = c.integrityIndex != null ? c.integrityIndex : null;
 
     $('#cand-modal-body').innerHTML = `
       <div style="display:flex;gap:18px;align-items:center;margin-bottom:18px;">
@@ -295,104 +430,328 @@
           <h2 style="margin-bottom:4px;">${escapeHtml(c.name)}</h2>
           <div class="mb-muted">${escapeHtml(c.party || '')} · ${escapeHtml(c.state || '')} · ${escapeHtml(c.position || '')}</div>
           <div style="margin-top:6px;">
-            <span class="mb-tag-num">#${c.number || '—'}</span>
-            <span class="mb-tag-clean">Integridade: ${c.integrityIndex || 0}/100</span>
+            ${c.number ? `<span class="mb-tag-num">#${c.number}</span>` : ''}
+            ${integrity != null
+              ? `<span class="${integrity >= 70 ? 'mb-tag-clean' : 'mb-tag-warn'}">Integridade: ${integrity}/100</span>`
+              : ''}
           </div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px;">
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px;" id="cand-ficha">
         <div class="mb-card-inner"><div class="mb-muted-sm">Idade</div><strong>${c.age || '—'}</strong></div>
         <div class="mb-card-inner"><div class="mb-muted-sm">Escolaridade</div><strong>${escapeHtml(c.education || '—')}</strong></div>
         <div class="mb-card-inner"><div class="mb-muted-sm">Mandatos</div><strong>${c.termCount || 1}</strong></div>
-        <div class="mb-card-inner"><div class="mb-muted-sm">PLs Autorias</div><strong>${c.billsAuthored || 0}</strong></div>
-        <div class="mb-card-inner"><div class="mb-muted-sm">Presença</div><strong>${c.attendanceRate || '—'}%</strong></div>
-        <div class="mb-card-inner"><div class="mb-muted-sm">Processos</div><strong>${c.lawsuits || 0}</strong></div>
+        <div class="mb-card-inner"><div class="mb-muted-sm">PLs Autorias</div><strong>${c.billsAuthored != null ? c.billsAuthored : '—'}</strong></div>
+        <div class="mb-card-inner"><div class="mb-muted-sm">Presença</div><strong>${c.attendanceRate != null ? c.attendanceRate + '%' : '—'}</strong></div>
+        <div class="mb-card-inner"><div class="mb-muted-sm">Processos</div><strong>${c.lawsuits != null ? c.lawsuits : '—'}</strong></div>
       </div>
+
+      <div class="mb-detail-tabs" id="cand-detail-tabs">
+        <button class="mb-dtab active" data-dtab="reclamacoes">📣 Reclamações <span class="mb-dtab-count" id="dt-cnt-reclamacoes">…</span></button>
+        <button class="mb-dtab" data-dtab="respostas">↪️ Respostas <span class="mb-dtab-count" id="dt-cnt-respostas">…</span></button>
+        <button class="mb-dtab" data-dtab="apoios">👍 Apoios <span class="mb-dtab-count" id="dt-cnt-apoios">…</span></button>
+      </div>
+      <div id="dtab-reclamacoes" class="mb-dtab-panel"><p class="mb-muted-sm">⏳ Carregando…</p></div>
+      <div id="dtab-respostas" class="mb-dtab-panel" hidden><p class="mb-muted-sm">Carregando…</p></div>
+      <div id="dtab-apoios" class="mb-dtab-panel" hidden><p class="mb-muted-sm">Carregando…</p></div>
+      <div style="text-align:right;margin:6px 0 14px;">
+        <button class="mb-btn-link" id="cand-view-all">Ver todas as reclamações →</button>
+      </div>
+
+      ${sourceList ? `
       <h3 style="margin-bottom:10px;">🔎 Fontes oficiais</h3>
       <div class="mb-sources-table">${sourceList}</div>
-      <p class="mb-src-footer">⚙️ Dados extraídos de fontes públicas oficiais. Em produção, sincronizados a cada 24h via APIs.</p>
+      <p class="mb-src-footer">⚙️ Dados extraídos de fontes públicas oficiais. Em produção, sincronizados a cada 24h via APIs.</p>` : ''}
+
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+        <button class="mb-btn-primary" id="cand-btn-reclamar" style="flex:1;">📝 Fazer reclamação</button>
+        <button class="mb-btn-mint" id="cand-btn-apoiar" style="flex:1;">👍 Dar apoio</button>
+      </div>
     `;
+
+    // Alternância de abas
+    $$('#cand-detail-tabs .mb-dtab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $$('#cand-detail-tabs .mb-dtab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.detail.tab = btn.dataset.dtab;
+        ['reclamacoes', 'respostas', 'apoios'].forEach(t => {
+          const el = document.getElementById('dtab-' + t);
+          if (el) el.hidden = t !== state.detail.tab;
+        });
+        loadDetailInteractions();
+      });
+    });
+
+    $('#cand-btn-reclamar').addEventListener('click', () => openComplaintModal('rec', c.id, c.name));
+    $('#cand-btn-apoiar').addEventListener('click', () => openComplaintModal('apoio', c.id, c.name));
+    $('#cand-view-all').addEventListener('click', () => {
+      // Vai para a aba Radar com o nome pré-filtrado no campo de busca
+      const radarTab = document.querySelector('.mb-tab[data-tab="radar"]');
+      if (radarTab) radarTab.click();
+      const input = $('#radar-search');
+      if (input) { input.value = c.name; input.dispatchEvent(new Event('input')); }
+      hideModal('cand-modal');
+      const feed = $('#radar-feed');
+      if (feed) feed.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
     showModal('cand-modal');
+  }
+
+  async function loadDetailInteractions() {
+    const id = state.detail.id;
+    if (!id) return;
+    if (state.detail.tab === 'reclamacoes') {
+      const el = document.getElementById('dtab-reclamacoes');
+      try {
+        const r = await fetch('/api/reclamacoes?politicianId=' + encodeURIComponent(id) + '&limit=20');
+        const d = await r.json();
+        const list = (d.complaints || []);
+        const cnt = $('#dt-cnt-reclamacoes'); if (cnt) cnt.textContent = list.length;
+        el.innerHTML = list.length ? list.map(comp => detailComplaintHTML(comp)).join('')
+          : '<p class="mb-muted-sm">Nenhuma reclamação ainda. Seja o primeiro a cobrar!</p>';
+      } catch (e) {
+        el.innerHTML = '<p class="mb-muted-sm">Não foi possível carregar reclamações agora.</p>';
+      }
+    } else if (state.detail.tab === 'apoios') {
+      const el = document.getElementById('dtab-apoios');
+      try {
+        const r = await fetch('/api/apoios?politicianId=' + encodeURIComponent(id) + '&limit=20');
+        const d = await r.json();
+        const list = (d.supports || []);
+        const cnt = $('#dt-cnt-apoios'); if (cnt) cnt.textContent = list.length;
+        el.innerHTML = list.length ? list.map(s => detailSupportHTML(s)).join('')
+          : '<p class="mb-muted-sm">Nenhum apoio ainda. Mande um elogio!</p>';
+      } catch (e) {
+        el.innerHTML = '<p class="mb-muted-sm">Não foi possível carregar apoios agora.</p>';
+      }
+    } else {
+      const el = document.getElementById('dtab-respostas');
+      try {
+        const r = await fetch('/api/estatisticas/politico/' + encodeURIComponent(id));
+        const d = await r.json();
+        const stats = d.stats || {};
+        const cnt = $('#dt-cnt-respostas'); if (cnt) cnt.textContent = stats.responses || 0;
+        el.innerHTML = (stats.responses > 0)
+          ? `<p class="mb-muted-sm">${stats.responses} resposta(s) registrada(s) pelo político — visíveis junto às reclamações respondidas.</p>
+             <div class="mb-card-inner"><div class="mb-muted-sm">Taxa de resposta</div><strong>${Math.round((stats.responseRate || 0) * 100)}%</strong></div>`
+          : '<p class="mb-muted-sm">Este político ainda não respondeu a nenhuma reclamação. Só políticos com <strong>selo de verificado</strong> podem responder.</p>';
+      } catch (e) {
+        el.innerHTML = '<p class="mb-muted-sm">Não foi possível carregar respostas agora.</p>';
+      }
+    }
+  }
+
+  function detailComplaintHTML(comp) {
+    const voterLabel = comp.voterHash
+      ? 'Eleitor #' + String(comp.voterHash).slice(-6).toUpperCase()
+      : 'Eleitor anônimo';
+    const resp = comp.response && (typeof comp.response === 'string' ? comp.response : comp.response.content);
+    return `
+      <div class="mb-card-inner" style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <span class="mb-muted-sm">${escapeHtml(voterLabel)} · ${timeAgo(comp.createdAt)}</span>
+          ${comp.status === 'responded' ? '<span class="mb-tag-clean">↪️ Respondida</span>' : ''}
+        </div>
+        <div style="margin-top:6px;font-size:0.9rem;">${escapeHtml(comp.content)}</div>
+        ${resp ? `<div class="mb-radar-response" style="margin-top:8px;"><strong>↪️ Resposta:</strong> ${escapeHtml(resp)}</div>` : ''}
+      </div>`;
+  }
+
+  function detailSupportHTML(s) {
+    const voterLabel = s.voterHash
+      ? 'Eleitor #' + String(s.voterHash).slice(-6).toUpperCase()
+      : 'Eleitor anônimo';
+    return `
+      <div class="mb-card-inner" style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <span class="mb-muted-sm">${escapeHtml(voterLabel)} · ${timeAgo(s.createdAt)}</span>
+          <span class="mb-tag-clean">👍 Apoio</span>
+        </div>
+        <div style="margin-top:6px;font-size:0.9rem;">${escapeHtml(s.content)}</div>
+      </div>`;
+  }
+
+  /* ============================================================
+     MODAL DE RECLAMAÇÃO / APOIO
+     ============================================================ */
+  function setupComplaint() {
+    const openBtn = $('#open-complaint-modal');
+    if (openBtn) openBtn.addEventListener('click', () => openComplaintModal('rec'));
+    const searchBtn = $('#open-radar-search');
+    if (searchBtn) searchBtn.addEventListener('click', () => {
+      const inp = $('#radar-search');
+      if (inp) { inp.focus(); inp.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    });
+
+    const form = $('#complaint-form');
+    if (!form) return;
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const pid = $('#complaint-politician').value;
+      const titulo = ($('#complaint-title').value || '').trim();
+      const descricao = ($('#complaint-content').value || '').trim();
+      const tipo = form.dataset.tipo || 'rec';
+      if (!pid) { toast('Escolha um político', 'error'); return; }
+      if (descricao.length < 10) { toast('Escreva pelo menos 10 caracteres', 'error'); return; }
+      try {
+        const r = await fetch('/api/reclamacoes/public', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ politicianId: pid, tipo, titulo, descricao })
+        });
+        const d = await r.json();
+        if (d.ok) {
+          toast(tipo === 'apoio' ? 'Apoio enviado! Obrigado por participar.' : 'Reclamação enviada! Ela já aparece no Radar.');
+          hideModal('complaint-modal');
+          form.reset();
+          delete form.dataset.tipo;
+          loadRadar(); // recarrega feed
+        } else {
+          toast(d.error || 'Erro ao enviar', 'error');
+        }
+      } catch (err) { toast('Erro de conexão', 'error'); }
+    });
+  }
+
+  function openComplaintModal(tipo, politicianId, politicianName) {
+    const form = $('#complaint-form');
+    if (!form) return;
+    form.dataset.tipo = tipo || 'rec';
+    const sel = $('#complaint-politician');
+    if (politicianId && sel) {
+      // Garante que a opção existe (político pode não estar entre os 200 primeiros)
+      if (![...sel.options].some(o => o.value === politicianId)) {
+        const o = document.createElement('option');
+        o.value = politicianId;
+        o.textContent = politicianName || politicianId;
+        sel.appendChild(o);
+      }
+      sel.value = politicianId;
+    }
+    const h2 = document.querySelector('#complaint-modal h2');
+    if (h2) h2.textContent = tipo === 'apoio' ? '👍 Dar apoio' : '📝 Abrir reclamação';
+    const sendBtn = document.querySelector('#complaint-form button[type="submit"]');
+    if (sendBtn) sendBtn.textContent = tipo === 'apoio' ? '✈️ Enviar apoio' : '✈️ Enviar reclamação';
+    showModal('complaint-modal');
   }
 
   /* ============================================================
      RADAR CÍVICO
      ============================================================ */
   async function loadRadar() {
-    // Carrega políticos para os selects
+    // Carrega políticos para o select do modal de reclamação
     const sel = $('#complaint-politician');
     if (sel) {
       state.allPoliticians.slice(0, 200).forEach(p => {
         const o = document.createElement('option');
-        o.value = p.id; o.textContent = `${p.name} (${p.party} · ${p.state})`;
+        o.value = p.id; o.textContent = `${p.name} (${p.party || '—'} · ${p.state || '—'})`;
         sel.appendChild(o);
       });
     }
-    // Carrega feed
+    // Carrega feed real (reclamações + apoios mesclados) e rankings
+    let feed = [];
     try {
-      const r = await fetch('/api/reclamacoes?limit=50');
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d = await r.json();
-      renderRadar((d.complaints && d.complaints.length) ? d.complaints : FALLBACK_RECLAMACOES);
-      renderRadarLists();
-    } catch (e) {
-      console.warn('loadRadar usando fallback:', e.message);
-      renderRadar(FALLBACK_RECLAMACOES);
-      renderRadarLists();
-    }
+      const r = await fetch('/api/feed?limit=50');
+      if (r.ok) {
+        const d = await r.json();
+        feed = (d.feed && d.feed.length) ? d.feed : [];
+      }
+    } catch (e) { /* fallback abaixo */ }
+    if (!feed.length) feed = FALLBACK_FEED;
+    state.radarFeed = feed;
+    renderRadar(feed);
+    renderRadarSearch();
+
+    try {
+      const rr = await fetch('/api/rankings');
+      if (rr.ok) {
+        const d = await rr.json();
+        renderRadarLists(d.rankings || {});
+        return;
+      }
+    } catch (e) { /* fallback abaixo */ }
+    renderRadarLists(null);
   }
 
-  const FALLBACK_RECLAMACOES = [
-    {politicianName:'Maria Silva',totalPoliticianComplaints:3,createdAt:new Date(Date.now()-86400000).toISOString(),summary:'Prometeu auditar gastos do Senado e ainda não apresentou o relatório.'},
-    {politicianName:'Carlos Souza',totalPoliticianComplaints:1,createdAt:new Date(Date.now()-172800000).toISOString(),summary:'Votou a favor de redução de incentivo à energia solar.'},
-    {politicianName:'João Pereira',totalPoliticianComplaints:5,createdAt:new Date(Date.now()-259200000).toISOString(),summary:'Não compareceu a 8 sessões consecutivas sem justificativa.'},
+  const FALLBACK_FEED = [
+    { id:'fb-r1', tipo:'reclamacao', politician:{ id:'maria-silva', name:'Maria Silva', party:'PT', state:'SP' }, content:'Prometeu auditar gastos da Câmara e ainda não apresentou o relatório.', createdAt: Date.now()-86400000, responded:false },
+    { id:'fb-s1', tipo:'apoio', politician:{ id:'beatriz-mendes', name:'Beatriz Mendes', party:'PDT', state:'RS' }, content:'Projeto de lei sobre transparência ativa excelente. Continue assim!', createdAt: Date.now()-172800000 },
+    { id:'fb-r2', tipo:'reclamacao', politician:{ id:'joao-pereira', name:'João Pereira', party:'PL', state:'MG' }, content:'Faltou a 8 sessões consecutivas sem justificativa.', createdAt: Date.now()-259200000, responded:false },
+    { id:'fb-s2', tipo:'apoio', politician:{ id:'ana-beatriz', name:'Ana Beatriz', party:'PSOL', state:'BA' }, content:'Trabalho consistente na área de educação.', createdAt: Date.now()-345600000 },
   ];
 
-  function renderRadar(complaints) {
+  function renderRadarSearch() {
+    const input = $('#radar-search');
+    if (!input) return;
+    input.addEventListener('input', () => {
+      const q = input.value.toLowerCase().trim();
+      if (!q) { renderRadar(state.radarFeed); return; }
+      renderRadar(state.radarFeed.filter(c => {
+        const hay = [c.content, c.politician && c.politician.name, c.politician && c.politician.party].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      }));
+    });
+  }
+
+  function renderRadar(items) {
     const feed = $('#radar-feed');
     if (!feed) return;
-    if (!complaints.length) { feed.innerHTML = '<p class="mb-muted">Nenhuma reclamação ainda. Seja o primeiro!</p>'; return; }
-    feed.innerHTML = complaints.slice(0, 20).map(c => {
-      const initials = getInitials(c.politicianName);
+    if (!items.length) { feed.innerHTML = '<p class="mb-muted">Nenhuma reclamação ainda. Seja o primeiro!</p>'; return; }
+    feed.innerHTML = items.slice(0, 20).map(c => {
+      const pol = c.politician || {};
+      const polName = pol.name || 'Político';
+      const initials = getInitials(polName);
+      const isApoio = c.tipo === 'apoio';
+      const voterLabel = c.voterHash
+        ? 'Eleitor #' + String(c.voterHash).slice(-6).toUpperCase()
+        : 'Eleitor anônimo';
+      const responseText = typeof c.response === 'string' ? c.response : (c.response && c.response.content);
       return `
       <article class="mb-radar-item">
         <div class="mb-radar-item-head">
-          <div class="mb-radar-avatar">${c.politicianPhoto ? `<img src="${escapeHtml(c.politicianPhoto)}" onerror="this.style.display='none'">` : initials}</div>
+          <div class="mb-radar-avatar">${pol.photo ? `<img src="${escapeHtml(pol.photo)}" onerror="this.style.display='none'">` : initials}</div>
           <div>
-            <div class="mb-radar-item-name">${escapeHtml(c.politicianName || 'Político')}</div>
-            <div class="mb-radar-item-meta">por eleitor anônimo · ${timeAgo(c.createdAt)}</div>
+            <div class="mb-radar-item-name">${escapeHtml(polName)}</div>
+            <div class="mb-radar-item-meta">${escapeHtml(voterLabel)} · ${timeAgo(c.createdAt)}</div>
           </div>
-          <span class="mb-radar-badge mb-radar-badge-red">Reclamações ${c.totalPoliticianComplaints || 1}</span>
-          <span class="mb-radar-badge mb-radar-badge-blue">Todas Reclamações</span>
-          ${c.verified ? '<span class="mb-radar-verified">Selo Verificado</span>' : ''}
+          <span class="mb-radar-badge ${isApoio ? 'mb-radar-badge-green' : 'mb-radar-badge-red'}">${isApoio ? '👍 Apoio' : '📣 Reclamação'}</span>
+          ${c.responded || responseText ? '<span class="mb-radar-badge mb-radar-badge-blue">Respondido</span>' : ''}
         </div>
         <div class="mb-radar-text">${escapeHtml(c.content)}</div>
-        <div class="mb-radar-actions-row">
-          <span>👍 ${Math.floor(Math.random() * 50)}</span>
-          <button class="mb-btn-link" data-reply="${escapeHtml(c.id)}">💬 responder</button>
-        </div>
-        ${c.response ? `<div class="mb-radar-response"><strong>↪️ Resposta:</strong> ${escapeHtml(c.response)}</div>` : ''}
+        ${responseText ? `<div class="mb-radar-response"><strong>↪️ Resposta do político:</strong> ${escapeHtml(responseText)}</div>` : ''}
       </article>`;
     }).join('');
   }
 
-  function renderRadarLists() {
-    // Mais/Menos reclamações (top 5)
+  function radarRow(p, badge, cls) {
+    return `
+      <div class="mb-radar-row">
+        <div class="mb-radar-avatar">${p.photo ? `<img src="${escapeHtml(p.photo)}" onerror="this.style.display='none'">` : getInitials(p.name)}</div>
+        <div style="flex:1"><div class="mb-radar-item-name">${escapeHtml(p.name)}</div><div class="mb-muted-sm">${escapeHtml(p.party || '')}</div></div>
+        <span class="mb-radar-badge ${cls}">${badge}</span>
+      </div>`;
+  }
+
+  function renderRadarLists(rankings) {
+    const moreEl = $('#radar-more'), lessEl = $('#radar-less');
+    if (!moreEl || !lessEl) return;
+    if (rankings && (rankings.mostComplaints || []).length) {
+      moreEl.innerHTML = rankings.mostComplaints.slice(0, 5)
+        .filter(p => p.complaints > 0).map(p => radarRow(p, p.complaints, 'mb-radar-badge-red')).join('')
+        || '<p class="mb-muted-sm">Nenhuma reclamação registrada ainda.</p>';
+      const least = (rankings.mostComplaints || []).filter(p => p.complaints === 0).slice(0, 5);
+      lessEl.innerHTML = least.length
+        ? least.map(p => radarRow(p, '✅ Sem reclamações', 'mb-radar-badge-green')).join('')
+        : (rankings.mostSupports || []).slice(0, 5).filter(p => p.supports > 0).map(p => radarRow(p, '👍 ' + p.supports, 'mb-radar-badge-green')).join('');
+      return;
+    }
+    // Fallback: usa a própria lista de políticos
     const all = state.allPoliticians;
     const more = all.slice().sort(() => Math.random() - 0.5).slice(0, 5);
     const less = all.slice().sort(() => Math.random() - 0.5).slice(0, 5);
-    $('#radar-more').innerHTML = more.map(p => `
-      <div class="mb-radar-row">
-        <div class="mb-radar-avatar">${p.photo ? `<img src="${escapeHtml(p.photo)}" onerror="this.style.display='none'">` : getInitials(p.name)}</div>
-        <div style="flex:1"><div class="mb-radar-item-name">${escapeHtml(p.name)}</div><div class="mb-muted-sm">${escapeHtml(p.party || '')}</div></div>
-        <span class="mb-radar-badge mb-radar-badge-red">${Math.floor(Math.random() * 50) + 1}</span>
-      </div>`).join('');
-    $('#radar-less').innerHTML = less.map(p => `
-      <div class="mb-radar-row">
-        <div class="mb-radar-avatar">${p.photo ? `<img src="${escapeHtml(p.photo)}" onerror="this.style.display='none'">` : getInitials(p.name)}</div>
-        <div style="flex:1"><div class="mb-radar-item-name">${escapeHtml(p.name)}</div><div class="mb-muted-sm">${escapeHtml(p.party || '')}</div></div>
-        <span class="mb-radar-badge mb-radar-badge-green">${Math.floor(Math.random() * 5)}</span>
-      </div>`).join('');
+    moreEl.innerHTML = more.map(p => radarRow(p, '—', 'mb-radar-badge-red')).join('');
+    lessEl.innerHTML = less.map(p => radarRow(p, '✅', 'mb-radar-badge-green')).join('');
   }
 
   function timeAgo(ts) {

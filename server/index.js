@@ -1,5 +1,5 @@
 /* ============================================================
-   MUDABRASIL - SERVIDOR (frontend + API de dados públicos + VOTO)
+   MUDABRASIL — SERVIDOR (frontend + API de dados públicos + VOTO)
    ------------------------------------------------------------
    Um único comando sobe o site inteiro e a API:
 
@@ -29,26 +29,24 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { fetchDeputados, enrichBills, readEnrichCache, enrichAllDeputies, DEP_FILE } = require('./ingest');
+const { fetchDeputados, enrichBills, DEP_FILE } = require('./ingest');
 const { fetchSenadores, SENADO_FILE } = require('./senado');
 const votes = require('./votes');
 const db = require('./db');
 const auth = require('./auth');
 const verificacao = require('./verificacao');
 const reclamacoes = require('./reclamacoes');
+const seedPls = require('./seed_pls');
+const tse = require('./tse');
 
 const ROOT = path.join(__dirname, '..');
 const PORT = process.env.PORT || 8080;
 
-/* ---- Armazenamento de votos (SQLite nativo; JSON em Node antigo) ---- */
 const { migrated } = db.init();
 const STORAGE_LABEL = db.backend() === 'sqlite'
   ? 'SQLite nativo (votos.db)'
   : 'arquivo JSON (votos.json — Node sem node:sqlite)';
 
-/* ---- Atualização automática dos dados públicos (cron in-process) ----
-   Rebusca a Câmara a cada N horas (MB_REFRESH_HOURS, padrão 24).
-   .unref() impede que o timer segure o processo aberto em testes. */
 const REFRESH_HOURS = Math.max(1, parseInt(process.env.MB_REFRESH_HOURS, 10) || 24);
 setInterval(() => {
   fetchDeputados({ force: true })
@@ -73,9 +71,6 @@ const MIME = {
   '.woff2': 'font/woff2'
 };
 
-/* Headers de segurança/privacidade aplicados a todas as respostas JSON:
-   nosniff impede reinterpretação de MIME; no-referrer garante que a
-   origem nunca vaza para redirecionamentos (ética de anonimato). */
 const SEC_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer'
@@ -94,19 +89,6 @@ function sendJson(res, status, obj, methods = 'GET, POST, OPTIONS') {
   res.end(JSON.stringify(obj));
 }
 
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => { data += chunk; if (data.length > 1024 * 64) { req.destroy(); reject(new Error('Body muito grande')); } });
-    req.on('end', () => {
-      if (!data) return resolve({});
-      try { resolve(JSON.parse(data)); } catch (e) { reject(new Error('JSON invalido: ' + e.message)); }
-    });
-    req.on('error', reject);
-  });
-}
-
-/** Lê e faz parse do body (JSON) de uma requisição POST. */
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -126,13 +108,11 @@ function clientIp(req) {
   return (req.socket && req.socket.remoteAddress) || 'desconhecido';
 }
 
-/* ---------- Tempo real (SSE) ----------
-   Clientes conectados em /api/stream recebem, a cada escrita
-   bem-sucedida no motor de voto, um evento "termometro" com
-   apenas TOTAIS agregados (nunca identifica quem votou em
-   quem). O cliente, ao receber o evento, refaz o GET
-   /api/termometro completo. */
 const streamClients = new Set();
+
+/* ===== Cache em memória para votações da Câmara (1 hora) ===== */
+const CAMARA_CACHE = { votacoes: { ts: 0, data: null }, votos: {} };
+const CAMARA_TTL = 3600 * 1000; // 1 hora
 
 votes.onVoteChange(info => {
   const payload = Object.assign({}, info, votes.totals());
@@ -142,10 +122,14 @@ votes.onVoteChange(info => {
   }
 });
 
-/**
- * Aplica busca + filtros + ordenação sobre a lista. Null-safe:
- * campos ausentes (nulos) não quebram a ordenação.
- */
+/* SSE: reclamacoes / apoios em tempo real */
+reclamacoes.onReclamacaoChange(info => {
+  const frame = 'event: ' + info.tipo + '\ndata: ' + JSON.stringify(info) + '\n\n';
+  for (const client of streamClients) {
+    try { client.write(frame); } catch (_) { streamClients.delete(client); }
+  }
+});
+
 function applyQuery(list, q) {
   let out = list;
   const busca = (q.busca || '').toLowerCase().trim();
@@ -166,7 +150,7 @@ function applyQuery(list, q) {
     let va = a[field], vb = b[field];
     const aNull = va == null, bNull = vb == null;
     if (aNull && bNull) return 0;
-    if (aNull) return 1;  // nulos sempre por último
+    if (aNull) return 1;
     if (bNull) return -1;
     if (typeof va === 'string' || typeof vb === 'string') {
       return dir * String(va).localeCompare(String(vb), 'pt-BR');
@@ -176,16 +160,227 @@ function applyQuery(list, q) {
   return out;
 }
 
+/* Resolve politicianId aceitando formatos cru (204379) ou prefixado (camara-204379) */
+function resolvePoliticianId(id) {
+  const raw = String(id || '').trim();
+  if (!raw) return raw;
+  if (db.getPolitician(raw)) return raw;
+  const m = raw.match(/(\d+)\s*$/);
+  const digits = m ? m[1] : raw;
+  for (const pref of ['camara-', 'senado-']) {
+    if (db.getPolitician(pref + digits)) return pref + digits;
+  }
+  return raw;
+}
+
+/* ===== Notícias: RSS de fontes confiáveis (Agência Brasil, G1 Política, Senado) ===== */
+const NEWS_FEEDS = [
+  { fonte: 'Agência Brasil', url: 'https://agenciabrasil.ebc.com.br/rss/politica/feed.xml', politicas: true },
+  { fonte: 'G1 Política', url: 'https://g1.globo.com/rss/g1/politica/', politicas: true },
+  { fonte: 'Agência Senado', url: 'https://www12.senado.leg.br/noticias/rss', politicas: true },
+  { fonte: 'Congresso em Foco', url: 'https://congressoemfoco.uol.com.br/feed/', politicas: true },
+  { fonte: 'Poder360', url: 'https://www.poder360.com.br/feed/', politicas: true },
+  { fonte: 'CNN Brasil', url: 'https://www.cnnbrasil.com.br/politica/feed/', politicas: true },
+  { fonte: 'Folha Poder', url: 'https://feeds.folha.uol.com.br/poder/rss091.xml', politicas: true },
+  { fonte: 'Estadão Política', url: 'https://www.estadao.com.br/arc/outboundfeeds/rss/categoria/politica/', politicas: true },
+  { fonte: 'UOL Notícias', url: 'https://rss.uol.com.br/feed/noticias.xml', politicas: false },
+  { fonte: 'BBC Brasil', url: 'https://feeds.bbci.co.uk/portuguese/rss.xml', politicas: false }
+];
+const POLITICS_KW = /\b(pol[ií]t|governo|congresso|senado|c[aâ]mara|tse|stf|stj|elei[çc]|[cç]andidat|deputad|senador|ministr|presidente|governador|prefeito|vereador|partido|plen[aá]rio|vota[çc]|[lL]ei\b|projeto de lei|medida provis[óo]ria|emenda|comiss[aã]o|frente parlamentar|impeachment|cassa[çc]|den[úu]ncia|inqu[éé]rito| Lava Jato|mensal[aã]o|petrol[aã]o|corrup[cç]|improbidade|impeachment)\b/i;
+const UF_LIST = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+const NEWS_CACHE = { ts: 0, items: [] };
+function stripTags(v) { return String(v || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim(); }
+function parseRss(xml, fonte, politicasOnly) {
+  const items = [];
+  const blocks = String(xml).replace(/\r/g, '').split(/<item[\s>]/).slice(1);
+  for (const b of blocks) {
+    const pick = tag => { const m = b.match(new RegExp('<' + tag + '[^>]*>([\\s\\S]*?)</' + tag + '>', 'i')); return m ? stripTags(m[1]) : ''; };
+    const t = pick('title');
+    const lm = b.match(/<link[^>]*href=["']([^"']+)["']/i);
+    const l = lm ? lm[1] : pick('link');
+    const dt = pick('pubDate') || pick('published') || pick('updated');
+    let iso = ''; try { iso = dt ? new Date(dt).toISOString() : ''; } catch (_) { }
+    if (!t || !l) continue;
+    const desc = pick('description') || pick('summary') || '';
+    // Política-only: se feed geral, só mantém itens com palavras-chave
+    if (!politicasOnly && !POLITICS_KW.test(t + ' ' + desc)) continue;
+    // Thumbnail: media:content url=..., enclosure url=..., media:thumbnail url=..., ou primeira <img src=...> na description crua
+    let thumb = '';
+    const m1 = b.match(/<media:content[^>]*url=["']([^"']+\.(jpg|jpeg|png|webp|gif))["']/i);
+    const m2 = b.match(/<enclosure[^>]*url=["']([^"']+\.(jpg|jpeg|png|webp|gif))["']/i);
+    const m3 = b.match(/<media:thumbnail[^>]*url=["']([^"']+)["']/i);
+    const m4 = b.match(/<img[^>]*src=["']([^"']+)["']/i);
+    const m5 = b.match(/<og:image[^>]*content=["']([^"']+)["']/i);
+    thumb = (m1 && m1[1]) || (m2 && m2[1]) || (m3 && m3[1]) || (m4 && m4[1]) || (m5 && m5[1]) || '';
+    // Limpa a thumb (rss2json-like: remove query de tracker se for imgur/cloudinary etc.)
+    thumb = thumb.replace(/\?.*$/, '').trim();
+    items.push({ t: t.slice(0, 200), l: l.trim(), res: desc.slice(0, 220), fonte: fonte, dt: iso, thumb: thumb });
+  }
+  return items;
+}
+function detectUF(texto) {
+  const t = ' ' + String(texto || '').toUpperCase() + ' ';
+  let found = null;
+  for (const uf of UF_LIST) {
+    if (new RegExp('[ ([\\[]' + uf + '[ )\\]\\.,;:!?~-]').test(t)) {
+      if (found && found !== uf) return 'BR';
+      found = uf;
+    }
+  }
+  return found;
+}
+async function refreshNoticias(force) {
+  const now = Date.now();
+  if (!force && now - NEWS_CACHE.ts < 600000 && NEWS_CACHE.items.length) return;
+  try {
+    const res = await Promise.all(NEWS_FEEDS.map(f =>
+      fetch(f.url, { headers: { Accept: 'application/rss+xml,application/xml,text/xml', 'User-Agent': 'MudaBrasil/1.0 (+https://mudabrasil.app)' }, signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+        .then(x => parseRss(x, f.fonte, f.politicas)).catch(err => { console.warn('[noticias] falha em', f.fonte, ':', err.message); return []; })));
+    const items = [].concat(...res).map(n => ({ ...n, uf: detectUF(n.t + ' ' + n.res) }));
+    items.sort((a, b) => (b.dt || '').localeCompare(a.dt || ''));
+    if (items.length) { NEWS_CACHE.items = items.slice(0, 60); NEWS_CACHE.ts = now; }
+    console.log('[noticias] ' + items.length + ' itens de ' + NEWS_FEEDS.length + ' fontes (cache 10min)');
+  } catch (e) { console.warn('[noticias] falha ao atualizar feeds:', e.message); }
+}
+
 async function handleApi(req, res, url) {
-  const p = url.pathname;
+  let p = url.pathname;
+  if (p.startsWith('/api/candidatos/detalhes/')) {
+    p = '/api/candidatos/' + p.slice('/api/candidatos/detalhes/'.length);
+  }
   const q = Object.fromEntries(url.searchParams);
   const ip = clientIp(req);
 
-  /* ---------- OPERAÇÃO ---------- */
+  /* ===== Votações nominais da Câmara (rota específica com cache 1h) ===== */
+  if (p === '/api/camara/votacoes' && req.method === 'GET') {
+    const now = Date.now();
+    if (CAMARA_CACHE.votacoes.data && (now - CAMARA_CACHE.votacoes.ts) < CAMARA_TTL) {
+      return sendJson(res, 200, CAMARA_CACHE.votacoes.data);
+    }
+    try {
+      const itens = parseInt(q.itens || '30', 10);
+      const pagina = parseInt(q.pagina || '1', 10);
+      const ordem = q.ordem || 'DESC';
+      const ordenarPor = q.ordenarPor || 'data';
+      const r = await fetch(`https://dadosabertos.camara.leg.br/api/v2/votacoes?itens=${itens}&pagina=${pagina}&ordem=${ordem}&ordenarPor=${ordenarPor}`, { headers: { Accept: 'application/json' } });
+      if (!r.ok) return sendJson(res, r.status === 404 ? 404 : 502, { ok: false, error: 'Câmara respondeu ' + r.status });
+      const j = await r.json();
+      CAMARA_CACHE.votacoes = { ts: now, data: j };
+      return sendJson(res, 200, j);
+    } catch (e) {
+      return sendJson(res, 502, { ok: false, error: 'Falha ao buscar votações: ' + e.message });
+    }
+  }
+
+  /* ===== Votos individuais de uma votação (com cache 1h por votação) ===== */
+  const mVotos = p.match(/^\/api\/camara\/votacoes\/(\d+)\/votos$/);
+  if (mVotos && req.method === 'GET') {
+    const votacaoId = mVotos[1];
+    const cacheKey = 'votos-' + votacaoId;
+    const now = Date.now();
+    if (CAMARA_CACHE[cacheKey] && (now - CAMARA_CACHE[cacheKey].ts) < CAMARA_TTL) {
+      return sendJson(res, 200, CAMARA_CACHE[cacheKey].data);
+    }
+    try {
+      const r = await fetch(`https://dadosabertos.camara.leg.br/api/v2/votacoes/${votacaoId}/votos`, { headers: { Accept: 'application/json' } });
+      if (!r.ok) return sendJson(res, r.status === 404 ? 404 : 502, { ok: false, error: 'Câmara respondeu ' + r.status });
+      const j = await r.json();
+      CAMARA_CACHE[cacheKey] = { ts: now, data: j };
+      return sendJson(res, 200, j);
+    } catch (e) {
+      return sendJson(res, 502, { ok: false, error: 'Falha ao buscar votos: ' + e.message });
+    }
+  }
+
+  /* Proxy simples para a API da Câmara (outros endpoints) */
+  if (p.startsWith('/api/camara/') && req.method === 'GET') {
+    const camaraPath = p.replace('/api/camara/', '');
+    if (!/^[\w/-]+$/.test(camaraPath)) return sendJson(res, 400, { ok: false, error: 'caminho inválido' });
+    try {
+      const r = await fetch('https://dadosabertos.camara.leg.br/api/v2/' + camaraPath + (url.search || ''), { headers: { Accept: 'application/json' } });
+      if (!r.ok) return sendJson(res, r.status === 404 ? 404 : 502, { ok: false, error: 'Câmara respondeu ' + r.status });
+      const j = await r.json();
+      res.writeHead(200, Object.assign({}, SEC_HEADERS, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*'
+      }));
+      return res.end(JSON.stringify(j));
+    } catch (e) {
+      return sendJson(res, 502, { ok: false, error: 'Falha ao consultar a Câmara: ' + e.message });
+    }
+  }
+
+  /* ===== Eleições 2026 (TSE) com paginação ===== */
+  if (p === '/api/candidatos-tse' && req.method === 'GET') {
+    try {
+      const all = tse.getCandidatos();
+      let lista = all.candidatos || [];
+      const ano = q.ano;
+      if (ano) lista = lista.filter(c => !c.ano || String(c.ano) === String(ano));
+      if (q.cargo) lista = lista.filter(c => String(c.cargo) === String(q.cargo));
+      if (q.uf) lista = lista.filter(c => c.uf === q.uf);
+      if (q.situacao) {
+        const sitUpper = String(q.situacao).toUpperCase();
+        lista = lista.filter(c => {
+          const v = String(c.situacao || '').toUpperCase();
+          if (sitUpper === 'DEFERIDO') return /DEFERIDO|APTO/.test(v);
+          if (sitUpper === 'PENDENTE') return /SUB|PENDENTE/.test(v);
+          if (sitUpper === 'INAPTO') return /INAPTO|INDEF|CANCEL|CASSADO/.test(v);
+          return true;
+        });
+      }
+      const busca = (q.busca || q.q || '').toLowerCase().trim();
+      if (busca) {
+        lista = lista.filter(c =>
+          (c.nomeUrna || c.nome || '').toLowerCase().includes(busca) ||
+          String(c.numero || '').includes(busca) ||
+          (c.partido || '').toLowerCase().includes(busca)
+        );
+      }
+      // Paginação
+      const pagina = Math.max(1, parseInt(q.pagina || '1', 10));
+      const porPagina = Math.min(100, Math.max(10, parseInt(q.porPagina || '50', 10)));
+      const total = lista.length;
+      const totalPaginas = Math.ceil(total / porPagina);
+      const inicio = (pagina - 1) * porPagina;
+      const candidatos = lista.slice(inicio, inicio + porPagina);
+      
+      return sendJson(res, 200, {
+        ok: true,
+        mode: all.mode,
+        aviso: all.aviso,
+        ano: parseInt(ano || '2026', 10),
+        total,
+        totalPaginas,
+        pagina,
+        porPagina,
+        retornados: candidatos.length,
+        candidatos
+      });
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: e.message });
+    }
+  }
+
+  if (p === '/api/noticias' && req.method === 'GET') {
+    try { await refreshNoticias(q.force === '1'); } catch (_) { }
+    const uf = (q.uf || '').toUpperCase();
+    let lista = NEWS_CACHE.items;
+    if (uf === 'GERAL') lista = lista.filter(n => !n.uf || n.uf === 'BR');
+    else if (uf) lista = lista.filter(n => n.uf === uf);
+    return sendJson(res, 200, {
+      ok: true,
+      geradoEm: new Date(NEWS_CACHE.ts).toISOString(),
+      total: lista.length,
+      fontes: NEWS_FEEDS.map(f => f.fonte),
+      noticias: lista
+    });
+  }
 
   if (p === '/api/health') {
     let registros = 0;
-    try { registros = db.countBallots(); } catch (_) { /* storage indisponível */ }
+    try { registros = db.countBallots(); } catch (_) { }
     return sendJson(res, 200, {
       ok: true,
       uptimeSec: Math.round(process.uptime()),
@@ -198,8 +393,6 @@ async function handleApi(req, res, url) {
     });
   }
 
-  /* ---------- DADOS PÚBLICOS ---------- */
-
   if (p === '/api/status') {
     return sendJson(res, 200, {
       ok: true,
@@ -207,8 +400,7 @@ async function handleApi(req, res, url) {
       api: 'https://dadosabertos.camara.leg.br/api/v2',
       senadoApi: 'https://legis.senado.leg.br/dadosabertos',
       aviso: 'Os dados reais vêm das APIs abertas da Câmara dos Deputados e do Senado Federal. ' +
-             'TSE, Portal da Transparência e CNJ são as fontes de produção ' +
-             '(ver README.md).'
+             'TSE, Portal da Transparência e CNJ são as fontes de produção (ver README.md).'
     });
   }
 
@@ -244,18 +436,8 @@ async function handleApi(req, res, url) {
       const deputados = depResult.list.map(d => ({ ...d, position: 'Deputado Federal' }));
       const senadores = senResult.list.map(s => ({ ...s, position: 'Senador Federal' }));
       const todos = [...deputados, ...senadores];
-      // Estatísticas já enriquecidas (cache em disco) entram na listagem,
-      // sem novas chamadas à API — cada card ganha "N PLs" quando disponível.
-      for (const c of todos) {
-        if (c.id && c.id.indexOf('camara-') === 0) {
-          const enrich = readEnrichCache(c.id.slice(7));
-          if (enrich && enrich.billsAuthored != null) {
-            c.billsAuthored = enrich.billsAuthored;
-            c.hasFullData = true;
-          }
-        }
-      }
-      const candidatos = applyQuery(todos, q);
+      const verSet = new Set(Object.keys(verificacao.getAllVerified()));
+      const candidatos = applyQuery(todos, q).map(c => (verSet.has(c.id) ? { ...c, selo: true, verificado: true } : c));
       return sendJson(res, 200, {
         mode: 'real',
         source: 'Câmara dos Deputados + Senado Federal',
@@ -283,7 +465,6 @@ async function handleApi(req, res, url) {
   if (m && m[0] !== '/api/candidatos/comparar' && !p.startsWith('/api/candidatos/detalhes/')) {
     const id = m[0].replace('/api/candidatos/', '');
     try {
-      // Busca em deputados e senadores (o id carrega o prefixo 'camara-' ou 'senado-')
       const [depResult, senResult] = await Promise.all([
         fetchDeputados(),
         fetchSenadores()
@@ -304,13 +485,11 @@ async function handleApi(req, res, url) {
           cand.hasFullData = true;
         }
       }
-      return sendJson(res, 200, { mode: 'real', source: fonte, candidato: cand });
+      return sendJson(res, 200, { ok: true, mode: 'real', source: fonte, candidato: cand });
     } catch (e) {
       return sendJson(res, 502, { error: e.message });
     }
   }
-
-  /* ---------- VOTO CONTÍNUO E REVOGÁVEL ---------- */
 
   if (p === '/api/termometro' && req.method === 'GET') {
     try {
@@ -335,9 +514,8 @@ async function handleApi(req, res, url) {
       JSON.stringify(Object.assign({ ok: true, ts: new Date().toISOString() }, votes.totals())) +
       '\n\n');
     streamClients.add(res);
-    // Heartbeat mantém a conexão viva atrás de proxies/CDN.
     const heartbeat = setInterval(() => {
-      try { res.write(':hb\n\n'); } catch (_) { /* cliente já foi */ }
+      try { res.write(':hb\n\n'); } catch (_) { }
     }, 30000);
     req.on('close', () => { clearInterval(heartbeat); streamClients.delete(res); });
     return;
@@ -355,7 +533,8 @@ async function handleApi(req, res, url) {
     let body;
     try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
     try {
-      const r = await votes.castVote(body, ip);
+      const voter = auth.getVoterFromToken(body.sessionToken || '');
+      const r = await votes.castVote({ ...body, voterHash: voter ? voter.voterHash : null }, ip);
       return sendJson(res, r.ok ? 201 : (r.status || 400), r);
     } catch (e) {
       return sendJson(res, 500, { ok: false, error: 'Erro interno ao votar: ' + e.message });
@@ -366,9 +545,16 @@ async function handleApi(req, res, url) {
     let body;
     try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
     const code = String(body.code || '').trim();
-    if (!code) return sendJson(res, 400, { ok: false, error: 'Código é obrigatório' });
-    const r = votes.revokeVote(code, ip);
-    return sendJson(res, r.ok ? 200 : (r.status || 400), r);
+    if (code) {
+      const r = votes.revokeVote(code, ip);
+      return sendJson(res, r.ok ? 200 : (r.status || 400), r);
+    }
+    const ballotId = String(body.ballotId || '').trim();
+    if (ballotId) {
+      const r = votes.revokeBallotById(ballotId, ip);
+      return sendJson(res, r.ok ? 200 : (r.status || 400), r);
+    }
+    return sendJson(res, 400, { ok: false, error: 'Código ou ballotId é obrigatório' });
   }
 
   if (p === '/api/voto/manter' && req.method === 'POST') {
@@ -379,8 +565,6 @@ async function handleApi(req, res, url) {
     const r = votes.reaffirmVote(code, ip);
     return sendJson(res, r.ok ? 200 : (r.status || 400), r);
   }
-
-  /* ---------- AUTENTICAÇÃO (Google + Telefone) ---------- */
 
   if (p === '/api/auth/google' && req.method === 'POST') {
     let body;
@@ -422,8 +606,6 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
-  /* ---------- E-MAIL AUTH ---------- */
-
   if (p === '/api/auth/email/send' && req.method === 'POST') {
     let body;
     try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
@@ -451,14 +633,12 @@ async function handleApi(req, res, url) {
     } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
   }
 
-  /* ---------- VERIFICAÇÃO DE POLÍTICOS ---------- */
-  /* ---------- VERIFICAÇÃO DE POLÍTICOS ---------- */
-
   if (p === '/api/verificacao/iniciar' && req.method === 'POST') {
     let body;
     try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
     try {
-      const r = verificacao.startVerification(body.politicianId || '', body.email || '');
+      const baseUrl = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+      const r = await verificacao.startVerification(body.politicianId || '', body.email || '', baseUrl);
       return sendJson(res, 200, r);
     } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
   }
@@ -467,8 +647,14 @@ async function handleApi(req, res, url) {
     const token = q.token || '';
     try {
       const r = verificacao.confirmVerification(token);
-      return sendJson(res, 200, r);
-    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+      if (q.formato === 'json') return sendJson(res, 200, r);
+      res.writeHead(302, { Location: '/index.html?verificado=1' });
+      return res.end();
+    } catch (e) {
+      if (q.formato === 'json') return sendJson(res, 400, { ok: false, error: e.message });
+      res.writeHead(302, { Location: '/index.html?verificado=0&erro=' + encodeURIComponent(e.message) });
+      return res.end();
+    }
   }
 
   if (p === '/api/verificacao/dominios' && req.method === 'GET') {
@@ -484,8 +670,6 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, details: verificacao.getVerificationDetails(pid), stats: reclamacoes.getPoliticianStats(pid) });
   }
 
-  /* ---------- RECLAMAÇÕES, APOIOS, RESPOSTAS ---------- */
-
   if (p === '/api/reclamacoes' && req.method === 'POST') {
     let body;
     try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
@@ -493,7 +677,7 @@ async function handleApi(req, res, url) {
     const voter = auth.getVoterFromToken(token);
     if (!voter) return sendJson(res, 401, { ok: false, error: 'Faça login para reclamar' });
     try {
-      const r = reclamacoes.createComplaint({ politicianId: body.politicianId, voterHash: voter.voterHash, voterIp: ip, content: body.content });
+      const r = reclamacoes.createComplaint({ politicianId: resolvePoliticianId(body.politicianId), voterHash: voter.voterHash, voterIp: ip, content: body.content });
       return sendJson(res, 201, r);
     } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
   }
@@ -508,6 +692,23 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, complaints: list, stats: reclamacoes.getGlobalStats() });
   }
 
+  if (p === '/api/reclamacoes/public' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const pid = resolvePoliticianId(body.politicianId || body.politicoId || '');
+    const tipo = body.tipo || 'rec';
+    const content = (body.titulo || '') + ' — ' + (body.descricao || body.content || '');
+    const voterHash = 'anon-' + require('crypto').createHash('sha256').update(ip + ':' + Date.now()).digest('hex').slice(0, 16);
+    try {
+      if (tipo === 'apoio') {
+        const r = reclamacoes.createSupport({ politicianId: pid, voterHash, voterIp: ip, content });
+        return sendJson(res, 201, r);
+      }
+      const r = reclamacoes.createComplaint({ politicianId: pid, voterHash, voterIp: ip, content });
+      return sendJson(res, 201, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
   if (p === '/api/apoios' && req.method === 'POST') {
     let body;
     try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
@@ -515,7 +716,7 @@ async function handleApi(req, res, url) {
     const voter = auth.getVoterFromToken(token);
     if (!voter) return sendJson(res, 401, { ok: false, error: 'Faça login para apoiar' });
     try {
-      const r = reclamacoes.createSupport({ politicianId: body.politicianId, voterHash: voter.voterHash, voterIp: ip, content: body.content });
+      const r = reclamacoes.createSupport({ politicianId: resolvePoliticianId(body.politicianId), voterHash: voter.voterHash, voterIp: ip, content: body.content });
       return sendJson(res, 201, r);
     } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
   }
@@ -527,6 +728,11 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, supports: list });
   }
 
+  if (p === '/api/feed' && req.method === 'GET') {
+    const feed = reclamacoes.listAllFeed({ limit: parseInt(q.limit || 50), offset: parseInt(q.offset || 0) });
+    return sendJson(res, 200, { ok: true, feed, stats: reclamacoes.getGlobalStats() });
+  }
+
   if (p === '/api/respostas' && req.method === 'POST') {
     let body;
     try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
@@ -534,7 +740,7 @@ async function handleApi(req, res, url) {
     const voter = auth.getVoterFromToken(token);
     if (!voter) return sendJson(res, 401, { ok: false, error: 'Faça login' });
     try {
-      const r = reclamacoes.createResponse({ complaintId: body.complaintId, politicianId: body.politicianId, content: body.content, sessionToken: token });
+      const r = reclamacoes.createResponse({ complaintId: body.complaintId, politicianId: resolvePoliticianId(body.politicianId), content: body.content, sessionToken: token });
       return sendJson(res, 201, r);
     } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
   }
@@ -548,128 +754,100 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, stats: reclamacoes.getPoliticianStats(pid) });
   }
 
-  // === PLs - PROJETOS DE LEI ===
-  if (p === '/api/pls' && req.method === 'GET') {
-    const url = new URL(req.url, 'http://x');
-    const search = url.searchParams.get('q') || '';
-    const party = url.searchParams.get('party') || '';
-    const chamber = url.searchParams.get('chamber') || '';
-    const list = Object.values(db.getPlsByFilters({ search, party, chamber, limit: 200 }));
-    return sendJson(res, 200, { ok: true, total: list.length, pls: list });
-  }
+  /* ================= INTEGRAÇÃO FRONTEND (PLs, conferir, meus votos, comparar) ================= */
 
-  if (p.startsWith('/api/pls/') && req.method === 'GET') {
-    const id = decodeURIComponent(p.replace('/api/pls/', ''));
-    const pl = db.getPl(id);
-    if (!pl) return sendJson(res, 404, { error: 'PL nao encontrado' });
-    return sendJson(res, 200, { ok: true, pl });
+  if (p === '/api/pls' && req.method === 'GET') {
+    try {
+      let all = Object.values(db.readAllPls());
+      if (!all.length) { try { seedPls.seed(); all = Object.values(db.readAllPls()); } catch (_) { } }
+      return sendJson(res, 200, { ok: true, mode: 'real', total: all.length, pls: all });
+    } catch (e) { return sendJson(res, 500, { ok: false, error: e.message }); }
   }
 
   if (p === '/api/pls/voto' && req.method === 'POST') {
-    const body = await readJsonBody(req);
-    const { plId, vote, sessionToken } = body;
-    if (!plId || !['aprovo', 'nao_aprovo'].includes(vote)) return sendJson(res, 400, { error: 'plId e vote (aprovo|nao_aprovo) sao obrigatorios' });
-    const voter = auth.getVoterFromToken(sessionToken);
-    if (!voter) return sendJson(res, 401, { error: 'Autenticacao necessaria para votar em PL' });
-    const r = db.castPlVote(plId, voter.voterHash, vote);
-    const pl = db.getPl(plId);
-    return sendJson(res, 200, { ok: true, ...r, pl });
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const voter = auth.getVoterFromToken(body.sessionToken || '');
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Faça login para votar em PLs' });
+    const vote = body.vote === 'aprovo' ? 'aprovo' : (body.vote === 'nao_aprovo' ? 'nao_aprovo' : null);
+    if (!vote) return sendJson(res, 400, { ok: false, error: 'vote deve ser "aprovo" ou "nao_aprovo"' });
+    const plId = String(body.plId || '');
+    if (!db.getPl(plId)) return sendJson(res, 404, { ok: false, error: 'PL não encontrado' });
+    try {
+      db.castPlVote(plId, voter.voterHash, vote);
+      const updated = db.getPl(plId);
+      return sendJson(res, 200, { ok: true, pl: { id: updated.id, approvalCount: updated.approvalCount, rejectionCount: updated.rejectionCount } });
+    } catch (e) { return sendJson(res, 500, { ok: false, error: e.message }); }
   }
 
-  if (p === '/api/pls/meu-voto' && req.method === 'GET') {
-    const url = new URL(req.url, 'http://x');
-    const plId = url.searchParams.get('plId');
-    const sessionToken = url.searchParams.get('sessionToken') || url.searchParams.get('token');
-    const voter = auth.getVoterFromToken(sessionToken);
-    if (!voter || !plId) return sendJson(res, 200, { ok: true, vote: null });
-    return sendJson(res, 200, { ok: true, vote: db.getPlVoteForVoter(plId, voter.voterHash) });
-  }
-
-  // === CÓDIGO DE VERIFICAÇÃO DE VOTO (Conferir Voto) ===
-  if (p === '/api/voto/codigo' && req.method === 'POST') {
-    const body = await readJsonBody(req);
-    const { sessionToken } = body;
-    const voter = auth.getVoterFromToken(sessionToken);
-    if (!voter) return sendJson(res, 401, { error: 'Autenticacao necessaria' });
-    const code = db.generateVoteCode(voter.voterHash);
-    // Formata com espaços
-    const formatted = code.match(/.{1,4}/g).join(' ');
-    return sendJson(res, 200, { ok: true, code, formatted, voterHash: voter.voterHash });
-  }
-
-  if (p === '/api/voto/codigos' && req.method === 'GET') {
-    const url = new URL(req.url, 'http://x');
-    const sessionToken = url.searchParams.get('sessionToken') || url.searchParams.get('token');
-    const voter = auth.getVoterFromToken(sessionToken);
-    if (!voter) return sendJson(res, 401, { error: 'Autenticacao necessaria' });
-    const codes = db.getVoteCodesForVoter(voter.voterHash).map(c => ({
-      ...c,
-      formatted: c.code.match(/.{1,4}/g).join(' ')
-    }));
-    return sendJson(res, 200, { ok: true, codes });
+  if (p === '/api/voto/revogados' && req.method === 'GET') {
+    try {
+      const r = await votes.getRevogados();
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 500, { ok: false, error: e.message }); }
   }
 
   if (p === '/api/voto/conferir' && req.method === 'POST') {
-    const body = await readJsonBody(req);
-    const { code } = body;
-    const r = db.verifyVoteCode(code);
-    if (!r) return sendJson(res, 404, { error: 'Codigo nao encontrado' });
-    // Retorna os votos ativos do eleitor
-    const all = db.readAllBallots();
-    const meusVotos = Object.values(all).filter(b => b.voterHash === r.voterHash || b.id.startsWith('voter-'));
-    return sendJson(res, 200, { ok: true, code: r.code, voterHash: r.voterHash, votos: meusVotos });
-  }
-
-  // === DETALHES COMPLETOS DE CANDIDATO (fontes oficiais) ===
-  if (p.startsWith('/api/candidatos/detalhes/') && req.method === 'GET') {
-    const id = decodeURIComponent(p.replace('/api/candidatos/detalhes/', ''));
-    const d = db.getPoliticianFullDetails(id);
-    if (!d) return sendJson(res, 404, { error: 'Candidato nao encontrado' });
-    return sendJson(res, 200, { ok: true, candidato: d });
-  }
-
-  // === COMPARAÇÃO (até 3 políticos) ===
-  if (p === '/api/candidatos/comparar' && req.method === 'POST') {
-    const body = await readJsonBody(req);
-    const ids = (body.ids || []).slice(0, 3);
-    if (ids.length < 2) return sendJson(res, 400, { error: 'Selecione pelo menos 2 candidatos' });
-    try {
-      const [depResult, senResult] = await Promise.all([
-        fetchDeputados(),
-        fetchSenadores()
-      ]);
-      const all = [...depResult.list, ...senResult.list];
-      const candidatos = ids
-        .map(id => all.find(c => c.id === id))
-        .filter(Boolean)
-        .map(c => ({ ...c, ...db.getPoliticianFullDetails(c.id) }));
-      if (candidatos.length < 2) return sendJson(res, 404, { error: 'Candidatos não encontrados' });
-      return sendJson(res, 200, { ok: true, candidatos });
-    } catch (e) {
-      return sendJson(res, 500, { error: 'Falha ao comparar: ' + e.message });
-    }
-  }
-
-  // === POLÍTICOS COM VOTOS REVOGADOS ===
-  if (p === '/api/voto/revogados' && req.method === 'GET') {
-    const stats = db.getRevokedStats();
-    return sendJson(res, 200, { ok: true, total: stats.length, politicos: stats });
-  }
-
-  // === MEUS VOTOS (para revogar) ===
-  if (p === '/api/voto/meus' && req.method === 'GET') {
-    const url = new URL(req.url, 'http://x');
-    const sessionToken = url.searchParams.get('sessionToken') || url.searchParams.get('token');
-    const voter = auth.getVoterFromToken(sessionToken);
-    if (!voter) return sendJson(res, 401, { error: 'Autenticacao necessaria' });
-    const all = db.readAllBallots();
-    const meus = Object.values(all).filter(b => !b.revoked);
-    // Enriquece com dados do político
-    const enriched = meus.map(b => {
-      const pol = db.getPolitician(b.politicianId);
-      return { ...b, politician: pol };
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const code = String(body.code || '').replace(/[\s-]/g, '');
+    const rec = code ? db.verifyVoteCode(code) : null;
+    if (!rec) return sendJson(res, 404, { ok: false, error: 'Código não encontrado' });
+    let vinculados = [];
+    try { vinculados = (db.getBallotsByVoter(rec.voterHash) || []).filter(b => !b.revoked); } catch (_) { }
+    return sendJson(res, 200, {
+      ok: true,
+      voterHash: rec.voterHash,
+      votos: vinculados.map(b => ({ id: b.ballotId, politicianId: b.politicianId, createdAt: b.createdAt }))
     });
-    return sendJson(res, 200, { ok: true, total: enriched.length, votos: enriched });
+  }
+
+  if (p === '/api/voto/codigo' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const voter = auth.getVoterFromToken(body.sessionToken || '');
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Faça login para gerar o código' });
+    try {
+      const codes = db.getVoteCodesForVoter(voter.voterHash);
+      const code = (codes && codes.length) ? codes[0].code : db.generateVoteCode(voter.voterHash);
+      return sendJson(res, 200, { ok: true, code, formatted: code.replace(/(.{4})/g, '$1 ').trim() });
+    } catch (e) { return sendJson(res, 500, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/voto/meus' && req.method === 'GET') {
+    const voter = auth.getVoterFromToken(q.sessionToken || (req.headers.authorization || '').replace('Bearer ', ''));
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Faça login para ver seus votos' });
+    try {
+      const votos = await votes.getBallotsForVoter(voter.voterHash);
+      return sendJson(res, 200, { ok: true, votos });
+    } catch (e) { return sendJson(res, 500, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/candidatos/comparar' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const ids = Array.isArray(body.ids) ? body.ids.map(String).slice(0, 4) : [];
+    if (!ids.length) return sendJson(res, 400, { ok: false, error: 'ids é obrigatório' });
+    try {
+      const [depResult, senResult] = await Promise.all([fetchDeputados(), fetchSenadores()]);
+      const todos = [
+        ...depResult.list.map(d => ({ ...d, position: 'Deputado Federal' })),
+        ...senResult.list.map(s => ({ ...s, position: 'Senador Federal' }))
+      ];
+      const escolhidos = ids.map(id => todos.find(c => c.id === id)).filter(Boolean);
+      if (!escolhidos.length) return sendJson(res, 404, { ok: false, error: 'Nenhum candidato encontrado' });
+      return sendJson(res, 200, { ok: true, candidatos: escolhidos });
+    } catch (e) { return sendJson(res, 502, { ok: false, error: e.message }); }
+  }
+
+  if (p === '/api/verificacao/solicitar' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    try {
+      const baseUrl = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+      const r = await verificacao.startVerification(body.politicianId || '', body.email || '', baseUrl);
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
   }
 
   return sendJson(res, 404, { error: 'Rota de API não encontrada' });
@@ -716,18 +894,15 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log('\n  🇧🇷  MudaBrasil rodando em  http://localhost:' + PORT + '\n');
   console.log('    Frontend:       http://localhost:' + PORT + '/');
-  console.log('    Termômetro:     http://localhost:' + PORT + '/pages/termometro.html');
-  console.log('    Candidatos:     http://localhost:' + PORT + '/pages/candidatos.html');
   console.log('    API (lista):    http://localhost:' + PORT + '/api/candidatos');
   console.log('    API (senadores): http://localhost:' + PORT + '/api/senadores');
   console.log('    API (voto):     POST http://localhost:' + PORT + '/api/voto');
   console.log('    API (termômetro):GET  http://localhost:' + PORT + '/api/termometro');
   console.log('    Tempo real:     GET  http://localhost:' + PORT + '/api/stream (SSE)');
   console.log('    Health:         GET  http://localhost:' + PORT + '/api/health\n');
-  console.log('    Parlamentares:  http://localhost:' + PORT + '/pages/parlamentares.html');
   console.log('    Auth:           POST /api/auth/{google,otp/send,otp/verify,me,logout}');
   console.log('    Verificação:    /api/verificacao/{iniciar,confirmar,dominios,stats,politico/:id}');
   console.log('    Reclamações:    /api/{reclamacoes,apoios,respostas,rankings}');
@@ -737,29 +912,28 @@ server.listen(PORT, () => {
   if (migrated > 0) console.log('    Migração:       ' + migrated + ' cédulas importadas de votos.json → votos.db');
   console.log('    Atualização:    dados públicos a cada ' + REFRESH_HOURS + 'h (automática)');
   console.log('    Encerramento:   Ctrl+C / SIGTERM fecham o banco com segurança\n');
-  // Pré-enriquecimento em background: popula o cache de proposições de
-  // autoria dos deputados em ritmo suave (250ms entre chamadas), para os
-  // cards da listagem exibirem "N PLs" sem esperar o usuário abrir o detalhe.
-  enrichAllDeputies({ delayMs: 250 }).catch(err =>
-    console.warn('[enrich] lote em segundo plano falhou: ' + err.message)
-  );
+  
+  // Popula cache de incumbentes (deputados + senadores em mandato) para Eleições 2026
+  try {
+    const [depResult, senResult] = await Promise.all([fetchDeputados(), fetchSenadores()]);
+    const incumbentes = [
+      ...depResult.list.map(d => ({ ...d, position: 'Deputado Federal' })),
+      ...senResult.list.map(s => ({ ...s, position: 'Senador Federal' }))
+    ];
+    tse.setIncumbents(incumbentes);
+    console.log('    🗳️  Cache de incumbentes: ' + incumbentes.length + ' parlamentares (Eleições 2026 fallback)\n');
+  } catch (e) {
+    console.warn('    ⚠️  Falha ao carregar incumbentes: ' + e.message + '\n');
+  }
 });
 
-/* ---- Encerramento gracioso ----
-   Em SIGINT/SIGTERM (Ctrl+C, docker stop, systemctl stop) fecha o
-   banco de forma ordenada antes de sair — nenhuma cédula perdida,
-   nenhum arquivo corrompido. (No Windows, kill direto pelo processo
-   ignora o handler; em Linux/Docker, que é o alvo de produção,
-   o encerramento é limpo.) */
 let shuttingDown = false;
 function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log('\n[server] ' + signal + ' recebido — encerrando com segurança…');
-  try { db.close(); } catch (_) { /* já fechado */ }
+  try { db.close(); } catch (_) { }
   server.close(() => process.exit(0));
-  // Rede de segurança: se conexões SSE mantiverem o servidor aberto,
-  // sai de qualquer forma em 2 s.
   setTimeout(() => process.exit(0), 2000).unref();
 }
 process.on('SIGINT', () => shutdown('SIGINT'));

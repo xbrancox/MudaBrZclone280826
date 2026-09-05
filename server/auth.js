@@ -1,7 +1,7 @@
 /* ============================================================
    MUDABRASIL - AUTENTICACAO DE ELEITORES
    ------------------------------------------------------------
-   Login via Google OAuth 2.0 ou Telefone (SMS OTP).
+   Login via Google OAuth 2.0, Telefone (SMS OTP) ou E-mail (OTP).
    Sem Gov.br - apenas identificacao basica.
    Modo dev aceita tokens "google:email:nome" e OTP retornado.
    ============================================================ */
@@ -15,7 +15,9 @@ const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_PHONE = process.env.TWILIO_PHONE || '';
 
-const otpStore = new Map(); const emailOtpStore = new Map();
+const otpStore = new Map();
+const emailOtpStore = new Map();
+const sessionStore = new Map();
 
 async function verifyGoogleToken(idToken) {
   if (AUTH_MODE === 'dev' || !GOOGLE_CLIENT_ID) {
@@ -117,37 +119,6 @@ async function verifyOtp(phone, code) {
   };
 }
 
-const sessionStore = new Map();
-function generateSessionToken(voter) {
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-  sessionStore.set(token, { voterId: voter.id, expiresAt: expiresAt });
-  return token;
-}
-
-function getVoterFromToken(token) {
-  if (!token) return null;
-  const session = sessionStore.get(token);
-  if (!session) return null;
-  if (Date.now() > session.expiresAt) { sessionStore.delete(token); return null; }
-  return db.getVoterById(session.voterId);
-}
-
-function logout(token) { sessionStore.delete(token); }
-
-module.exports = {
-  verifyGoogleToken: verifyGoogleToken, loginWithGoogle: loginWithGoogle,
-  sendOtp: sendOtp, verifyOtp: verifyOtp,
-  sendEmailOtp: sendEmailOtp, verifyEmailOtp: verifyEmailOtp,
-  register: register,
-  generateSessionToken: generateSessionToken, getVoterFromToken: getVoterFromToken, logout: logout,
-  AUTH_MODE: AUTH_MODE
-};
-
-/* ============================================================
-   E-MAIL (OTP via e-mail)
-   ============================================================ */
-
 async function sendEmailOtp(email) {
   const emailStr = String(email).trim().toLowerCase();
   if (!emailStr.includes('@') || !emailStr.includes('.')) {
@@ -196,3 +167,28 @@ async function register(email, name, phone) {
   return { ok: true, voter: { id: voter.id, method: voter.method, name: voter.name, email: voter.email, phone: voter.phone, voterHash: voter.voterHash }, sessionToken: sessionToken };
 }
 
+function generateSessionToken(voter) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+  sessionStore.set(token, { voterId: voter.id, expiresAt: expiresAt });
+  return token;
+}
+
+function getVoterFromToken(token) {
+  if (!token) return null;
+  const session = sessionStore.get(token);
+  if (!session) return null;
+  if (Date.now() > session.expiresAt) { sessionStore.delete(token); return null; }
+  return db.getVoterById(session.voterId);
+}
+
+function logout(token) { sessionStore.delete(token); }
+
+module.exports = {
+  verifyGoogleToken, loginWithGoogle,
+  sendOtp, verifyOtp,
+  sendEmailOtp, verifyEmailOtp,
+  register,
+  generateSessionToken, getVoterFromToken, logout,
+  AUTH_MODE
+};

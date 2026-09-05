@@ -29,11 +29,6 @@ function ensureDirs() {
   if (!fs.existsSync(ENRICH_DIR)) fs.mkdirSync(ENRICH_DIR, { recursive: true });
 }
 
-/**
- * Normaliza um registro bruto da API da Câmara para o schema
- * de candidato usado pelo frontend. Campos que a fonte não
- * fornece ficam nulos (o frontend trata nulos com elegância).
- */
 function normalizeDep(dep) {
   return {
     id: 'camara-' + dep.id,
@@ -65,13 +60,6 @@ function normalizeDep(dep) {
   };
 }
 
-/**
- * Retorna a lista de deputados reais, usando o cache em disco
- * quando disponível. Emite um novo request à API apenas quando
- * o cache não existe ou `force` é verdadeiro.
- * @param {{force?:boolean}} opts
- * @returns {Promise<{list:Array, fromCache:boolean, updatedAt:string|null, count:number}>}
- */
 async function fetchDeputados({ force = false } = {}) {
   ensureDirs();
   if (!force && fs.existsSync(DEP_FILE)) {
@@ -85,7 +73,7 @@ async function fetchDeputados({ force = false } = {}) {
           count: cached.dados.length
         };
       }
-    } catch (_) { /* cache corrompido -> rebusca */ }
+    } catch (_) { }
   }
 
   const res = await fetch(API_BASE + '/deputados', {
@@ -104,13 +92,6 @@ async function fetchDeputados({ force = false } = {}) {
   };
 }
 
-/**
- * Enriquecimento sob demanda (melhor esforço): número de
- * proposições de autoria de um parlamentar. O resultado
- * somente é em cache quando tem sucesso; em erro, não bloqueia.
- * @param {string|number} camaraId - id numérico do parlamentar na Câmara
- * @returns {Promise<{billsAuthored:number|null, error?:string}>}
- */
 async function enrichBills(camaraId) {
   ensureDirs();
   const f = path.join(ENRICH_DIR, String(camaraId) + '.json');
@@ -118,7 +99,7 @@ async function enrichBills(camaraId) {
     try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) {}
   }
   try {
-    const res = await fetch(API_BASE + '/proposicoes?idDeputadoAutor=' + encodeURIComponent(camaraId), {
+    const res = await fetch(API_BASE + '/proposicoes?autorId=' + encodeURIComponent(camaraId), {
       headers: { 'User-Agent': UA, 'Accept': 'application/json' }
     });
     if (!res.ok) return { billsAuthored: null, error: 'HTTP ' + res.status };
@@ -132,45 +113,4 @@ async function enrichBills(camaraId) {
   }
 }
 
-/**
- * Leitura síncrona do cache de enriquecimento (sem chamada de API).
- * Usada pela listagem para exibir estatísticas já conhecidas.
- * @param {string|number} camaraId
- * @returns {{billsAuthored:number, updatedAt?:string}|null}
- */
-function readEnrichCache(camaraId) {
-  const f = path.join(ENRICH_DIR, String(camaraId) + '.json');
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (_) { return null; }
-}
-
-/**
- * Pré-enriquecimento em lote: percorre todos os deputados reais e
- * popula o cache de proposições de autoria, com intervalo entre
- * chamadas para respeitar a API. Roda em background, não bloqueia.
- * Deputados já cacheados são pulados instantaneamente.
- * @param {{delayMs?:number}} opts
- */
-async function enrichAllDeputies({ delayMs = 250 } = {}) {
-  ensureDirs();
-  const depFile = path.join(DATA_DIR, 'deputados.json');
-  let ids = [];
-  try {
-    const cached = JSON.parse(fs.readFileSync(depFile, 'utf8'));
-    ids = (cached.dados || []).map(d => d.id).filter(Boolean);
-  } catch (_) { return; /* cache da lista ainda não existe */ }
-  if (ids.length === 0) return;
-  let ok = 0, fail = 0, skip = 0;
-  const start = Date.now();
-  for (const id of ids) {
-    if (readEnrichCache(id)) { skip++; continue; }
-    try {
-      const r = await enrichBills(id);
-      if (r && r.billsAuthored != null) ok++; else fail++;
-    } catch (_) { fail++; }
-    await new Promise(res => setTimeout(res, delayMs));
-  }
-  const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-  console.log('[enrich] lote: ' + ok + ' ok, ' + fail + ' falhas, ' + skip + ' em cache (' + ids.length + ' total) em ' + elapsed + 's');
-}
-
-module.exports = { fetchDeputados, enrichBills, readEnrichCache, enrichAllDeputies, normalizeDep, DATA_DIR, DEP_FILE };
+module.exports = { fetchDeputados, enrichBills, normalizeDep, DATA_DIR, DEP_FILE };

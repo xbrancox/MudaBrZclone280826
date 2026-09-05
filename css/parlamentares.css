@@ -393,6 +393,7 @@ select.mb-input { appearance: none; background-image: url("data:image/svg+xml;ut
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
   z-index: 30;
 }
+.mb-compare-bar[hidden], .mb-compare-panel[hidden] { display: none; }
 .mb-compare-bar-info { flex: 1; color: var(--mb-text); font-size: 14px; }
 
 .mb-compare-panel {
@@ -664,6 +665,7 @@ select.mb-input { appearance: none; background-image: url("data:image/svg+xml;ut
   padding: 20px;
   animation: mbFade .2s;
 }
+.mb-modal[hidden], .mb-toast[hidden] { display: none; }
 .mb-modal[hidden] { display: none !important; }
 .mb-modal-card {
   background: var(--mb-bg-card);
@@ -696,6 +698,24 @@ select.mb-input { appearance: none; background-image: url("data:image/svg+xml;ut
 .mb-form label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--mb-text-2); font-weight: 500; }
 .mb-form label > span { font-weight: 600; }
 .mb-form-row { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+
+/* ===================== ABAS DE INTERAÇÕES (modal de detalhes) ===================== */
+.mb-detail-tabs {
+  display: flex; gap: 4px; margin: 18px 0 12px;
+  border-bottom: 1px solid var(--mb-border); overflow-x: auto;
+}
+.mb-dtab {
+  padding: 10px 14px; background: none; border: none; cursor: pointer;
+  color: var(--mb-text-muted); font-family: inherit; font-weight: 600; font-size: 13px;
+  border-bottom: 2px solid transparent; white-space: nowrap; transition: color .2s, border-color .2s;
+}
+.mb-dtab:hover { color: var(--mb-text); }
+.mb-dtab.active { color: var(--mb-mint); border-bottom-color: var(--mb-mint); }
+.mb-dtab-count {
+  display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 4px;
+  background: rgba(52,101,164,.3); border-radius: 9999px; font-size: 11px; text-align: center;
+}
+.mb-dtab-panel { min-height: 40px; }
 
 /* ===================== AUTH MODAL ===================== */
 .mb-auth-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--mb-border); }

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MudaBrasil — Compare Candidatos, Radar Cívico, PLs</title>
-  <meta name="description" content="Plataforma cívica de voto contínuo e revogável. Compare candidatos, acompanhe reclamações, vote em PLs e revogue votos.">
+  <title>MudaBrasil — Pesquisar Políticos</title>
+  <meta name="description" content="Pesquise, filtre e compare parlamentares com dados públicos oficiais. Radar cívico, PLs no Congresso, conferir e revogar voto.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -16,11 +16,11 @@
 
   <!-- ===================== TÍTULO DA PÁGINA ===================== -->
   <section class="mb-hero">
-    <h1>🗳️ <strong>Compare Candidatos</strong></h1>
-    <p class="mb-hero-sub">Transparência total para o eleitor decidir. Todos os dados são estruturados a partir de <strong>fontes públicas oficiais</strong>: TSE, Portal da Transparência, Câmara/Senado e CNJ.</p>
+    <h1>🗳️ <strong>Pesquisar Políticos</strong></h1>
+    <p class="mb-hero-sub">Transparência total para o eleitor decidir. Busque entre os <strong>594 parlamentares em exercício</strong> (513 deputados + 81 senadores) com dados de fontes públicas oficiais.</p>
     <div class="mb-demo-banner">
-      <span class="mb-pill-icon">📌</span>
-      <span><strong>Modo demo</strong> — dados sintéticos de exemplo (API de dados reais em produção)</span>
+      <span class="mb-pill-icon">📡</span>
+      <span>Carregando dados oficiais… (Câmara dos Deputados + Senado Federal)</span>
     </div>
   </section>
 
@@ -77,7 +77,7 @@
           <select id="cand-filter-position">
             <option value="">Todos os cargos</option>
             <option value="Deputado Federal">Deputado Federal</option>
-            <option value="Senador">Senador</option>
+            <option value="Senador Federal">Senador Federal</option>
           </select>
         </label>
         <label class="mb-filter">
@@ -92,10 +92,14 @@
       </div>
 
       <div class="mb-result-count">
-        <span id="cand-count">0</span> candidato(s) encontrado(s)
+        <span id="cand-count">0</span> parlamentar(es) encontrado(s)<span id="cand-count-note" class="mb-muted-sm"></span>
       </div>
 
       <div class="mb-card-grid" id="cand-grid"></div>
+
+      <div id="cand-load-more-holder" style="text-align:center;margin:24px 0;" hidden>
+        <button class="mb-btn-secondary" id="cand-load-more">⬇️ Carregar mais</button>
+      </div>
 
       <div class="mb-compare-bar" id="compare-bar" hidden>
         <div class="mb-compare-bar-info">

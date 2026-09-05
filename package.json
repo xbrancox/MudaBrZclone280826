@@ -6,16 +6,22 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node server/index.js",
-    "test": "playwright test"
+    "test": "node tests/run-all.js"
   },
   "engines": {
     "node": ">=22.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "nodemailer": "^9.1.1"
+  },
   "devDependencies": {
     "playwright": "^1.62.1"
   },
-  "keywords": ["civic", "transparency", "brazil"],
+  "keywords": [
+    "civic",
+    "transparency",
+    "brazil"
+  ],
   "author": "MudaBrasil",
   "license": "MIT"
 }

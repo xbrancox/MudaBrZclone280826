@@ -77,13 +77,13 @@
 
   // ---- Menu de 7 itens (spec dos .docx) ----
   const NAV_LINKS = [
-    { href: 'index.html',          label: 'Início' },
-    { href: 'pages/pesquisar.html',label: 'Compare Candidatos' },
-    { href: 'pages/conferir.html', label: 'Conferir Voto' },
-    { href: 'pages/congresso.html',label: 'PLs no Congresso' },
-    { href: 'pages/revogados.html',label: 'Políticos Revogados' },
-    { href: 'pages/radar.html',    label: 'Radar Político' },
-    { href: 'pages/meu-voto.html', label: 'Revogar Voto' },
+    { href: 'index.html',               label: 'Início' },
+    { href: 'pages/parlamentares.html', label: 'Pesquisar Políticos' },
+    { href: 'pages/conferir.html',      label: 'Conferir Voto' },
+    { href: 'pages/congresso.html',     label: 'PLs no Congresso' },
+    { href: 'pages/revogados.html',     label: 'Políticos Revogados' },
+    { href: 'pages/quem-somos.html',    label: 'Quem Somos' },
+    { href: 'pages/meu-voto.html',      label: 'Revogar Voto' },
   ];
 
   // ---- Prefixo relativo (raiz = '' , pages/ = '../') ----

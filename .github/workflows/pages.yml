@@ -15,18 +15,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validar snapshot de parlamentares
+        run: |
+          node -e "
+            const d = require('./data/politicos.json');
+            if (!Array.isArray(d.candidatos) || d.candidatos.length < 500) {
+              throw new Error('Snapshot de parlamentares inválido: ' + d.candidatos.length);
+            }
+            console.log('OK:', d.detalhes.deputados, 'deputados +', d.detalhes.senadores, 'senadores');
+          "
+
+      - name: Montar site estático (dist)
+        run: |
+          mkdir -p dist
+          cp index.html dist/
+          cp -r css js data pages dist/
+          # Remove fontes do servidor e dados privados — Pages é só o front estático
+          rm -f dist/pages/status.html dist/pages/termometro.html
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
   deploy:
+    needs: build
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

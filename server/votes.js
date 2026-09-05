@@ -39,35 +39,20 @@ const SALT_FILE = path.join(DATA_DIR, '.salt');
 
 /* ---- Configuração pública (espelha o contrato do config.js) ---- */
 const DECADENCIA = { cheioDias: 90, pisoDias: 180, piso: 0.5 };
-const ICM = {
-  versao: 'v1.0',
-  vigenteDesde: '2026-08-18',
-  // Pesos oficiais do ICM. Neste protótipo calculamos o COMPONENTE
-  // de confiança (votos); resposta/cumprimento entram quando as
-  // fontes (TSE/Transparência/Radar) forem conectadas.
-  pesos: { resposta: 0.40, cumprimento: 0.35, devolucao: 0.25 }
-};
-// Constante de saturação do índice (0-100). Quanto maior K, mais
-// "difícil" chega ao topo — mantém o índice estável e comparável.
 const K_SATURACAO = 100;
 
 /* ---- Rate-limit em memória (anti-brigada) ---- */
-const RATE_LIMIT = { max: 20, windowMs: 60 * 1000 }; // 20 ações/min/IP
-const rateBuckets = new Map(); // ip -> { count, resetAt }
+const RATE_LIMIT = { max: 20, windowMs: 60 * 1000 };
+const rateBuckets = new Map();
 
-/* ---- Hook de mudança (para tempo real / SSE) ----
-   O servidor registra um callback que é invocado a cada
-   escrita bem-sucedida, para notificar os clientes conectados
-   ao /api/stream sem expor nada além de totais agregados. */
 let voteChangeHook = null;
 function onVoteChange(fn) { voteChangeHook = fn; }
 function notifyChange(tipo) {
   if (typeof voteChangeHook === 'function') {
-    try { voteChangeHook({ tipo, ts: new Date().toISOString() }); } catch (_) { /* sem efeito colateral */ }
+    try { voteChangeHook({ tipo, ts: new Date().toISOString() }); } catch (_) { }
   }
 }
 
-/** Contagens leves de ativos/revogados (para o broadcast SSE). */
 function totals() {
   const store = loadStore();
   let ativos = 0, revogados = 0;
@@ -89,7 +74,6 @@ function checkRateLimit(ip, action) {
   return { allowed: true };
 }
 
-/* ---- Salvo do servidor (gerado uma vez, persistido) ---- */
 function ensureSalt() {
   if (fs.existsSync(SALT_FILE)) {
     const s = fs.readFileSync(SALT_FILE, 'utf8').trim();
@@ -102,29 +86,23 @@ function ensureSalt() {
 }
 const SALT = ensureSalt();
 
-/** Hash do código de verificação (o bruto nunca é persistido). */
 function hashCode(code) {
   return crypto.createHash('sha256').update(String(code) + SALT).digest('hex');
 }
 
-/** Gera um código legível por humano, criptograficamente aleatório. */
 function generateCode() {
-  // Alfabeto sem caracteres ambíguos (0/O, 1/I/L) + 16 chars
   const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let code = '';
   const bytes = crypto.randomBytes(16);
   for (let i = 0; i < 16; i++) code += alphabet[bytes[i] % alphabet.length];
-  // Formata em grupos: XXXX-XXXX-XXXX-XXXX
   return code.replace(/(.{4})/g, '$1-').replace(/-$/, '');
 }
 
-/* ---- Persistência (via camada db: SQLite ou JSON) ---- */
 function loadStore() {
   return { ballots: db.readAllBallots() };
 }
 
-/* ---- Índice parlamentar (id -> dados), cache em memória ---- */
-let deputiesIndex = null; // Map<id, {id,name,party,state,photo}>
+let deputiesIndex = null;
 async function getDeputiesIndex() {
   if (deputiesIndex) return deputiesIndex;
   const { list } = await fetchDeputados();
@@ -136,32 +114,16 @@ async function getDeputiesIndex() {
   return map;
 }
 
-/* ---- Decaimento do voto ---- */
 const MS_DIA = 86400000;
-/**
- * Peso efetivo do voto com o tempo (voto esfria, não morre).
- * @param {number} anchor - epoch ms da última reafirmação (ou criação)
- * @param {number} [now]  - epoch ms de referência (padrão: agora)
- */
 function voteWeight(anchor, now = Date.now()) {
   const days = Math.max(0, (now - anchor) / MS_DIA);
   const { cheioDias, pisoDias, piso } = DECADENCIA;
   if (days <= cheioDias) return 1.0;
   if (days >= pisoDias) return piso;
-  const t = (days - cheioDias) / (pisoDias - cheioDias); // 0..1
-  return 1.0 - (1.0 - piso) * t; // linear 1.0 -> piso
+  const t = (days - cheioDias) / (pisoDias - cheioDias);
+  return 1.0 - (1.0 - piso) * t;
 }
 
-/* ============================================================
-   OPERAÇÕES (usadas pelo server/index.js)
-   ============================================================ */
-
-/**
- * Registra um VOTO DE CONFIANÇA.
- * @param {{politicianId:string, uf?:string}} input
- * @param {string} ip - apenas p/ rate-limit (NÃO persistido)
- * @returns {Promise<{ok:true, code:string, ballotId:string, politician:object}|{ok:false,error:string,status:number}>}
- */
 async function castVote(input, ip) {
   const rl = checkRateLimit(ip, 'cast');
   if (!rl.allowed) return { ok: false, status: 429, error: 'Muitas ações em pouco tempo. Aguarde um instante.' };
@@ -181,21 +143,17 @@ async function castVote(input, ip) {
     politicianId,
     uf: input.uf ? String(input.uf).toUpperCase().slice(0, 2) : null,
     createdAt: now,
-    reaffirmedAt: now, // âncora do decaimento
+    reaffirmedAt: now,
     revoked: false,
-    revokedAt: null
+    revokedAt: null,
+    voterHash: input.voterHash || null
   };
   db.upsertBallot(ballot);
   notifyChange('voto');
 
-  // Retorna o código UMA vez (nunca mais). O eleitor deve guardá-lo.
   return { ok: true, code, ballotId, politician };
 }
 
-/**
- * REVOGA um voto (o eleitor "tira de volta"). Requer o código.
- * A revogação é irreversível e anônima na agregação.
- */
 function revokeVote(code, ip) {
   const rl = checkRateLimit(ip, 'revoke');
   if (!rl.allowed) return { ok: false, status: 429, error: 'Muitas ações em pouco tempo. Aguarde um instante.' };
@@ -212,10 +170,6 @@ function revokeVote(code, ip) {
   return { ok: true, revoked: true, politicianId: ballot.politicianId };
 }
 
-/**
- * "MANTER MEU VOTO" — reafirma a confiança e reinicia o decaimento.
- * (Ritual da spec: voto >30 dias sem reconfirmação gera aviso local.)
- */
 function reaffirmVote(code, ip) {
   const rl = checkRateLimit(ip, 'reaffirm');
   if (!rl.allowed) return { ok: false, status: 429, error: 'Muitas ações em pouco tempo. Aguarde um instante.' };
@@ -231,11 +185,6 @@ function reaffirmVote(code, ip) {
   return { ok: true, reaffirmedAt: ballot.reaffirmedAt };
 }
 
-/**
- * "VER MEU VOTO" — o eleitor consulta o próprio voto pelo código.
- * Retorna os dados; a UI aplica o mascaramento anti-print (R6).
- * NUNCA expõe identidade — só o vínculo do próprio eleitor.
- */
 function viewVote(code) {
   const ballotId = hashCode(code);
   const ballot = db.getBallot(ballotId);
@@ -258,16 +207,12 @@ function viewVote(code) {
   };
 }
 
-/**
- * TERMÔMETRO — agregação pública e IRREVERSÍVEL.
- * Nunca mapeia código -> parlamentar. Só totais por parlamentar.
- */
 async function getTermometro({ topN = 10 } = {}) {
   const store = loadStore();
   const now = Date.now();
 
   const index = await getDeputiesIndex();
-  const byPolitician = new Map(); // id -> {votos, peso, revogacoes}
+  const byPolitician = new Map();
   let totalAtivos = 0, totalRevogados = 0;
 
   for (const b of Object.values(store.ballots)) {
@@ -287,7 +232,7 @@ async function getTermometro({ topN = 10 } = {}) {
   const top = [];
   for (const [pid, agg] of byPolitician.entries()) {
     const pol = index.get(pid) || { id: pid, name: '(parlamentar)', party: '—', state: '—', photo: null };
-    const indice = 100 * (agg.peso / (agg.peso + K_SATURACAO)); // saturação 0-100
+    const indice = 100 * (agg.peso / (agg.peso + K_SATURACAO));
     top.push({
       politicianId: pid,
       name: pol.name,
@@ -305,25 +250,19 @@ async function getTermometro({ topN = 10 } = {}) {
   return {
     mode: 'real',
     ok: true,
-    metodo: 'Índice de Confiança MudaBrasil (ICM) — componente de confiança',
-    icm: ICM,
+    metodo: 'Termômetro de Confiança MudaBrasil — peso com decaimento temporal (90 dias peso cheio, 180 dias piso 0.5)',
     decadencia: DECADENCIA,
     atualizadoEm: new Date(now).toISOString(),
     totalVotosAtivos: totalAtivos,
     totalRevogados: totalRevogados,
     totalRegistros: totalAtivos + totalRevogados,
     topN: top.slice(0, topN),
-    porIndice: top, // ranking completo (para gráficos/ordenação no cliente)
+    porIndice: top,
     tendencia: buildTendency(store, now),
     porUf: buildPorUf(store)
   };
 }
 
-/**
- * Tendência: confiança acumulada (votos ativos) por dia nos últimos N dias.
- * Para cada dia t, conta cédulas criadas até t e ainda vigentes em t
- * (não revogadas, ou revogadas depois de t).
- */
 function buildTendency(store, now, dias = 30) {
   const ballots = Object.values(store.ballots);
   const out = [];
@@ -333,8 +272,8 @@ function buildTendency(store, now, dias = 30) {
     const ts = dayStart.getTime();
     let ativos = 0;
     for (const b of ballots) {
-      if (b.createdAt > ts) continue; // ainda não tinha sido criada
-      if (b.revoked && b.revokedAt <= ts) continue; // já tinha sido revogada
+      if (b.createdAt > ts) continue;
+      if (b.revoked && b.revokedAt <= ts) continue;
       ativos++;
     }
     out.push({ at: new Date(ts).toISOString().slice(0, 10), ativos });
@@ -351,13 +290,73 @@ function buildPorUf(store) {
   return porUf;
 }
 
-/* ---- util ---- */
 function round1(n) { return Math.round(n * 10) / 10; }
 function round2(n) { return Math.round(n * 100) / 100; }
 function round4(n) { return Math.round(n * 10000) / 10000; }
 
+async function getRevogados() {
+  const store = loadStore();
+  const now = Date.now();
+  const index = await getDeputiesIndex();
+  const byPolitician = new Map();
+  for (const b of Object.values(store.ballots)) {
+    const bucket = byPolitician.get(b.politicianId) || { revogacoes: 0, votosAtivos: 0 };
+    if (b.revoked) bucket.revogacoes++;
+    else bucket.votosAtivos++;
+    byPolitician.set(b.politicianId, bucket);
+  }
+  const politicos = [];
+  for (const [pid, agg] of byPolitician.entries()) {
+    if (!agg.revogacoes) continue;
+    const pol = index.get(pid) || { id: pid, name: '(parlamentar)', party: '-', state: '-', photo: null };
+    politicos.push({
+      politicianId: pid, name: pol.name, party: pol.party, state: pol.state, photo: pol.photo,
+      revogacoes: agg.revogacoes, votosAtivos: agg.votosAtivos
+    });
+  }
+  politicos.sort((a, b) => b.revogacoes - a.revogacoes || b.votosAtivos - a.votosAtivos);
+  return {
+    ok: true, mode: 'real',
+    totalRevogados: politicos.reduce((s, p) => s + p.revogacoes, 0),
+    politicos,
+    atualizadoEm: new Date(now).toISOString()
+  };
+}
+
+async function getBallotsForVoter(voterHash) {
+  const store = loadStore();
+  const index = await getDeputiesIndex();
+  const out = [];
+  for (const b of Object.values(store.ballots)) {
+    if (b.voterHash !== voterHash) continue;
+    const pol = index.get(b.politicianId) || { id: b.politicianId, name: '(parlamentar)', party: '-', state: '-', photo: null };
+    out.push({
+      id: b.ballotId,
+      revoked: !!b.revoked,
+      createdAt: b.createdAt,
+      politician: { id: pol.id, name: pol.name, party: pol.party, state: pol.state, photo: pol.photo }
+    });
+  }
+  out.sort((a, b) => b.createdAt - a.createdAt);
+  return out;
+}
+
+function revokeBallotById(ballotId, ip) {
+  const rl = checkRateLimit(ip, 'revoke');
+  if (!rl.allowed) return { ok: false, status: 429, error: 'Muitas ações em pouco tempo. Aguarde um instante.' };
+  const ballot = db.getBallot(ballotId);
+  if (!ballot) return { ok: false, status: 404, error: 'Voto não encontrado' };
+  if (ballot.revoked) return { ok: false, status: 409, error: 'Este voto já foi revogado' };
+  ballot.revoked = true;
+  ballot.revokedAt = Date.now();
+  db.upsertBallot(ballot);
+  notifyChange('revogacao');
+  return { ok: true, revoked: true, politicianId: ballot.politicianId };
+}
+
 module.exports = {
   castVote, revokeVote, reaffirmVote, viewVote, getTermometro,
+  getRevogados, getBallotsForVoter, revokeBallotById,
   voteWeight, onVoteChange, totals,
-  DECADENCIA, ICM, K_SATURACAO, VOTOS_FILE, VOTOS_DB, db
+  DECADENCIA, K_SATURACAO, VOTOS_FILE, VOTOS_DB, db
 };

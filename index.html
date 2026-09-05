@@ -116,7 +116,7 @@
     </p>
 
     <div class="hero-buttons">
-      <a href="pages/pesquisar.html" class="btn-oval">🗳️ Pesquisar Políticos</a>
+      <a href="pages/parlamentares.html" class="btn-oval">🗳️ Pesquisar Políticos</a>
       <a href="pages/congresso.html" class="btn-oval outline">📜 PLs no Congresso</a>
       <a href="pages/meu-voto.html" class="btn-oval outline">✋ Meu Voto</a>
     </div>
@@ -128,7 +128,7 @@
     <p class="quick-sub">Transparência total e participação cívica sem intervalo entre eleições.</p>
 
     <div class="abas-grid">
-      <div class="aba-card" onclick="location.href='pages/pesquisar.html'">
+      <div class="aba-card" onclick="location.href='pages/parlamentares.html#candidatos'">
         <div class="aba-header">
           <span class="aba-icon">🗳️</span>
           <span class="aba-name">1. Compare Candidatos</span>
@@ -164,13 +164,13 @@
         <span class="aba-link">Ver ranking de revogações →</span>
       </div>
 
-      <div class="aba-card" onclick="location.href='pages/pesquisar.html'">
+      <div class="aba-card" onclick="location.href='pages/parlamentares.html#radar'">
         <div class="aba-header">
           <span class="aba-icon">📡</span>
-          <span class="aba-name">5. Pesquisar Políticos</span>
+          <span class="aba-name">5. Radar Cívico</span>
         </div>
         <p class="aba-desc">Busque, filtre e compare políticos por nome, partido, estado e cargo. Veja reclamações, respostas e apoios em um só lugar.</p>
-        <span class="aba-link">Pesquisar políticos →</span>
+        <span class="aba-link">Abrir o Radar →</span>
       </div>
 
       <div class="aba-card" onclick="location.href='pages/meu-voto.html'">
@@ -210,7 +210,7 @@
         <div style="flex:1"><div style="color:#94A3B8;font-size:0.78rem;margin-bottom:2px">Processos e sanções contra agentes públicos.</div><div><a href="https://www.cnj.jus.br/" target="_blank" style="color:#7eb0e3;text-decoration:none;font-size:0.75rem">cnj.jus.br ↗</a></div></div>
       </div>
     </div>
-    <p style="color:#5A6B7E;font-size:0.72rem;margin-top:14px;text-align:center">⚙️ O MudaBrasil é uma plataforma cívica de voto contínuo e revogável. Dados de exemplo em modo demo. Em produção, sincronizados a cada 24h via APIs oficiais.</p>
+    <p style="color:#5A6B7E;font-size:0.72rem;margin-top:14px;text-align:center">⚙️ O MudaBrasil é uma plataforma cívica de voto contínuo e revogável. Dados dos parlamentares obtidos das APIs abertas da Câmara e do Senado.</p>
   </section>
 
   <!-- FOOTER -->
@@ -224,7 +224,10 @@
       <a href="https://www25.senado.leg.br/web/senadores/" target="_blank" style="color:#7eb0e3;text-decoration:none">Senado</a> ·
       <a href="https://www.cnj.jus.br/" target="_blank" style="color:#7eb0e3;text-decoration:none">CNJ</a>
     </p>
-    <p style="font-size: 0.72rem; color: #5A6B7E;">Modo demo — dados sintéticos de exemplo. Nenhum voto real é alterado.</p>
+    <p style="font-size: 0.72rem; color: #5A6B7E; max-width: 760px; margin: 10px auto; line-height: 1.6;">
+      <strong style="color:#94A3B8">Sobre os índices:</strong> o Índice de Integridade é um cálculo transparente a partir de dados públicos (transparência, processos CNJ e presença em sessões). O antigo <strong>ICM — Índice de Confiança MudaBrasil</strong>, número composto que misturava votos, revogações e decaimento temporal, foi <strong>retirado da interface</strong> por gerar dúvidas; o que permanece é o <strong>peso temporal do voto</strong> (peso cheio por 90 dias, decai até 0,5 aos 180 dias — reafirmar recomeça a contagem), garantindo que o termômetro reflita a confiança de hoje. Explicação completa em <a href="pages/quem-somos.html" style="color:#7eb0e3;text-decoration:none">Quem Somos</a>.
+    </p>
+    <p style="font-size: 0.72rem; color: #5A6B7E;">A lista de parlamentares exibida é real (Câmara + Senado). Votos e reclamações são simulação cívica — nenhum voto oficial é alterado.</p>
   </footer>
 
 </body>
