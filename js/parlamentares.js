@@ -774,15 +774,33 @@
      PLs
      ============================================================ */
   async function loadPls() {
+    // 1) Servidor: PLs reais da Câmara (cache 24h) + votos da plataforma
     try {
       const r = await fetch('/api/pls');
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d = await r.json();
-      state.pls = (d.pls && d.pls.length) ? d.pls : FALLBACK_PLS;
-    } catch (e) {
-      console.warn('loadPls usando fallback:', e.message);
-      state.pls = FALLBACK_PLS;
+      if (r.ok) {
+        const d = await r.json();
+        if (d.pls && d.pls.length) {
+          state.pls = d.pls;
+          state.plsSource = d.source || null;
+        }
+      }
+    } catch (e) { /* tenta snapshot estático */ }
+
+    // 2) Snapshot estático (GitHub Pages — PLs reais da Câmara)
+    if (!state.pls.length) {
+      try {
+        const r2 = await fetch('../data/pls.json');
+        if (r2.ok) {
+          const d2 = await r2.json();
+          if (d2.pls && d2.pls.length) {
+            state.pls = d2.pls;
+            state.plsSource = d2.source || 'Câmara dos Deputados (snapshot)';
+          }
+        }
+      } catch (e) { /* último recurso: amostra */ }
     }
+    if (!state.pls.length) state.pls = FALLBACK_PLS;
+
     populatePlFilters();
     attachPlFilters();
     renderPls();
@@ -819,20 +837,27 @@
     const sess = session();
     const container = $('#pls-list');
     if (!list.length) { container.innerHTML = '<p class="mb-muted">Nenhum PL encontrado com esses filtros.</p>'; return; }
-    container.innerHTML = list.map(p => {
-      const myVote = sess ? '—' : '—';
+    const fonteNota = state.plsSource ? `<p class="mb-muted-sm" style="margin:0 0 14px;">📡 Fonte: ${escapeHtml(state.plsSource)}${state.plsSource.toLowerCase().includes('câmara') ? ' — projetos reais em tramitação' : ''}</p>` : '';
+    container.innerHTML = fonteNota + list.map(p => {
+      // Link direto para a ficha da proposição quando temos o id da Câmara
+      const teorHref = p.url
+        ? p.url
+        : (p.id && p.id.startsWith('pl-camara-')
+            ? 'https://www.camara.leg.br/proposicoesweb/fichadetalhamento?idProposicao=' + p.id.replace('pl-camara-', '')
+            : 'https://www.camara.leg.br/busca-portal?pesquisa=' + encodeURIComponent(p.number || ''));
       return `
       <article class="mb-pl-card" data-pl="${escapeHtml(p.id)}">
         <div class="mb-pl-head">
           <span class="mb-pl-number">PL ${escapeHtml(p.number)}</span>
-          <span class="mb-pl-status">${escapeHtml(p.chamber)} · ${escapeHtml(p.status)}</span>
+          <span class="mb-pl-status">${escapeHtml(p.chamber || 'Câmara')} · ${escapeHtml(p.status || 'Tramitando')}</span>
         </div>
         <div class="mb-pl-ementa">${escapeHtml(p.ementa || p.title || '')}</div>
+        ${p.author ? `<div class="mb-muted-sm" style="margin-top:8px;">✍️ ${escapeHtml(p.author)}${p.party ? ' (' + escapeHtml(p.party) + (p.uf ? '-' + escapeHtml(p.uf) : '') + ')' : ''}</div>` : ''}
         <div class="mb-pl-actions">
           <button class="mb-pl-vote-btn v-yes" data-vote="aprovo" data-pl="${escapeHtml(p.id)}">👍 Aprovo</button>
           <button class="mb-pl-vote-btn v-no" data-vote="nao_aprovo" data-pl="${escapeHtml(p.id)}">👎 Não aprovo</button>
-          <span class="mb-pl-link" data-approval="${p.id}">${p.approvalCount} aprovações</span>
-          <a href="https://www.camara.leg.br/busca-portal?pesquisa=${encodeURIComponent(p.number)}" target="_blank" rel="noopener" class="mb-pl-link">inteiro teor do PL</a>
+          <span class="mb-pl-link" data-approval="${p.id}">${p.approvalCount || 0} aprovações</span>
+          <a href="${escapeHtml(teorHref)}" target="_blank" rel="noopener" class="mb-pl-link">inteiro teor do PL ↗</a>
         </div>
       </article>`;
     }).join('');

@@ -37,6 +37,7 @@ const auth = require('./auth');
 const verificacao = require('./verificacao');
 const reclamacoes = require('./reclamacoes');
 const seedPls = require('./seed_pls');
+const plsReais = require('./pls_reais');
 const tse = require('./tse');
 
 const ROOT = path.join(__dirname, '..');
@@ -785,9 +786,26 @@ async function handleApi(req, res, url) {
 
   if (p === '/api/pls' && req.method === 'GET') {
     try {
-      let all = Object.values(db.readAllPls());
-      if (!all.length) { try { seedPls.seed(); all = Object.values(db.readAllPls()); } catch (_) { } }
-      return sendJson(res, 200, { ok: true, mode: 'real', total: all.length, pls: all });
+      /* PLs reais da Câmara (cache 24h); falha → cai no seed local */
+      let fonte = 'seed';
+      try {
+        const reais = await plsReais.fetchRealPls();
+        if (reais && reais.length) {
+          reais.forEach(pl => db.upsertPl(pl));
+          fonte = 'Câmara dos Deputados (Dados Abertos)';
+        }
+      } catch (e) { console.warn('[pls] sem dados reais, usando seed:', e.message); }
+
+      const todos = Object.values(db.readAllPls());
+      const camara = todos.filter(pl => pl.id && pl.id.startsWith('pl-camara-'));
+      const all = camara.length ? camara : todos;
+      return sendJson(res, 200, {
+        ok: true,
+        mode: camara.length ? 'real' : 'seed',
+        source: camara.length ? fonte : 'amostra local (seed)',
+        total: all.length,
+        pls: all
+      });
     } catch (e) { return sendJson(res, 500, { ok: false, error: e.message }); }
   }
 
