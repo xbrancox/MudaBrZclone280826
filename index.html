@@ -117,6 +117,24 @@ textarea{min-height:70px;resize:vertical}
 .nchips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .nchips button{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:6px 14px;font:700 12px Manrope;cursor:pointer}
 .nchips button.on{background:var(--gold);color:#1a1400;border-color:var(--gold)}
+.dk-sec{max-width:1150px;margin:56px auto 0;padding:0 16px}
+.dk-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.dk-toggle{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.dk-tb{background:transparent;border:none;color:var(--txt);padding:9px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s}
+.dk-tb.on{background:var(--gold);color:#061a3a;font-weight:800}
+.dk-selects{display:flex;gap:10px;margin:14px 0 4px;flex-wrap:wrap}
+.dk-selects select{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:9px 14px;color:var(--txt);font-size:13px;cursor:pointer;outline:none}
+.dk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:20px}
+.dk-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;position:relative;transition:transform .15s,border-color .15s}
+.dk-card:hover{transform:translateY(-2px);border-color:var(--gold)}
+.dk-card h4{font-family:Montserrat;font-size:.85rem;font-weight:800;margin:0 0 10px;color:#eaf1fb;text-transform:uppercase;letter-spacing:.04em;min-height:34px;display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+.dk-mini{display:flex;flex-direction:column;gap:3px;flex:none}
+.dk-mini button{background:rgba(255,255,255,.06);border:1px solid var(--line);color:#9fb0c8;border-radius:7px;padding:2px 8px;font-size:9px;font-weight:800;cursor:pointer}
+.dk-mini button.on{background:var(--gold);color:#061a3a;border-color:var(--gold)}
+.dk-leg{display:flex;flex-direction:column;gap:5px;margin-top:10px;font-size:.78rem}
+.dk-leg div{display:flex;align-items:center;gap:6px}
+.dk-leg i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.dk-leg b{margin-left:auto;color:#fff}
 @media(max-width:960px){.ncard-new{flex-basis:280px}}
 .news{max-width:420px}
 .ncard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
@@ -178,8 +196,31 @@ footer{background:#08142e;border-top:1px solid var(--line);padding:44px 0 20px;m
 <div class="exp"><div class="ic" style="background:rgba(231,76,60,.15);color:var(--red)"><i class="fa-regular fa-trash-can"></i></div><h3>Revogar Voto</h3><p>Não cumpriu? Revogue a confiança do seu voto após a posse.</p><a onclick="go('revogados')" style="color:var(--red)">Revogar →</a></div>
 <div class="exp"><div class="ic" style="background:rgba(46,204,113,.15);color:var(--green)"><i class="fa-solid fa-scale-balanced"></i></div><h3>Comparar</h3><p>Fixe políticos e veja dois (ou mais) lado a lado.</p><a onclick="go('radar')">Comparar →</a></div>
 </div>
-<!-- seção ACOMPANHAMENTO removida em 04/09 (dados sintéticos) -->
-<div style="margin-top:50px"><!-- antigo 02 ACOMPANHAMENTO --></div><!-- seção 02 ACOMPANHAMENTO removida (04/09) -->
+<!-- ===== 02 · ACOMPANHAMENTO — DONUTS POR CARGO (recriada 06/09; distribuição demo rotulada) ===== -->
+<div class="dk-sec" id="acompanhamento">
+  <div class="dk-head">
+    <div>
+      <span class="kick">02 — ACOMPANHAMENTO</span>
+      <h2 style="margin:6px 0 4px">Acompanhe quem está <span style="color:var(--blueL)">na frente</span></h2>
+      <p class="muted">Preferência do eleitorado por cargo (recorte UF / Cidade).</p>
+    </div>
+    <div class="dk-toggle" role="group" aria-label="Recorte UF ou Cidade">
+      <button class="dk-tb on" id="dk-uf-btn" onclick="dkSetModo('uf')">UF</button>
+      <button class="dk-tb" id="dk-cid-btn" onclick="dkSetModo('cidade')">Cidade</button>
+    </div>
+  </div>
+  <div class="dk-selects">
+    <select id="dk-uf" onchange="dkRender()" aria-label="Estado">
+      <option value="BR">Todo o Brasil</option>
+      <option>SP</option><option>RJ</option><option>MG</option><option>BA</option>
+      <option>RS</option><option>PR</option><option>PE</option><option>CE</option>
+      <option>PA</option><option>SC</option><option>GO</option><option>MA</option>
+    </select>
+    <select id="dk-cidade" onchange="dkRender()" aria-label="Cidade" hidden></select>
+  </div>
+  <div class="dk-grid" id="dk-grid"></div>
+  <p class="muted" style="font-size:11px;text-align:center;margin-top:14px">🧪 Distribuição demonstrativa (protótipo) — em produção, alimentada pelos dados reais do TSE e da plataforma.</p>
+</div>
   <div style="margin-top:40px"><h2 style="margin-top:0">Notícias do Congresso e da política</h2>
   <p class="muted">Direto das fontes oficiais e da grande imprensa — <b>com os devidos créditos</b>. Filtre por recorte: Geral, Brasil ou UF citada na matéria.</p>
   <div class="nchips" id="nchips"></div>
@@ -746,5 +787,72 @@ setTimeout(initSSE, 2000);
 <button class="btn sm" onclick="document.getElementById('bannerProto').style.display='none';localStorage.setItem('mb_aviso','1')">×</button>
 </div>
 <script>if(!localStorage.getItem('mb_aviso'))document.getElementById('bannerProto').style.display='flex'</script>
+
+<script>
+/* ===== 02 ACOMPANHAMENTO — donuts por cargo (demo determinístico rotulado) ===== */
+(function(){
+  var DK_CARGOS=[
+    {id:'presidente',nome:'Presidente'},
+    {id:'governador',nome:'Governador'},
+    {id:'senador',nome:'Senador'},
+    {id:'dep-federal',nome:'Deputado Federal'},
+    {id:'dep-estadual',nome:'Deputado Estadual / Distrital'},
+    {id:'prefeito',nome:'Prefeito'},
+    {id:'vereador',nome:'Vereador'}
+  ];
+  var DK_BASE=[
+    {nome:'Maria Silva',cor:'#2ECC71'},
+    {nome:'Carlos Souza',cor:'#FFD700'},
+    {nome:'Ana Beatriz',cor:'#4a90d9'},
+    {nome:'João Pereira',cor:'#ff7a6e'},
+    {nome:'Outros',cor:'#a78bfa'}
+  ];
+  var DK_CIDADES={SP:['São Paulo','Campinas','Santos'],RJ:['Rio de Janeiro','Niterói'],MG:['Belo Horizonte','Uberlândia'],BA:['Salvador','Feira de Santana'],RS:['Porto Alegre','Caxias do Sul'],PR:['Curitiba','Londrina'],PE:['Recife','Olinda'],CE:['Fortaleza'],PA:['Belém'],SC:['Florianópolis','Joinville'],GO:['Goiânia'],MA:['São Luís']};
+  var dkModo='uf';
+  function dkSeed(str){var h=7;for(var i=0;i<str.length;i++){h=(h*31+str.charCodeAt(i))>>>0}return h}
+  function dkDist(chave){
+    var seed=dkSeed(chave);
+    var rnd=function(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
+    var pesos=DK_BASE.map(function(){return 10+rnd()*40});
+    var tot=pesos.reduce(function(a,b){return a+b},0);
+    var pcts=pesos.map(function(w){return Math.round(w/tot*100)});
+    pcts[0]+=100-pcts.reduce(function(a,b){return a+b},0);
+    return DK_BASE.map(function(b,i){return{nome:b.nome,cor:b.cor,pct:pcts[i]}}).sort(function(a,b){return b.pct-a.pct});
+  }
+  function dkRecorte(){var uf=document.getElementById('dk-uf').value;return dkModo==='uf'?uf:(document.getElementById('dk-cidade').value||'Capital')}
+  function dkDonutSVG(cands){
+    var r=55,cx=70,cy=70,circ=2*Math.PI*r,off=0;
+    var segs=cands.map(function(c){
+      var len=c.pct/100*circ;
+      var s='<circle r="'+r+'" cx="'+cx+'" cy="'+cy+'" fill="none" stroke="'+c.cor+'" stroke-width="22" stroke-dasharray="'+len+' '+(circ-len)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
+      off+=len;return s}).join('');
+    return '<svg class="dk-svg" viewBox="0 0 140 140" width="150" height="150"><circle r="'+r+'" cx="'+cx+'" cy="'+cy+'" fill="none" stroke="#1f2c45" stroke-width="22"/>'+segs+'</svg>';
+  }
+  function dkRender(){
+    var grid=document.getElementById('dk-grid');if(!grid)return;
+    var rec=dkRecorte();
+    grid.innerHTML=DK_CARGOS.map(function(c){
+      var cands=dkDist(c.id+':'+rec);
+      var mini='<span class="dk-mini"><button class="'+(dkModo==='uf'?'on':'')+'" onclick="dkSetModo(&quot;uf&quot;)" title="Recorte por estado">UF</button><button class="'+(dkModo==='cidade'?'on':'')+'" onclick="dkSetModo(&quot;cidade&quot;)" title="Recorte por cidade">Cidade</button></span>';
+      return '<div class="dk-card"><h4>'+c.nome+mini+'</h4>'+dkDonutSVG(cands)+'<div class="dk-leg">'+cands.map(function(x){return '<div><i style="background:'+x.cor+'"></i><span>'+x.nome+'</span><b>'+x.pct+'%</b></div>'}).join('')+'</div></div>';
+    }).join('');
+  }
+  window.dkSetModo=function(m){
+    dkModo=m;
+    document.getElementById('dk-uf-btn').classList.toggle('on',m==='uf');
+    document.getElementById('dk-cid-btn').classList.toggle('on',m==='cidade');
+    var selUf=document.getElementById('dk-uf'),selC=document.getElementById('dk-cidade');
+    selC.hidden=(m!=='cidade');
+    selUf.hidden=(m==='cidade');
+    if(m==='cidade'){
+      var cidades=DK_CIDADES[selUf.value]||['Capital'];
+      selC.innerHTML=cidades.map(function(c){return '<option>'+c+'</option>'}).join('');
+    }
+    dkRender();
+  };
+  window.dkRender = dkRender;
+  dkRender();
+})();
+</script>
 </body>
 </html>
