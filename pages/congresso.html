@@ -377,6 +377,16 @@ $('#popup-ok').onclick=()=>{LS.set('mb_popup_congresso',1);$('#popup').style.dis
 (async function(){
  try{const h=await fetch(API+'/api/health');$('#badge').textContent=h.ok?'backend ativo':'offline'}catch(e){$('#badge').textContent='modo demo'}
  try{const j=await(await fetch(API+'/api/pls')).json();PLS=Array.isArray(j)?j:(j.pls||[])}catch(e){}
+ // Prefere PLs REAIS da Câmara (snapshot com autor, partido e UF reais) quando a
+ // lista servida for a amostra/seeds com autoria genérica ("Deputado", "Senadora"…)
+ try{
+  const rs=await fetch('../data/pls.json');
+  if(rs.ok){
+   const dr=await rs.json();
+   const generica=p=>!p.author||/^(deputado|deputada|senador|senadora|mesa|comiss|lideran|poder executivo)/i.test(String(p.author).trim());
+   if(Array.isArray(dr.pls)&&dr.pls.length&&PLS.some(generica)){PLS=dr.pls}
+  }
+ }catch(e){}
  try{const j=await(await fetch(API+'/api/camara/votacoes')).json();VOT=Array.isArray(j)?j:(j.dados||[])}catch(e){}
  VOT.forEach(v=>{const i=infoVot(v);if(i.num)MAPVOT[i.num+'/'+i.ano]=v});
  await Promise.all([...new Set(VOT.slice(0,10).map(v=>v.id))].filter(Boolean).map(id=>votosDe(id)));
