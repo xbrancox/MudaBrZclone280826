@@ -163,23 +163,10 @@ footer{background:#08142e;border-top:1px solid var(--line);padding:44px 0 20px;m
 #toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--line);color:var(--ink);padding:12px 18px;border-radius:12px;z-index:300;display:none;max-width:90%}
 @media(max-width:960px){#radList{grid-template-columns:1fr}.explore{grid-template-columns:repeat(2,1fr)}.donuts{grid-template-columns:repeat(2,1fr)}.steps{grid-template-columns:1fr}.filtros{grid-template-columns:1fr 1fr}.ft{grid-template-columns:1fr 1fr}.stats{grid-template-columns:repeat(2,1fr)}nav{display:none}.ham{display:inline-flex}}
 </style>
+  <script src="js/site-header.js"></script>
 </head>
 <body>
-<header><div class="hd">
-<div class="lg"><div class="ic"><i class="fa-solid fa-layer-group"></i></div><div><b>MudaBrasil</b><small>Participação Cívica</small></div></div>
-<nav id="nav">
-<a data-p="inicio" class="on">Início</a><a data-p="radar">Radar<br>Político</a><a href="pages/congresso.html">PLs no<br>Congresso</a>
-<a href="pages/votacoes.html">Votações</a><a href="pages/eleicoes-2026.html">Eleições<br>2026</a>
-<a data-p="conferir">Conferir<br>Voto</a><a data-p="revogar">Revogar<br>Voto</a><a data-p="revogados">Políticos com<br>votos revogados</a><a data-p="ajuda">Ajuda</a><a data-p="quem">Quem<br>Somos</a>
-</nav>
-<button class="btn sm ham" onclick="toggleMenu()"><i class="fa-solid fa-bars"></i></button>
-<div class="hact"><span class="badge ok" id="apiStatus" style="display:none">backend ativo</span><button class="btn sm" onclick="abrirLogin()">Entrar</button><button class="btn gold sm" onclick="abrirLogin()">Cadastrar</button></div>
-</div></header>
-<div class="mnav" id="mnav">
-<a onclick="go('inicio');toggleMenu()">Início</a><a onclick="go('radar');toggleMenu()">Radar Político</a><a href="pages/congresso.html" onclick="toggleMenu()">PLs no Congresso</a>
-<a href="pages/votacoes.html" onclick="toggleMenu()">Votações nominais</a><a href="pages/eleicoes-2026.html" onclick="toggleMenu()">Eleições 2026</a>
-<a onclick="go('conferir');toggleMenu()">Conferir Voto</a><a onclick="go('revogar');toggleMenu()">Revogar Voto</a><a onclick="go('revogados');toggleMenu()">Políticos com votos revogados</a><a onclick="go('ajuda');toggleMenu()">Ajuda</a><a onclick="go('quem');toggleMenu()">Quem Somos</a>
-</div>
+
 <main>
 <section class="sec on" id="sec-inicio"><div class="hero">
 <h1>O poder emana do povo</h1>
@@ -376,6 +363,7 @@ $$('#nav a').forEach(a=>a.onclick=()=>go(a.dataset.p));
   const mapa={'conferir-voto':'conferir','revogar-voto':'revogar','revogados':'revogados','ajuda':'ajuda','quem-somos':'quem','radar':'radar','congresso':'inicio','voto':'revogar'};
   const h=(location.hash||'').replace('#','');
   if(mapa[h]!==undefined){setTimeout(()=>go(mapa[h]),50)}
+  window.addEventListener('hashchange',()=>{const hh=(location.hash||'').replace('#','').split('?')[0];if(mapa[hh]!==undefined)go(mapa[hh])});
 })();
 const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
 const CORES=['#2ECC71','#FFD700','#4a90f0','#E74C3C','#A855F7'],NOMES=['Maria','Carlos','Ana','João','Outros'];

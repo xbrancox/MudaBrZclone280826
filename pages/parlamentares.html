@@ -10,62 +10,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/parlamentares.css">
 <style>
-/* ===== CABEÇALHO PADRÃO MUDABRASIL (unificado 06/09) ===== */
-header{position:sticky;top:0;z-index:50;display:flex;gap:12px;align-items:center;padding:12px 20px;background:#061a3add;backdrop-filter:blur(8px);border-bottom:1px solid #1d3a66;flex-wrap:wrap}
-.lg{display:flex;gap:10px;align-items:center}
-.lg .ic{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#7ed957,#2ECC71);display:flex;align-items:center;justify-content:center;color:#061a3a;font-size:18px}
-.lg b{font-family:Montserrat;font-size:17px;color:#fff}
-.lg small{display:block;color:#9fb0c8;font-size:11px}
-header nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
-header nav a{color:#eaf1fb;text-decoration:none;padding:8px 12px;border-radius:999px;font-size:13px}
-header nav a:hover{background:#123059}
-header nav a.on{background:#FFD700;color:#061a3a;font-weight:800}
-.hact{display:flex;gap:8px;align-items:center}
-.hact .badge{border:1px solid #2ECC71;color:#2ECC71;border-radius:999px;padding:6px 12px;font-size:12px}
-.hact .btn{border-radius:999px;padding:9px 16px;font-size:13px;font-weight:700;text-decoration:none}
-.hact .btn.az{background:#123059;color:#eaf1fb;border:1px solid #1d3a66}
-.hact .btn.gold{background:#FFD700;color:#061a3a}
-.ham{display:none;background:none;border:none;color:#eaf1fb;font-size:20px;cursor:pointer}
-.mnav{display:none;flex-direction:column;background:#0d2242;border-bottom:1px solid #1d3a66;padding:10px 16px}
-.mnav a{color:#eaf1fb;text-decoration:none;padding:10px 4px;border-bottom:1px dashed #1d3a66;font-size:14px}
-header .mobile-toggle, header .login-area{display:none!important}
-header{gap:8px!important;padding:10px 16px!important}
-header nav a{padding:7px 10px!important;font-size:12.5px!important}
+
+
 @media(max-width:960px){header nav{display:none}.ham{display:block}.mnav.open{display:flex}}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="../js/site-header.js"></script>
 </head>
 <body>
   <!-- ===================== HEADER ===================== -->
-  <header>
-  <div class="lg"><div class="ic"><i class="fa-solid fa-layer-group"></i></div><div><b>MudaBrasil</b><small>Participação Cívica</small></div></div>
-  <button class="ham" onclick="document.getElementById('mnav').classList.toggle('open')"><i class="fa-solid fa-bars"></i></button>
-  <nav>
-    <a href="../index.html">Início</a>
-    <a href="parlamentares.html" class="on">Radar Político</a>
-    <a href="congresso.html">PLs no Congresso</a>
-    <a href="votacoes.html">Votações</a>
-    <a href="eleicoes-2026.html">Eleições 2026</a>
-    <a href="../index.html#conferir-voto">Conferir Voto</a>
-    <a href="../index.html#revogar-voto">Revogar Voto</a>
-    <a href="../index.html#revogados">Votos Revogados</a>
-    <a href="../index.html#ajuda">Ajuda</a>
-    <a href="../index.html#quem-somos">Quem Somos</a>
-  </nav>
-  <div class="hact"><span class="badge" id="badge">…</span><a class="btn az" href="../index.html" title="Login e cadastro ficam na home">Entrar</a><a class="btn gold" href="../index.html">Cadastrar</a></div>
-</header>
-<div class="mnav" id="mnav">
-  <a href="../index.html">Início</a>
-  <a href="parlamentares.html">Radar Político</a>
-  <a href="congresso.html">PLs no Congresso</a>
-  <a href="votacoes.html">Votações</a>
-  <a href="eleicoes-2026.html">Eleições 2026</a>
-  <a href="../index.html#conferir-voto">Conferir Voto</a>
-  <a href="../index.html#revogar-voto">Revogar Voto</a>
-  <a href="../index.html#revogados">Votos Revogados</a>
-  <a href="../index.html#ajuda">Ajuda</a>
-  <a href="../index.html#quem-somos">Quem Somos</a>
-</div>
+  
 
   <!-- ===================== TÍTULO DA PÁGINA ===================== -->
   <section class="mb-hero">
