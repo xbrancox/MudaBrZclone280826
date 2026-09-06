@@ -103,10 +103,10 @@
   ];
 
   const FALLBACK_PLS = [
-    {id:'pl-1234',num:'PL 1234/2026',title:'Programa Nacional de Restauração Ambiental',author:'Dep. Carlos Souza (MDB/RJ)',status:'Câmara',tema:'Meio Ambiente',sim:62,nao:38},
-    {id:'pl-5678',num:'PL 5678/2026',title:'Reforma do Ensino Médio com foco em tecnologia',author:'Sen. Ana Beatriz (PSOL/BA)',status:'Senado',tema:'Educação',sim:54,nao:46},
-    {id:'pl-9101',num:'PL 9101/2026',title:'Ampliação do programa Saúde da Família',author:'Dep. Maria Silva (PT/SP)',status:'Câmara',tema:'Saúde',sim:71,nao:29},
-    {id:'pl-8024',num:'PL 8024/2026',title:'Lei de Proteção de Dados Eleitorais',author:'Sen. Juliana Costa (REDE/SP)',status:'Sanção',tema:'Segurança',sim:78,nao:22},
+    {id:'pl-1234',number:'1234/2026',chamber:'Câmara',status:'Tramitando',title:'Programa Nacional de Restauração Ambiental',ementa:'Programa Nacional de Restauração Ambiental (amostra offline)',author:'Dep. Carlos Souza',party:'MDB',approvalCount:0,rejectionCount:0},
+    {id:'pl-5678',number:'5678/2026',chamber:'Senado',status:'Tramitando',title:'Reforma do Ensino Médio com foco em tecnologia',ementa:'Reforma do Ensino Médio com foco em tecnologia (amostra offline)',author:'Sen. Ana Beatriz',party:'PSOL',approvalCount:0,rejectionCount:0},
+    {id:'pl-9101',number:'9101/2026',chamber:'Câmara',status:'Tramitando',title:'Ampliação do programa Saúde da Família',ementa:'Ampliação do programa Saúde da Família (amostra offline)',author:'Dep. Maria Silva',party:'PT',approvalCount:0,rejectionCount:0},
+    {id:'pl-8024',number:'8024/2026',chamber:'Câmara',status:'Pronto para pauta',title:'Lei de Proteção de Dados Eleitorais',ementa:'Lei de Proteção de Dados Eleitorais (amostra offline)',author:'Sen. Juliana Costa',party:'REDE',approvalCount:0,rejectionCount:0},
   ];
 
   async function loadCandidatos() {
@@ -894,12 +894,12 @@
      REVOGADOS
      ============================================================ */
   const FALLBACK_REVOGADOS = [
-    {id:'roberto-alves',name:'Roberto Alves',position:'Vereador',party:'NOVO',state:'PR',revogacoes:342,motivo:'Prometeu transparência e votou a favor de aumento do próprio salário.'},
-    {id:'felipe-santos',name:'Felipe Santos',position:'Senador',party:'PP',state:'MG',revogacoes:1287,motivo:'Mudou de posição sobre reforma após lobby.'},
-    {id:'joao-pereira',name:'João Pereira',position:'Dep. Estadual',party:'PL',state:'MG',revogacoes:892,motivo:'Abandonou 18 sessões consecutivas.'},
-    {id:'patricia-lima',name:'Patrícia Lima',position:'Prefeita',party:'PSD',state:'RS',revogacoes:2154,motivo:'Esquema de superfaturamento de obras.'},
-    {id:'camila-rocha',name:'Camila Rocha',position:'Dep. Estadual',party:'PSB',state:'RJ',revogacoes:567,motivo:'Votou contra proteção ambiental.'},
-    {id:'renato-vieira',name:'Renato Vieira',position:'Dep. Federal',party:'PTB',state:'SP',revogacoes:3421,motivo:'Flagrado em operação da PF.'},
+    {id:'roberto-alves',name:'Roberto Alves',position:'Vereador',party:'NOVO',state:'PR',photo:'',activeVotes:4820,revokedVotes:342,cassationThreshold:3374,totalVotes:5162,progressToCassation:10,motivo:'Prometeu transparência e votou a favor de aumento do próprio salário.'},
+    {id:'felipe-santos',name:'Felipe Santos',position:'Senador',party:'PP',state:'MG',photo:'',activeVotes:6100,revokedVotes:1287,cassationThreshold:4270,totalVotes:7387,progressToCassation:30,motivo:'Mudou de posição sobre reforma após lobby.'},
+    {id:'joao-pereira',name:'João Pereira',position:'Dep. Estadual',party:'PL',state:'MG',photo:'',activeVotes:3950,revokedVotes:892,cassationThreshold:2765,totalVotes:4842,progressToCassation:32,motivo:'Abandonou 18 sessões consecutivas.'},
+    {id:'patricia-lima',name:'Patrícia Lima',position:'Prefeita',party:'PSD',state:'RS',photo:'',activeVotes:5200,revokedVotes:2154,cassationThreshold:3640,totalVotes:7354,progressToCassation:59,motivo:'Esquema de superfaturamento de obras.'},
+    {id:'camila-rocha',name:'Camila Rocha',position:'Dep. Estadual',party:'PSB',state:'RJ',photo:'',activeVotes:2980,revokedVotes:567,cassationThreshold:2086,totalVotes:3547,progressToCassation:27,motivo:'Votou contra proteção ambiental.'},
+    {id:'renato-vieira',name:'Renato Vieira',position:'Dep. Federal',party:'PTB',state:'SP',photo:'',activeVotes:7100,revokedVotes:3421,cassationThreshold:4970,totalVotes:10521,progressToCassation:69,motivo:'Flagrado em operação da PF.'},
   ];
 
   async function loadRevogados() {
