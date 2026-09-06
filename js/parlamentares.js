@@ -217,6 +217,7 @@
     else if (sort === 'party') list.sort((a, b) => (a.party || '').localeCompare(b.party || '', 'pt-BR') || (a.name || '').localeCompare(b.name || '', 'pt-BR'));
     else if (sort === 'integrity') list.sort(byNumericDesc('integrityIndex', 'lawsuits'));
     else if (sort === 'proposicoes') list.sort(byNumericDesc('billsAuthored'));
+    else if (sort === 'presenca') list.sort(byNumericDesc('attendanceRate'));
     else list.sort(byNumericDesc('transparencyScore'));
     // Ambos os sorts numéricos empurram "sem dados" para o fim e desempatam por nome
     function byNumericDesc(primary, secondary) {
@@ -285,6 +286,8 @@
         <div class="mb-cand-tags">
           ${p.number ? `<span class="mb-tag-num">#${p.number}</span>` : ''}
           ${p.billsAuthored != null ? `<span class="mb-tag-num" title="Proposições autorais (histórico; fonte: APIs da Câmara e do Senado)">📜 ${p.billsAuthored} prop.</span>` : ''}
+          ${p.attendanceRate != null ? `<span class="mb-tag-clean" title="Presença em sessões deliberativas de 2026 (${p.attendanceContext ? p.attendanceContext.participadas + ' de ' + p.attendanceContext.totalSessoes : '—'}; fonte: API da Câmara)">📅 ${p.attendanceRate}% presença</span>` : ''}
+          ${p.votesPlenary2026 != null ? `<span class="mb-tag-clean" title="Votações do plenário com voto registrado em 2026 (fonte: API do Senado)">🗳️ ${p.votesPlenary2026} votos 2026</span>` : ''}
           ${hasIntegrityData
             ? (processes === 0
                 ? '<span class="mb-tag-clean">✅ Sem processos</span>'
@@ -446,6 +449,8 @@
         <div class="mb-card-inner"><div class="mb-muted-sm">Proposições autorais</div><strong>${c.billsAuthored != null ? c.billsAuthored : '—'}</strong></div>
         <div class="mb-card-inner"><div class="mb-muted-sm">Presença</div><strong>${c.attendanceRate != null ? c.attendanceRate + '%' : '—'}</strong></div>
         <div class="mb-card-inner"><div class="mb-muted-sm">Processos</div><strong>${c.lawsuits != null ? c.lawsuits : '—'}</strong></div>
+        ${c.attendanceContext ? `<div class="mb-card-inner" style="grid-column:1/-1;"><div class="mb-muted-sm">Detalhe da presença (2026)</div><strong>${c.attendanceContext.participadas} de ${c.attendanceContext.totalSessoes} sessões deliberativas</strong></div>` : ''}
+        ${c.votesPlenary2026 != null ? `<div class="mb-card-inner" style="grid-column:1/-1;"><div class="mb-muted-sm">Votações do plenário (2026)</div><strong>${c.votesPlenary2026} votações com voto registrado</strong></div>` : ''}
       </div>
 
       <div class="mb-detail-tabs" id="cand-detail-tabs">

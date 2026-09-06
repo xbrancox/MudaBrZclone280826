@@ -86,16 +86,17 @@ function getBillsFromSnapshot() {
   try {
     const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'politicos.json'), 'utf8'));
     (snap.candidatos || []).forEach(c => {
-      if (c.id && c.billsAuthored != null) billsFromSnapshot.set(c.id, { billsAuthored: c.billsAuthored, dataSources: c.dataSources });
+      if (c.id) billsFromSnapshot.set(c.id, c);
     });
   } catch (e) { /* snapshot ausente: segue sem merge */ }
   return billsFromSnapshot;
 }
+/* Campos pré-enriquecidos no snapshot que complementam a API ao vivo */
+const SNAPSHOT_FIELDS = ['billsAuthored', 'dataSources', 'attendanceRate', 'sessoesDeliberativas2026', 'attendanceContext', 'votesPlenary2026', 'votesContext'];
 function mergeBills(c) {
   const hit = getBillsFromSnapshot().get(c.id);
-  if (hit && c.billsAuthored == null) {
-    c.billsAuthored = hit.billsAuthored;
-    if (Array.isArray(hit.dataSources)) c.dataSources = hit.dataSources;
+  if (hit) {
+    SNAPSHOT_FIELDS.forEach(f => { if (c[f] == null && hit[f] != null) c[f] = hit[f]; });
   }
   return c;
 }
