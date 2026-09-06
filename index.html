@@ -772,17 +772,36 @@ $('#faqList').innerHTML=FAQ.map(f=>`<div class="card"><b>${f[0]}</b><p class="mu
 let NUF_FILTRO='GERAL';
 let _newsRetry=0;
 async function news(){
+ /* 1) Snapshot embutido: renderiza na hora — o espaço nunca fica em branco */
  try{
-  const j=await fetch(API_BASE+'/api/noticias').then(r=>r.json());
-  const it=(j.noticias||[]);
-  window._NEWS=it;
-  nufContador();renderNews();
-  $('#nstatus').textContent=it.length?('Atualizado em '+new Date(j.geradoEm).toLocaleTimeString('pt-BR')+' · fontes: '+((j.fontes&&j.fontes.length)?j.fontes.join(', '):'Agência Brasil, G1 Política, Agência Senado')):'Sem notícias disponíveis agora.';
-  _newsRetry=0;
- }catch(e){
-  if(_newsRetry<2){_newsRetry++;$('#nstatus').textContent='Backend acordando (plano gratuito) — tentativa '+(_newsRetry+1)+' de 3…';setTimeout(news,4000);return}
-  $('#nstatus').innerHTML='Não foi possível carregar as notícias agora (backend gratuito frio). <button class="btn sm gold" onclick="news()">' + LUPA + ' Tentar de novo</button>';
+  const rs=await fetch('../data/noticias.json');
+  if(rs.ok){
+   const d=await rs.json();
+   if(d.noticias&&d.noticias.length&&!window._NEWS.length){
+    window._NEWS=d.noticias;
+    nufContador();renderNews();
+    $('#nstatus').textContent='Última atualização: '+new Date(d.geradoEm).toLocaleString('pt-BR')+' — buscando ao vivo…';
+   }
+  }
+ }catch(e){}
+ /* 2) Ao vivo (backend) com até 3 tentativas; sucesso substitui o snapshot */
+ for(let tent=1;tent<=3;tent++){
+  try{
+   const j=await fetch(API_BASE+'/api/noticias').then(r=>r.json());
+   const it=(j.noticias||[]);
+   if(it.length){
+    window._NEWS=it;
+    nufContador();renderNews();
+    $('#nstatus').textContent='Atualizado em '+new Date(j.geradoEm).toLocaleTimeString('pt-BR')+' · fontes: '+((j.fontes&&j.fontes.length)?j.fontes.join(', '):'')+' · ao vivo';
+   }
+   _newsRetry=0;return;
+  }catch(e){
+   if(window._NEWS.length){$('#nstatus').textContent='Exibindo o último snapshot — atualização ao vivo indisponível neste momento.';return}
+   $('#nstatus').textContent='Backend acordando (plano gratuito) — tentativa '+tent+' de 3…';
+   await new Promise(r=>setTimeout(r,5000));
+  }
  }
+ if(!window._NEWS.length){$('#nstatus').innerHTML='Não foi possível carregar as notícias. <button class=\"btn sm gold\" onclick=\"news()\">🔄 Tentar de novo</button>';}
 }
 const UFS_NOME={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
 function nufContador(){const ns=window._NEWS||[];const ct={};ns.forEach(n=>{if(n.uf&&n.uf!=='BR')ct[n.uf]=(ct[n.uf]||0)+1});
@@ -792,7 +811,6 @@ function nufContador(){const ns=window._NEWS||[];const ct={};ns.forEach(n=>{if(n
  sel.value=atual;
  const n=NUF_FILTRO==='GERAL'?ns.length:(ns.filter(x=>x.uf===NUF_FILTRO).length);
  const c=document.getElementById('nf-count');if(c)c.textContent=(NUF_FILTRO==='GERAL'?'Exibindo tudo':n+' matéria'+(n===1?'':'s'));}
-function nufSet(v){NUF_FILTRO=v;const sel=document.getElementById('nf-uf'),g=document.getElementById('nf-geral');
 function renderNews(){const ns=window._NEWS||[];const lista=(NUF_FILTRO==='GERAL'?ns:ns.filter(n=>n.uf===NUF_FILTRO));
  const dtRel=iso=>{if(!iso)return'';const d=(Date.now()-new Date(iso))/1000;if(d<3600)return Math.max(1,Math.floor(d/60))+' min atrás';if(d<86400)return Math.floor(d/3600)+' h atrás';return Math.floor(d/86400)+' d atrás'};
  $('#homeNews').innerHTML=lista.length?lista.map(n=>`<article class="ncard-new">
@@ -801,6 +819,7 @@ function renderNews(){const ns=window._NEWS||[];const lista=(NUF_FILTRO==='GERAL
   <div class="nfoot"><span>${n.dt?dtRel(n.dt):''}</span><a href="${n.l}" target="_blank" rel="noopener">Ler na fonte →</a></div></div>
  </article>`).join(''):`<p class="muted" style="padding:20px 4px">Nenhuma notícia ${NUF_FILTRO==='GERAL'?'':NUF_FILTRO==='BR'?'nacional':'de '+NUF_FILTRO} neste momento — as feeds locais atualizam a cada 10 min.</p>`;
 }
+function nufSet(v){NUF_FILTRO=v;const sel=document.getElementById('nf-uf'),g=document.getElementById('nf-geral');
  if(v==='GERAL'){g.classList.remove('off');sel.classList.remove('on');sel.value=''}
  else{g.classList.add('off');sel.classList.add('on');sel.value=v}
  renderNews();nufContador();}
