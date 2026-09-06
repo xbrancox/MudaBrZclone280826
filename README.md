@@ -488,10 +488,8 @@ node server/index.js
 
 ### 🚚 Deploy (setembro/2026)
 - **Front:** GitHub Pages — automático a cada push na `main` (workflow `pages.yml`).
-- **Backend:** Railway — por enquanto, subir manual após o push:
-  `railway up --service mudabrasil-redesign`
-  (a integração Railway↔GitHub está desconectada — religar em
-  Railway → serviço → Settings → Source → repo `MudaBrZclone280826`, branch `main`).
+- **Backend:** Railway — automático a cada push na `main` (Source repo conectado,
+  auto-deploy ON). Manual, se um dia precisar: `railway up --service mudabrasil-redesign`.
 - **Manutenção automática** (workflow `manutencao.yml`): snapshot de notícias
   diário (09:15), backup do SQLite diário (09:45, artifact 14 dias), candidaturas
   TSE diárias (10:05), enriquecimento de produção/presença semanal (seg 10:30).
