@@ -133,6 +133,12 @@ h2{margin:26px 0 10px}
     <p class="mini">Vote rápido em todas as matérias pendentes. Seu voto coloca. Seu voto tira.</p>
     <div class="prog" id="urna-prog"><div style="width:0%"></div></div>
     <p class="mini" id="urna-txt">0 de 0 votadas</p>
+    <div class="pills" id="urna-filtros" style="margin:10px 0 4px;align-items:center">
+      <input id="u-num" placeholder="🔎 Nº da PL" data-tip="Pula direto pra matéria com esse número (ex.: 5183)" style="background:var(--c1);border:1px solid var(--line);border-radius:999px;padding:9px 14px;color:var(--txt);font-size:13px;width:140px;outline:none">
+      <select id="u-tema" data-tip="Filtra as matérias pendentes por assunto" style="background:var(--c1);border:1px solid var(--line);border-radius:999px;padding:9px 12px;color:var(--txt);font-size:13px;cursor:pointer;outline:none"><option value="">Assunto: todos</option></select>
+      <select id="u-parl" data-tip="Filtra as matérias pendentes pelo parlamentar autor" style="background:var(--c1);border:1px solid var(--line);border-radius:999px;padding:9px 12px;color:var(--txt);font-size:13px;cursor:pointer;max-width:220px;outline:none"><option value="">Parlamentar: todos</option></select>
+      <button class="pill ghost" data-acao="uf-limpar" id="u-limpar" hidden>✕ limpar</button>
+    </div>
     <div id="urna-corpo"></div>
   </div>
 
@@ -254,14 +260,35 @@ function buildFila(){
  fila=[];
  PLS.forEach(p=>{const i=infoPL(p);fila.push({tipo:'pl',key:i.key,i,desc:i.desc,url:i.url,tema:temaDe(i.desc)||'Geral',extra:`${autorLabel(i)} · ${i.party} · ${i.chamber}`})});
  VOT.slice(0,10).forEach(v=>{const i=infoVot(v);fila.push({tipo:'vot',key:'VOT:'+i.id,i,desc:i.desc,url:'votacoes.html',tema:temaDe(i.desc)||'Geral',extra:'✅ JÁ VOTADA NO CONGRESSO'+(i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):'')})});
+ popularFiltrosUrna();
+}
+function popularFiltrosUrna(){
+ const selT=$('#u-tema'),selP=$('#u-parl');if(!selT||!selP)return;
+ const temas=[...new Set(fila.map(f=>f.tema))];
+ selT.innerHTML='<option value="">Assunto: todos</option>'+temas.map(t=>`<option value="${t}">${t}</option>`).join('');
+ const autores={};fila.forEach(f=>{const a=(f.i&&f.i.author||'').trim();
+  if(a&&!/^(deputado federal|deputada federal|senador|senadora|mesa|comiss|lideran|poder executivo|—)/i.test(a))autores[a]=1});
+ selP.innerHTML='<option value="">Parlamentar: todos</option>'+Object.keys(autores).sort().map(a=>`<option value="${a}">${a}</option>`).join('');
+}
+function filtrosUrnaAtivos(){
+ const n=($('#u-num')&&$('#u-num').value.trim())||'',t=($('#u-tema')&&$('#u-tema').value)||'',p=($('#u-parl')&&$('#u-parl').value)||'';
+ return {n,t,p,on:!!(n||t||p)}
 }
 function renderUrna(){
- const mv=meusVotos();const pend=fila.filter(f=>!mv[f.key]);
+ const mv=meusVotos();let pend=fila.filter(f=>!mv[f.key]);
  const tot=fila.length,done=tot-pend.length;
  $('#urna-prog').innerHTML=`<div style="width:${tot?done/tot*100:0}%"></div>`;
  $('#urna-txt').textContent=`${done} de ${tot} matérias votadas`;
+ const fu=filtrosUrnaAtivos();
+ const limp=$('#u-limpar');if(limp)limp.hidden=!fu.on;
+ if(fu.n){const nd=fu.n.replace(/\D/g,'');pend=nd?pend.filter(f=>String(f.i.n||f.i.num||'').includes(nd)):pend}
+ if(fu.t)pend=pend.filter(f=>f.tema===fu.t);
+ if(fu.p)pend=pend.filter(f=>((f.i&&f.i.author||'')).toLowerCase().includes(fu.p.toLowerCase()));
  const atual=pend.filter(f=>!pular.includes(f.key))[0]||pend[0];
- if(!atual){$('#urna-corpo').innerHTML=`<div class="vazio">🎉 Você opinou sobre todas as matérias pendentes!</div>`;return}
+ if(!atual){
+  $('#urna-corpo').innerHTML=fu.on
+   ?`<div class="vazio">Nenhuma matéria pendente com esses filtros.<br><button class="pill" data-acao="uf-limpar" style="margin-top:8px">✕ limpar filtros</button></div>`
+   :`<div class="vazio">🎉 Você opinou sobre todas as matérias pendentes!</div>`;return}
  ultimaKey=atual.key;
  $('#urna-corpo').innerHTML=`<h3 style="color:var(--gold)">Nº da PL: ${atual.i.key}</h3>
  <div class="pills"><span class="chip blue" data-tip="Tema principal da matéria">Assunto: ${atual.tema}</span></div>
@@ -297,19 +324,39 @@ function renderTudo(){
  PLS.forEach(p=>lista.appendChild(cardPL(p)));
  if(!PLS.length)lista.innerHTML=`<div class="vazio">Nenhuma PL carregada. Confira o backend ou recarregue.</div>`;
  renderPills();aplicaFiltro();renderAgenda();renderUrna()}
-async function dna(){
- const mv=meusVotos();const comp=[];let comparadas=0;
- for(const f of fila){
-  let vid=f.tipo==='vot'?f.i.id:(MAPVOT[f.i.n+'/'+f.i.ano]||{}).id;
-  const my=mv[f.key];if(!my||!vid)continue;
-  const lista=VOTOS[vid]||await votosDe(vid);if(!lista.length)continue;comparadas++;
-  lista.forEach(x=>{if(x.t==='cinza')return;comp.push({nome:x.nome,part:x.part,uf:x.uf,alinh:(my==='aprovo')===(x.t==='favor')})})}
- if(!comp.length){$('#dna').innerHTML=`<div class="vazio">Vote em matérias <b>JÁ VOTADAS</b> na Urna pra calcular sua sincronia com dados reais.</div>`;return}
- const por={};comp.forEach(c=>{por[c.nome]=por[c.nome]||{nome:c.nome,part:c.part,uf:c.uf,tot:0,ok:0};por[c.nome].tot++;por[c.nome].ok+=c.alinh?1:0});
- const r=Object.values(por).map(x=>({...x,pct:Math.round(x.ok/x.tot*100)})).sort((a,b)=>b.pct-a.pct);
- const top=r.slice(0,3),bot=r.slice(-3).reverse();
- const li=x=>`<div class="li"><span class="av">${String(x.nome).slice(0,2).toUpperCase()}</span><span style="flex:1">${x.nome} <span class="mini">${x.part}-${x.uf}</span></span><b style="color:${x.pct>=50?'var(--green)':'var(--red)'}">${x.pct}%</b></div>`;
- $('#dna').innerHTML=`<p class="mini">${comparadas} votação(ões) comparada(s) com seus votos.</p><div class="cols"><div><h4>🟢 Top afinidades</h4>${top.map(li).join('')}</div><div><h4>🔴 Top divergências</h4>${bot.map(li).join('')}</div></div>`}
+async function dna(btn){
+ const mv=meusVotos();
+ const comp=[];let comparadas=0,semPlenario=0;
+ const bt=btn;const txt0=bt?bt.textContent:'';
+ if(bt){bt.disabled=true;bt.textContent='🧬 Calculando sincronia…'}
+ $('#dna').innerHTML=`<div class="vazio">⏳ Cruzando seus votos com as votações nominais reais…</div>`;
+ try{
+  for(const f of fila){
+   let vid=f.tipo==='vot'?f.i.id:(MAPVOT[f.i.n+'/'+f.i.ano]||{}).id;
+   const my=mv[f.key];if(!my||!vid){continue}
+   const lista=VOTOS[vid]||await votosDe(vid);
+   if(!lista.length){semPlenario++;continue}
+   comparadas++;
+   lista.forEach(x=>{if(x.t==='cinza')return;comp.push({nome:x.nome,part:x.part,uf:x.uf,alinh:(my==='aprovo')===(x.t==='favor')})})
+  }
+  if(!comp.length){
+   const totVotadas=fila.filter(f=>f.tipo==='vot'||MAPVOT[f.i.n+'/'+f.i.ano]).length;
+   const meusNasVotadas=fila.filter(f=>mv[f.key]&&(f.tipo==='vot'||MAPVOT[f.i.n+'/'+f.i.ano])).length;
+   $('#dna').innerHTML=meusNasVotadas>0
+    ?`<div class="vazio">Você votou em ${meusNasVotadas} matéria(s) com votação nominal, mas o voto a voto do plenário não carregou agora (instabilidade na API da Câmara).<br><button class="pill on-g" data-acao="dna" style="margin-top:8px">🔄 Tentar de novo</button></div>`
+    :`<div class="vazio">Seu DNA compara seus votos com as votações <b>✅ JÁ VOTADAS</b> pelo Congresso — existem <b>${totVotadas}</b> disponíveis${mv&&Object.keys(mv).length?`, e dos seus ${Object.keys(mv).length} voto(s), nenhum era dessas`:' e você ainda não votou em nenhuma'}.<br>
+       <b>Como fazer:</b> na Urna Expressa acima, vote nas matérias marcadas <b>✅ JÁ VOTADA NO CONGRESSO</b> e volte aqui.<br>
+       <button class="pill on-g" data-acao="ir-urna" style="margin-top:10px">🗳️ Ir pra Urna Expressa</button></div>`;
+   return}
+  const por={};comp.forEach(c=>{por[c.nome]=por[c.nome]||{nome:c.nome,part:c.part,uf:c.uf,tot:0,ok:0};por[c.nome].tot++;por[c.nome].ok+=c.alinh?1:0});
+  const r=Object.values(por).map(x=>({...x,pct:Math.round(x.ok/x.tot*100)})).sort((a,b)=>b.pct-a.pct);
+  const top=r.slice(0,3),bot=r.slice(-3).reverse();
+  const li=x=>`<div class="li"><span class="av">${String(x.nome).slice(0,2).toUpperCase()}</span><span style="flex:1">${x.nome} <span class="mini">${x.part}-${x.uf}</span></span><b style="color:${x.pct>=50?'var(--green)':'var(--red)'}">${x.pct}%</b></div>`;
+  $('#dna').innerHTML=`<p class="mini">${comparadas} votação(ões) comparada(s) com seus votos${semPlenario?` · ${semPlenario} sem plenário carregado`:''}.</p><div class="cols"><div><h4>🟢 Top afinidades</h4>${top.map(li).join('')}</div><div><h4>🔴 Top divergências</h4>${bot.map(li).join('')}</div></div>`}
+ catch(e){
+  $('#dna').innerHTML=`<div class="vazio">⚠️ Não deu pra calcular agora: ${String(e.message||e)}<br><button class="pill on-g" data-acao="dna" style="margin-top:8px">🔄 Tentar de novo</button></div>`}
+ finally{if(bt){bt.disabled=false;bt.textContent=txt0}}
+}
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-acao]');if(!b)return;const a=b.dataset.acao;
  if(a==='votar'){const mv=meusVotos();mv[b.dataset.key]=b.dataset.v;LS.set('mb_votos_pl',mv);renderTudo();mandaVotoPl(b.dataset.key,b.dataset.v)}
@@ -317,7 +364,10 @@ document.addEventListener('click',e=>{
  else if(a==='sanf'){const p=PLS.find(x=>cssk(infoPL(x).key)===b.dataset.key);if(p){const i=infoPL(p);abreSanf(i,MAPVOT[i.n+'/'+i.ano])}}
  else if(a==='per'){$$('[data-acao="per"]').forEach(x=>x.classList.remove('on'));b.classList.add('on');perAtivo=+b.dataset.per;renderAgenda()}
  else if(a==='tema'){$$('[data-acao="tema"]').forEach(x=>x.classList.remove('on'));b.classList.add('on');temaAtivo=b.dataset.t;aplicaFiltro();document.getElementById('anc-lista').scrollIntoView({behavior:'smooth'})}
- else if(a==='dna'){dna()}});
+ else if(a==='dna'){dna(b)}
+ else if(a==='ir-urna'){document.getElementById('urna').scrollIntoView({behavior:'smooth'})}
+ else if(a==='uf-limpar'){const n=$('#u-num'),t=$('#u-tema'),p=$('#u-parl');if(n)n.value='';if(t)t.value='';if(p)p.value='';pular=[];renderUrna()}});
+['u-num','u-tema','u-parl'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener(el.tagName==='INPUT'?'input':'change',()=>renderUrna())});
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-compartilhar]');if(!b)return;
  window.open('https://twitter.com/intent?text='+encodeURIComponent(b.dataset.compartilhar+' · #MudaBrasil'),'_blank')});
