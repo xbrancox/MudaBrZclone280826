@@ -20,6 +20,7 @@
      GET  /api/termometro         agregação pública irreversível
      GET  /api/stream             SSE: eventos ao vivo (novos votos, etc.)
      GET  /api/health             saúde do serviço (uptime, storage, totais)
+     GET  /api/admin/backup       dump JSON de todas as tabelas (BACKUP_TOKEN)
 
    O frontend continua funcionando 100% estático: se a API não
    responder (ex.: aberto via file://), ele usa o modo DEMO com
@@ -27,6 +28,7 @@
    ============================================================ */
 
 const http = require('http');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { fetchDeputados, enrichBills, DEP_FILE } = require('./ingest');
@@ -428,6 +430,26 @@ async function handleApi(req, res, url) {
       totalRevogados: votes.totals().totalRevogados,
       atualizacaoDadosPublicos: 'a cada ' + REFRESH_HOURS + 'h (automática)'
     });
+  }
+
+  /* Backup integral (dump JSON de todas as tabelas) para a manutenção
+     automática da CI. Protegido por BACKUP_TOKEN — sem a env configurada,
+     o endpoint responde 503 e não expõe nada. */
+  if (p === '/api/admin/backup' && req.method === 'GET') {
+    const tok = process.env.BACKUP_TOKEN || '';
+    const given = String(req.headers['x-backup-token'] || q.t || '');
+    const sameLen = given.length === tok.length;
+    const okTok = tok && sameLen &&
+      crypto.timingSafeEqual(Buffer.from(given), Buffer.from(tok));
+    if (!tok) return sendJson(res, 503, { ok: false, error: 'backup desativado (BACKUP_TOKEN não configurado)' });
+    if (!okTok) return sendJson(res, 403, { ok: false, error: 'token inválido' });
+    try {
+      const dump = db.dumpAll();
+      const resumo = Object.fromEntries(Object.entries(dump).map(([t, rows]) => [t, rows.length]));
+      return sendJson(res, 200, { ok: true, geradoEm: new Date().toISOString(), storage: db.backend(), resumo, dump });
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: 'falha no dump: ' + e.message });
+    }
   }
 
   if (p === '/api/status') {
