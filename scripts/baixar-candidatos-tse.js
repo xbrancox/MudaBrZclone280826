@@ -122,20 +122,25 @@ async function main() {
     process.exit(1);
   }
 
-  const dump = JSON.stringify({
+  /* Compara só o CONTEÚDO (ignora extraidoEm — timestamp mudaria toda
+     execução e geraria commit vazio todos os dias) */
+  let igual = false;
+  try {
+    const atual = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+    igual = !!atual && JSON.stringify(atual.candidatos) === JSON.stringify(candidatos);
+  } catch (_) { }
+  if (igual) {
+    console.log('[tse] snapshot idêntico ao anterior — nada a gravar');
+    return;
+  }
+  fs.writeFileSync(OUT, JSON.stringify({
     mode: 'real',
     fonte: 'TSE · Eleição Geral Federal 2026 (CSVs oficiais via espelho leofn/tse-candidatos-2026)',
     extraidoEm: new Date().toISOString(),
     total: candidatos.length,
     candidatos
-  });
-  const atual = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : '';
-  if (atual === dump) {
-    console.log('[tse] snapshot idêntico ao anterior — nada a gravar');
-  } else {
-    fs.writeFileSync(OUT, dump);
-    console.log('[tse] OK — data/candidatos-2026.json gravado (' + Math.round(dump.length / 1e6 * 10) / 10 + 'MB)');
-  }
+  }));
+  console.log('[tse] OK — data/candidatos-2026.json gravado (' + candidatos.length + ' candidatos)');
 }
 
 main().catch(e => { console.error('FALHA GERAL:', e); process.exit(1); });
