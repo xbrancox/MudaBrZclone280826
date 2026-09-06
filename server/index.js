@@ -76,6 +76,30 @@ const SEC_HEADERS = {
   'Referrer-Policy': 'no-referrer'
 };
 
+/* ---- Contagens de proposições do snapshot estático (data/politicos.json) ----
+   O snapshot é pré-enriquecido via scripts/enriquecer-snapshot.js; mesclar
+   aqui mantém o modo "servidor" consistente com o modo "Pages". */
+let billsFromSnapshot = null;
+function getBillsFromSnapshot() {
+  if (billsFromSnapshot) return billsFromSnapshot;
+  billsFromSnapshot = new Map();
+  try {
+    const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'politicos.json'), 'utf8'));
+    (snap.candidatos || []).forEach(c => {
+      if (c.id && c.billsAuthored != null) billsFromSnapshot.set(c.id, { billsAuthored: c.billsAuthored, dataSources: c.dataSources });
+    });
+  } catch (e) { /* snapshot ausente: segue sem merge */ }
+  return billsFromSnapshot;
+}
+function mergeBills(c) {
+  const hit = getBillsFromSnapshot().get(c.id);
+  if (hit && c.billsAuthored == null) {
+    c.billsAuthored = hit.billsAuthored;
+    if (Array.isArray(hit.dataSources)) c.dataSources = hit.dataSources;
+  }
+  return c;
+}
+
 function sendJson(res, status, obj, methods = 'GET, POST, OPTIONS') {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -438,6 +462,7 @@ async function handleApi(req, res, url) {
       const todos = [...deputados, ...senadores];
       const verSet = new Set(Object.keys(verificacao.getAllVerified()));
       const candidatos = applyQuery(todos, q).map(c => (verSet.has(c.id) ? { ...c, selo: true, verificado: true } : c));
+      candidatos.forEach(mergeBills);
       return sendJson(res, 200, {
         mode: 'real',
         source: 'Câmara dos Deputados + Senado Federal',
@@ -485,6 +510,7 @@ async function handleApi(req, res, url) {
           cand.hasFullData = true;
         }
       }
+      cand = mergeBills(cand);
       return sendJson(res, 200, { ok: true, mode: 'real', source: fonte, candidato: cand });
     } catch (e) {
       return sendJson(res, 502, { error: e.message });

@@ -216,6 +216,7 @@
     if (sort === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
     else if (sort === 'party') list.sort((a, b) => (a.party || '').localeCompare(b.party || '', 'pt-BR') || (a.name || '').localeCompare(b.name || '', 'pt-BR'));
     else if (sort === 'integrity') list.sort(byNumericDesc('integrityIndex', 'lawsuits'));
+    else if (sort === 'proposicoes') list.sort(byNumericDesc('billsAuthored'));
     else list.sort(byNumericDesc('transparencyScore'));
     // Ambos os sorts numéricos empurram "sem dados" para o fim e desempatam por nome
     function byNumericDesc(primary, secondary) {
@@ -283,6 +284,7 @@
         </div>
         <div class="mb-cand-tags">
           ${p.number ? `<span class="mb-tag-num">#${p.number}</span>` : ''}
+          ${p.billsAuthored != null ? `<span class="mb-tag-num" title="Proposições autorais (histórico; fonte: APIs da Câmara e do Senado)">📜 ${p.billsAuthored} prop.</span>` : ''}
           ${hasIntegrityData
             ? (processes === 0
                 ? '<span class="mb-tag-clean">✅ Sem processos</span>'
@@ -367,7 +369,7 @@
       { key: 'state', label: 'UF' },
       { key: 'position', label: 'Cargo' },
       { key: 'education', label: 'Escolaridade' },
-      { key: 'billsAuthored', label: 'PLs Autorias' },
+      { key: 'billsAuthored', label: 'Proposições autorais' },
       { key: 'attendanceRate', label: 'Presença' },
       { key: 'transparencyScore', label: 'Transparência' },
       { key: 'lawsuits', label: 'Processos' },
@@ -441,7 +443,7 @@
         <div class="mb-card-inner"><div class="mb-muted-sm">Idade</div><strong>${c.age || '—'}</strong></div>
         <div class="mb-card-inner"><div class="mb-muted-sm">Escolaridade</div><strong>${escapeHtml(c.education || '—')}</strong></div>
         <div class="mb-card-inner"><div class="mb-muted-sm">Mandatos</div><strong>${c.termCount || 1}</strong></div>
-        <div class="mb-card-inner"><div class="mb-muted-sm">PLs Autorias</div><strong>${c.billsAuthored != null ? c.billsAuthored : '—'}</strong></div>
+        <div class="mb-card-inner"><div class="mb-muted-sm">Proposições autorais</div><strong>${c.billsAuthored != null ? c.billsAuthored : '—'}</strong></div>
         <div class="mb-card-inner"><div class="mb-muted-sm">Presença</div><strong>${c.attendanceRate != null ? c.attendanceRate + '%' : '—'}</strong></div>
         <div class="mb-card-inner"><div class="mb-muted-sm">Processos</div><strong>${c.lawsuits != null ? c.lawsuits : '—'}</strong></div>
       </div>
