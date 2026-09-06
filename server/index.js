@@ -188,6 +188,37 @@ const NEWS_FEEDS = [
 ];
 const POLITICS_KW = /\b(pol[ií]t|governo|congresso|senado|c[aâ]mara|tse|stf|stj|elei[çc]|[cç]andidat|deputad|senador|ministr|presidente|governador|prefeito|vereador|partido|plen[aá]rio|vota[çc]|[lL]ei\b|projeto de lei|medida provis[óo]ria|emenda|comiss[aã]o|frente parlamentar|impeachment|cassa[çc]|den[úu]ncia|inqu[éé]rito| Lava Jato|mensal[aã]o|petrol[aã]o|corrup[cç]|improbidade|impeachment)\b/i;
 const UF_LIST = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+/* Feeds LOCAIS por estado (G1 estaduais) — notícias políticas do estado
+   para o recorte UF do carrossel. Tag de UF vem do próprio feed. */
+const NEWS_FEEDS_UF = {
+  AC: 'https://g1.globo.com/rss/g1/ac/acre/',
+  AL: 'https://g1.globo.com/rss/g1/al/alagoas/',
+  AP: 'https://g1.globo.com/rss/g1/ap/amapa/',
+  AM: 'https://g1.globo.com/rss/g1/am/amazonas/',
+  BA: 'https://g1.globo.com/rss/g1/ba/bahia/',
+  CE: 'https://g1.globo.com/rss/g1/ce/ceara/',
+  DF: 'https://g1.globo.com/rss/g1/df/distrito-federal/',
+  ES: 'https://g1.globo.com/rss/g1/es/espirito-santo/',
+  GO: 'https://g1.globo.com/rss/g1/go/goias/',
+  MA: 'https://g1.globo.com/rss/g1/ma/maranhao/',
+  MT: 'https://g1.globo.com/rss/g1/mt/mato-grosso/',
+  MS: 'https://g1.globo.com/rss/g1/ms/mato-grosso-do-sul/',
+  MG: 'https://g1.globo.com/rss/g1/mg/minas-gerais/',
+  PA: 'https://g1.globo.com/rss/g1/pa/para/',
+  PB: 'https://g1.globo.com/rss/g1/pb/paraiba/',
+  PR: 'https://g1.globo.com/rss/g1/pr/parana/',
+  PE: 'https://g1.globo.com/rss/g1/pe/pernambuco/',
+  PI: 'https://g1.globo.com/rss/g1/pi/piaui/',
+  RJ: 'https://g1.globo.com/rss/g1/rj/rio-de-janeiro/',
+  RN: 'https://g1.globo.com/rss/g1/rn/rio-grande-do-norte/',
+  RS: 'https://g1.globo.com/rss/g1/rs/rio-grande-do-sul/',
+  RO: 'https://g1.globo.com/rss/g1/ro/rondonia/',
+  RR: 'https://g1.globo.com/rss/g1/rr/roraima/',
+  SC: 'https://g1.globo.com/rss/g1/sc/santa-catarina/',
+  SP: 'https://g1.globo.com/rss/g1/sp/sao-paulo/',
+  SE: 'https://g1.globo.com/rss/g1/se/sergipe/',
+  TO: 'https://g1.globo.com/rss/g1/to/tocantins/'
+};
 const NEWS_CACHE = { ts: 0, items: [] };
 function stripTags(v) { return String(v || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim(); }
 function parseRss(xml, fonte, politicasOnly) {
@@ -233,14 +264,20 @@ async function refreshNoticias(force) {
   const now = Date.now();
   if (!force && now - NEWS_CACHE.ts < 600000 && NEWS_CACHE.items.length) return;
   try {
-    const res = await Promise.all(NEWS_FEEDS.map(f =>
-      fetch(f.url, { headers: { Accept: 'application/rss+xml,application/xml,text/xml', 'User-Agent': 'MudaBrasil/1.0 (+https://mudabrasil.app)' }, signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined })
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-        .then(x => parseRss(x, f.fonte, f.politicas)).catch(err => { console.warn('[noticias] falha em', f.fonte, ':', err.message); return []; })));
-    const items = [].concat(...res).map(n => ({ ...n, uf: detectUF(n.t + ' ' + n.res) }));
+    const cab = { Accept: 'application/rss+xml,application/xml,text/xml', 'User-Agent': 'MudaBrasil/1.0 (+https://mudabrasil.app)' };
+    const fetchFeed = url => fetch(url, { headers: cab, signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined })
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); });
+    const nacionais = await Promise.all(NEWS_FEEDS.map(f =>
+      fetchFeed(f.url).then(x => parseRss(x, f.fonte, f.politicas)).catch(err => { console.warn('[noticias] falha em', f.fonte, ':', err.message); return []; })));
+    // Feeds LOCAIS (G1 estaduais): só notícias com teor político, UF fixa do feed
+    const locais = await Promise.all(Object.entries(NEWS_FEEDS_UF).map(([uf, url]) =>
+      fetchFeed(url).then(x => parseRss(x, 'G1 ' + uf, true).map(n => ({ ...n, uf: uf })))
+        .catch(err => { console.warn('[noticias] falha em', uf, ':', err.message); return []; })));
+    const itensLoc = [].concat(...locais);
+    const items = [].concat(...nacionais).map(n => ({ ...n, uf: detectUF(n.t + ' ' + n.res) })).concat(itensLoc);
     items.sort((a, b) => (b.dt || '').localeCompare(a.dt || ''));
-    if (items.length) { NEWS_CACHE.items = items.slice(0, 60); NEWS_CACHE.ts = now; }
-    console.log('[noticias] ' + items.length + ' itens de ' + NEWS_FEEDS.length + ' fontes (cache 10min)');
+    if (items.length) { NEWS_CACHE.items = items.slice(0, 150); NEWS_CACHE.ts = now; }
+    console.log('[noticias] ' + items.length + ' itens (' + itensLoc.length + ' locais) de ' + NEWS_FEEDS.length + ' fontes nacionais + ' + Object.keys(NEWS_FEEDS_UF).length + ' estaduais (cache 10min)');
   } catch (e) { console.warn('[noticias] falha ao atualizar feeds:', e.message); }
 }
 
