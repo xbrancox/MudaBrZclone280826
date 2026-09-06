@@ -27,7 +27,8 @@ const ROOT = path.join(__dirname, '..');
 const SNAP = path.join(ROOT, 'data', 'politicos.json');
 const UA = 'MudaBrasil/1.0 (plataforma civica de transparencia; dados abertos)';
 const INICIO = '2026-01-01';
-const FIM = '2026-09-05';
+// Fim do período = hoje: re-rodadas semanais pegam as sessões novas
+const FIM = new Date().toISOString().slice(0, 10);
 const DELAY_MS = 150;
 const SALVAR_A_CADA = 25;
 
