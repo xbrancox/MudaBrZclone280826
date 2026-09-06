@@ -26,14 +26,24 @@ jobs:
         with:
           node-version: 22
 
-      - name: Validar snapshot de parlamentares
+      - name: Validar snapshots de dados
         run: |
           node -e "
             const d = require('./data/politicos.json');
             if (!Array.isArray(d.candidatos) || d.candidatos.length < 500) {
               throw new Error('Snapshot de parlamentares inválido: ' + d.candidatos.length);
             }
-            console.log('OK:', d.detalhes.deputados, 'deputados +', d.detalhes.senadores, 'senadores');
+            const comBills = d.candidatos.filter(c => c.billsAuthored != null).length;
+            const comPresenca = d.candidatos.filter(c => c.attendanceRate != null || c.votesPlenary2026 != null).length;
+            console.log('Parlamentares OK:', d.detalhes.deputados, '+', d.detalhes.senadores,
+              '| proposições:', comBills, '| presença/votações:', comPresenca);
+          "
+          node -e "
+            const p = require('./data/pls.json');
+            if (!Array.isArray(p.pls) || p.pls.length < 10) {
+              throw new Error('Snapshot de PLs inválido: ' + p.pls.length);
+            }
+            console.log('PLs OK:', p.total, 'projetos reais da Câmara');
           "
 
       - name: Montar site estático (dist)

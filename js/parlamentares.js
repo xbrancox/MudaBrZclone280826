@@ -724,6 +724,7 @@
           </div>
           <span class="mb-radar-badge ${isApoio ? 'mb-radar-badge-green' : 'mb-radar-badge-red'}">${isApoio ? '👍 Apoio' : '📣 Reclamação'}</span>
           ${c.responded || responseText ? '<span class="mb-radar-badge mb-radar-badge-blue">Respondido</span>' : ''}
+          ${String(c.id || '').startsWith('fb-') ? '<span class="mb-radar-badge" title="Registro de exemplo — sem servidor conectado">🧪 amostra</span>' : ''}
         </div>
         <div class="mb-radar-text">${escapeHtml(c.content)}</div>
         ${responseText ? `<div class="mb-radar-response"><strong>↪️ Resposta do político:</strong> ${escapeHtml(responseText)}</div>` : ''}
@@ -1013,7 +1014,12 @@
         out.className = 'mb-conferir-result error';
         out.innerHTML = `❌ <strong>Código não encontrado</strong><br>Verifique se digitou corretamente.`;
       }
-    } catch (e) { toast('Erro ao conferir', 'error'); }
+    } catch (e) {
+      // Sem servidor (site estático): a verificação precisa do backend
+      const out = $('#conferir-result');
+      out.className = 'mb-conferir-result error';
+      out.innerHTML = `ℹ️ <strong>Verificação indisponível no modo site</strong><br>Consultar a base de votos exige o servidor do MudaBrasil em execução (localmente: <code>node server/index.js</code>). Seu código de 20 dígitos continua válido e guardado por você.`;
+    }
   }
 
   async function generateCode() {
