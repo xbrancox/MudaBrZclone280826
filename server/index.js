@@ -364,8 +364,10 @@ async function handleApi(req, res, url) {
         lista = lista.filter(c => {
           const v = String(c.situacao || '').toUpperCase();
           if (sitUpper === 'DEFERIDO') return /DEFERIDO|APTO/.test(v);
+          if (sitUpper === 'AGUARDANDO') return /AGUARDANDO|PENDENTE/.test(v);
           if (sitUpper === 'PENDENTE') return /SUB|PENDENTE/.test(v);
           if (sitUpper === 'INAPTO') return /INAPTO|INDEF|CANCEL|CASSADO/.test(v);
+          if (sitUpper === 'INDEFERIDO') return /INDEFERIDO/.test(v);
           return true;
         });
       }
@@ -377,9 +379,9 @@ async function handleApi(req, res, url) {
           (c.partido || '').toLowerCase().includes(busca)
         );
       }
-      // Paginação
-      const pagina = Math.max(1, parseInt(q.pagina || '1', 10));
-      const porPagina = Math.min(100, Math.max(10, parseInt(q.porPagina || '50', 10)));
+      /* Paginação (aceita pagina/porPagina e os aliases page/pageSize do front) */
+      const pagina = Math.max(1, parseInt(q.pagina || q.page || '1', 10));
+      const porPagina = Math.min(100, Math.max(10, parseInt(q.porPagina || q.pageSize || '50', 10)));
       const total = lista.length;
       const totalPaginas = Math.ceil(total / porPagina);
       const inicio = (pagina - 1) * porPagina;
@@ -389,6 +391,8 @@ async function handleApi(req, res, url) {
         ok: true,
         mode: all.mode,
         aviso: all.aviso,
+        extraidoEm: all.extraidoEm,
+        fonte: all.fonte,
         ano: parseInt(ano || '2026', 10),
         total,
         totalPaginas,
