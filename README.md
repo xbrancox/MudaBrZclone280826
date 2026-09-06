@@ -485,3 +485,17 @@ node server/index.js
 # 3. Reclamar / Apoiar (com sessão ativa)
 # 4. Verificar: e-mail institucional com domínio autorizado
 ```
+
+### 🚚 Deploy (setembro/2026)
+- **Front:** GitHub Pages — automático a cada push na `main` (workflow `pages.yml`).
+- **Backend:** Railway — por enquanto, subir manual após o push:
+  `railway up --service mudabrasil-redesign`
+  (a integração Railway↔GitHub está desconectada — religar em
+  Railway → serviço → Settings → Source → repo `MudaBrZclone280826`, branch `main`).
+- **Manutenção automática** (workflow `manutencao.yml`): snapshot de notícias
+  diário (09:15), backup do SQLite diário (09:45, artifact 14 dias), candidaturas
+  TSE diárias (10:05), enriquecimento de produção/presença semanal (seg 10:30).
+  Executar manualmente: aba Actions → "Manutenção automática" → Run workflow.
+- **Dados de candidatos 2026:** `node scripts/baixar-candidatos-tse.js`
+  (regenera `data/candidatos-2026.json` a partir dos CSVs oficiais do TSE
+  via espelho diário `leofn/tse-candidatos-2026`).
