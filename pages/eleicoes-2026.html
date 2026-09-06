@@ -97,8 +97,32 @@ const API=(window.MudaBrasil&&window.MudaBrasil.API_BASE)||'https://mudabrasil-p
 const UFS=['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
 const $=s=>document.querySelector(s);
 $('#uf').innerHTML=UFS.map(u=>`<option value="${u}" ${u==='SP'?'selected':''}>${u}</option>`).join('');
-let page=1,total=0,LAST=[];const PS=50;
+let page=1,total=0,LAST=[],SNAP=null;const PS=50;
 function aviso(m){const a=$('#aviso');a.style.display=m?'block':'none';a.innerHTML=m||''}
+/* Snapshot commitado (candidatos reais 2026) — fallback quando o backend não responde */
+async function buscarEstatico(){
+ if(!SNAP){const rs=await fetch('../data/candidatos-2026.json');if(!rs.ok)throw new Error('snapshot HTTP '+rs.status);SNAP=await rs.json();}
+ const q=$('#q').value.trim().toLowerCase(),cargo=$('#cargo').value,uf=$('#uf').value,sit=$('#sit').value;
+ let lista=SNAP.candidatos||[];
+ if(cargo)lista=lista.filter(c=>String(c.cargo)===String(cargo));
+ if(uf)lista=lista.filter(c=>c.uf===uf);
+ if(sit){const S=sit.toUpperCase();lista=lista.filter(c=>{const v=String(c.situacao||'').toUpperCase();
+  if(S==='DEFERIDO')return /DEFERIDO|APTO/.test(v);
+  if(S==='AGUARDANDO')return /AGUARDANDO|PENDENTE/.test(v);
+  if(S==='INDEFERIDO')return /INDEFERIDO/.test(v);
+  return true;});}
+ if(q)lista=lista.filter(c=>(c.nomeUrna||'').toLowerCase().includes(q)||String(c.numero||'').includes(q)||(c.partido||'').toLowerCase().includes(q));
+ return lista;
+}
+/* Aplica página + render comum aos dois caminhos (API e snapshot) */
+function render(arr){
+ LAST=arr;
+ $('#info').textContent=`${total} candidato(s) — mostrando ${arr.length} nesta página.`;
+ const tp=Math.max(1,Math.ceil(total/PS));
+ $('#pgInfo').textContent=`Página ${page} de ${tp}`;
+ $('#pgAnt').disabled=page<=1;$('#pgProx').disabled=page>=tp;
+ $('#lista').innerHTML=arr.map((c,i)=>card(c,i)).join('')||'<p class="muted">Nada encontrado com esses filtros.</p>';
+}
 async function buscar(p){
  page=Math.max(1,p);
  const q=$('#q').value.trim(),cargo=$('#cargo').value,uf=$('#uf').value,sit=$('#sit').value;
@@ -111,29 +135,22 @@ async function buscar(p){
   let arr;
   if(Array.isArray(j)){arr=j;total=arr.length;const s=(page-1)*PS;arr=arr.slice(s,s+PS);}
   else{arr=j.candidatos||j.dados||[];total=j.total!=null?j.total:arr.length;}
-  // FIX: em modo incumbentes com filtro de situação, re-busca sem o filtro
-  if(j.mode==='incumbentes' && sit){
-   try{
-    const url2=`${API}/api/candidatos-tse?cargo=${cargo}&uf=${uf}&page=${page}&pageSize=${PS}`+(q?`&q=${encodeURIComponent(q)}`:'');
-    const r2=await fetch(url2);const j2=await r2.json();
-    const arr2=j2.candidatos||j2.dados||[];
-    if(arr2.length){arr=arr2;total=j2.total!=null?j2.total:arr2.length;}
-   }catch(e2){}
-  }
-  LAST=arr;
-  let avisoMsg='';
-  if(j.mode==='amostra') avisoMsg='⚠️ <b>Modo amostra:</b> o TSE bloqueia scraping automático — servindo amostra até o CSV oficial de 2026 entrar no ar.';
-  else if(j.mode==='incumbentes') avisoMsg='ℹ️ <b>Eleições 2026:</b> o TSE ainda não publicou as candidaturas — exibindo parlamentares em <b>mandato ativo</b> (possíveis recandidaturas).'+(sit?' <i>Os filtros DEFERIDO/INDEFERIDO valerão quando o TSE publicar as candidaturas 2026.</i>':'');
-  aviso(avisoMsg);
-  $('#info').textContent=`${total} candidato(s) — mostrando ${arr.length} nesta página.`;
-  const tp=Math.max(1,Math.ceil(total/PS));
-  $('#pgInfo').textContent=`Página ${page} de ${tp}`;
-  $('#pgAnt').disabled=page<=1;$('#pgProx').disabled=page>=tp;
-  $('#lista').innerHTML=arr.map((c,i)=>card(c,i)).join('')||'<p class="muted">Nada encontrado com esses filtros.</p>';
+  aviso('');
+  render(arr);
  }catch(e){
-  $('#info').textContent='';
-  aviso(`⚠️ Não falei com o backend (${e.message}). A rota <b>/api/candidatos-tse</b> existe no servidor local atualizado: rode <b>node server/index.js</b> e abra <b>http://localhost:8080/pages/eleicoes-2026.html</b>. No Railway, ela entra no próximo deploy.`);
-  $('#lista').innerHTML='';
+  /* Backend dormindo/indisponível → snapshot local (nunca fica em branco) */
+  try{
+   const all=await buscarEstatico();
+   total=all.length;
+   const arr=all.slice((page-1)*PS,page*PS);
+   const qtd=(SNAP.candidatos||[]).length;
+   aviso(`📦 <b>Modo snapshot:</b> backend indisponível (${e.message}) — exibindo ${qtd} candidatos reais do TSE extraídos em ${SNAP.extraidoEm?new Date(SNAP.extraidoEm).toLocaleString('pt-BR'):'—'}. A situação de julgamento muda — ao voltar, o backend mostra os dados ao vivo.`);
+   render(arr);
+  }catch(e2){
+   $('#info').textContent='';
+   aviso(`⚠️ Não foi possível falar com o backend (${e.message}) nem carregar o snapshot local (${e2.message}).`);
+   $('#lista').innerHTML='';
+  }
  }
 }
 function card(c,i){

@@ -1,10 +1,14 @@
 name: Manutenção automática
 
-# Três tarefas independentes:
+# Quatro tarefas independentes:
 #   noticias       — diária 09:15 BRT (12:15 UTC): regenera data/noticias.json
 #                    (snapshot anti-vazio do carrossel de notícias)
 #   backup         — diária 09:45 BRT (12:45 UTC): dump JSON de todas as tabelas
 #                    do SQLite do Railway → artifact privado (14 dias)
+#   tse-candidatos — diária 10:05 BRT (13:05 UTC): baixa os CSVs oficiais do TSE
+#                    (espelho diário leofn/tse-candidatos-2026) e regenera
+#                    data/candidatos-2026.json (~20 mil candidatos, situação de
+#                    julgamento fresca — o TSE julga registros até a véspera)
 #   enriquecimento — segundas 10:30 BRT (13:30 UTC): re-rodada da produção
 #                    legislativa (incremental) e da presença em plenário
 #                    (recálculo total — o denominador de sessões cresce)
@@ -13,6 +17,7 @@ on:
   schedule:
     - cron: '15 12 * * *'   # noticias
     - cron: '45 12 * * *'   # backup
+    - cron: '5 13 * * *'    # tse-candidatos
     - cron: '30 13 * * 1'   # enriquecimento (segundas)
   workflow_dispatch:
     inputs:
@@ -24,6 +29,7 @@ on:
         options:
           - noticias
           - backup
+          - tse-candidatos
           - enriquecimento
           - tudo
 
@@ -88,6 +94,30 @@ jobs:
           name: backup-sqlite-${{ github.run_number }}
           path: backup.json
           retention-days: 14
+
+  tse-candidatos:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.tarefa == 'tse-candidatos' || inputs.tarefa == 'tudo') ||
+      github.event.schedule == '5 13 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Baixa CSVs do TSE (espelho diário) e regenera snapshot
+        run: node scripts/baixar-candidatos-tse.js
+      - name: Commita se mudou
+        run: |
+          git config user.name  "manutencao[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/candidatos-2026.json
+          if git diff --cached --quiet; then echo "snapshot sem mudanças — nada a commitar"; exit 0; fi
+          git commit -m "chore(data): candidaturas 2026 do TSE atualizadas ($(date -u '+%Y-%m-%d')) [manutenção automática]"
+          git pull --rebase origin main
+          git push
 
   enriquecimento:
     needs: noticias   # serializa os commits para não disputar o push
