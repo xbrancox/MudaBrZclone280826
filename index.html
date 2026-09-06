@@ -100,6 +100,15 @@
     @media (max-width: 768px) {
       .abas-grid { grid-template-columns: 1fr; }
     }
+
+    /* ===== PLATAFORMA AO VIVO ===== */
+    .live-panel { background: var(--bg-card); border: 1px solid rgba(0,151,57,0.4); border-radius: 18px; box-shadow: 0 0 40px rgba(0,151,57,0.07), 0 18px 40px rgba(6,26,58,0.45); }
+    .live-panel-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .live-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin: 20px 0; }
+    .live-metric { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px; border-radius: 12px; background: rgba(52,101,164,0.10); border: 1px solid rgba(90,107,126,0.2); }
+    .live-metric-num { font-family: 'Montserrat', sans-serif; font-size: 1.6rem; font-weight: 900; color: var(--lime); font-variant-numeric: tabular-nums; }
+    .live-metric-label { font-size: 0.68rem; color: var(--gray-sub); text-transform: uppercase; letter-spacing: 0.06em; text-align: center; }
+    .source-badge-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: rgba(0,151,57,0.16); border: 1px solid rgba(0,151,57,0.5); color: #d6ffe8; }
   </style>
   <script src="js/header.js"></script>
 </head>
@@ -184,6 +193,23 @@
     </div>
   </section>
 
+  <!-- ===== PLATAFORMA AO VIVO (só aparece com o servidor conectado) ===== -->
+  <section id="live-panel" class="live-panel card" style="max-width:1100px;margin:0 auto 40px;padding:28px;position:relative;z-index:1" hidden>
+    <div class="live-panel-head">
+      <h2 style="margin:0;font-size:1.3rem">🔴 Plataforma ao vivo</h2>
+      <span class="source-badge-pill real" id="live-updated">conectando…</span>
+    </div>
+    <p style="color:#94A3B8;font-size:0.9rem;margin:6px 0 0">Números reais do MudaBrasil, atualizados em tempo real via SSE.</p>
+    <div class="live-metrics">
+      <div class="live-metric"><span class="live-metric-num" id="lm-votos">—</span><span class="live-metric-label">Votos de confiança ativos</span></div>
+      <div class="live-metric"><span class="live-metric-num" id="lm-revogados">—</span><span class="live-metric-label">Votos revogados</span></div>
+      <div class="live-metric"><span class="live-metric-num" id="lm-reclamacoes">—</span><span class="live-metric-label">Reclamações</span></div>
+      <div class="live-metric"><span class="live-metric-num" id="lm-apoios">—</span><span class="live-metric-label">Apoios</span></div>
+      <div class="live-metric"><span class="live-metric-num" id="lm-parlamentares">594</span><span class="live-metric-label">Parlamentares acompanhados</span></div>
+    </div>
+    <p style="color:#5A6B7E;font-size:0.72rem;margin:12px 0 0">Anonimato garantido: os números são agregações irreversíveis — ninguém sabe quem votou em quem.</p>
+  </section>
+
   <!-- ===== FONTES PÚBLICAS ===== -->
   <section style="padding: 40px 24px 60px; max-width: 1100px; margin: 0 auto;">
     <h2 style="font-family:'Montserrat',sans-serif;font-size:1.3rem;font-weight:900;text-align:center;margin-bottom:8px;color:#fff">🔎 Dados 100% Públicos e Verificáveis</h2>
@@ -229,6 +255,59 @@
     </p>
     <p style="font-size: 0.72rem; color: #5A6B7E;">A lista de parlamentares exibida é real (Câmara + Senado). Votos e reclamações são simulação cívica — nenhum voto oficial é alterado.</p>
   </footer>
+
+  <script src="js/live-stream.js"></script>
+  <script>
+    /* Painel "Plataforma ao vivo": só aparece com o servidor conectado. */
+    (function () {
+      'use strict';
+      var painel = document.getElementById('live-panel');
+      if (!painel) return;
+
+      function fmt(n) { return new Intl.NumberFormat('pt-BR').format(n || 0); }
+
+      async function atualizar() {
+        var ok = false;
+        try {
+          var r = await fetch('/api/termometro');
+          if (r.ok) {
+            var t = await r.json();
+            if (t.ok) {
+              document.getElementById('lm-votos').textContent = fmt(t.totalVotosAtivos);
+              document.getElementById('lm-revogados').textContent = fmt(t.totalRevogados);
+              ok = true;
+            }
+          }
+        } catch (_) { /* sem servidor */ }
+        try {
+          var rs = await fetch('/api/reclamacoes?limit=1');
+          if (rs.ok) {
+            var ds = await rs.json();
+            if (ds.stats) {
+              document.getElementById('lm-reclamacoes').textContent = fmt(ds.stats.totalComplaints);
+              document.getElementById('lm-apoios').textContent = fmt(ds.stats.totalSupports);
+              ok = true;
+            }
+          }
+        } catch (_) { /* sem servidor */ }
+        if (ok) {
+          painel.hidden = false;
+          var u = document.getElementById('live-updated');
+          if (u) u.textContent = 'atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+          return true;
+        }
+        painel.hidden = true;
+        return false;
+      }
+
+      atualizar().then(function (conectado) {
+        // SSE: atualiza na hora que alguém vota/revoga/reclama; polling de segurança 20s
+        if (conectado && window.MBLive) {
+          window.MBLive.initLiveUpdate(atualizar, { enabled: true, intervalMs: 20000 });
+        }
+      });
+    })();
+  </script>
 
 </body>
 </html>

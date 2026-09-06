@@ -57,39 +57,26 @@
     <h1><span class="cv-blue">Conferir</span> <span class="cv-green">voto</span></h1>
     <p class="sub">Local onde você prova que seu voto existe e confirma em quem realmente votou.</p>
 
-    <!-- Candidatos que votou -->
-    <p class="cv-list-title">Candidatos em que você votou</p>
-    <div class="cv-list">
-      <div class="cv-item">
-        <div class="cv-avatar">MS</div>
-        <div class="cv-meta">
-          <div class="cv-name">Maria Silva</div>
-          <div class="cv-sub">PT · SP · Deputada Federal</div>
-          <div class="cv-date">Voto registrado em 15/03/2026</div>
-        </div>
-        <button class="cv-use" onclick="fillCode('4821 0394 7750 2218 9301')">Conferir este voto</button>
-      </div>
-      <div class="cv-item">
-        <div class="cv-avatar">CS</div>
-        <div class="cv-meta">
-          <div class="cv-name">Carlos Souza</div>
-          <div class="cv-sub">MDB · RJ · Deputado Federal</div>
-          <div class="cv-date">Voto registrado em 02/04/2026</div>
-        </div>
-        <button class="cv-use" onclick="fillCode('7305 8841 2209 5560 1734')">Conferir este voto</button>
+    <!-- Explicação do código -->
+    <p class="cv-list-title">Como funciona a conferência</p>
+    <div class="cv-item">
+      <div class="cv-avatar">🔐</div>
+      <div class="cv-meta">
+        <div class="cv-name">Seu código é seu comprovante</div>
+        <div class="cv-sub">Ao votar, o MudaBrasil gera um código único de 20 dígitos, mostrado <b>uma única vez</b>. Guarde-o: é a única forma de conferir ou revogar seu voto — ninguém mais pode ligar o código a você.</div>
       </div>
     </div>
 
     <div class="card">
-      <label class="label" for="cv-code-0">Seu código de votação</label>
+      <label class="label" for="cv-code-0">Seu código</label>
       <div class="cv-code-field" id="cv-code-field">
-        <input class="cv-code-input" id="cv-code-0" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
-        <input class="cv-code-input" id="cv-code-1" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
-        <input class="cv-code-input" id="cv-code-2" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
-        <input class="cv-code-input" id="cv-code-3" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
-        <input class="cv-code-input" id="cv-code-4" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="0000">
+        <input class="cv-code-input" id="cv-code-0" maxlength="4" autocomplete="off" placeholder="0000">
+        <input class="cv-code-input" id="cv-code-1" maxlength="4" autocomplete="off" placeholder="0000">
+        <input class="cv-code-input" id="cv-code-2" maxlength="4" autocomplete="off" placeholder="0000">
+        <input class="cv-code-input" id="cv-code-3" maxlength="4" autocomplete="off" placeholder="0000">
+        <input class="cv-code-input" id="cv-code-4" maxlength="4" autocomplete="off" placeholder="0000">
       </div>
-      <p class="cv-hint">0000 0000 0000 0000 0000</p>
+      <p class="cv-hint">Aceita os dois formatos: código do voto <b>XXXX XXXX XXXX XXXX</b> (16 letras/números) ou código de verificação da conta <b>0000 0000 0000 0000 0000</b> (20 dígitos)</p>
       <button class="cv-btn" onclick="conferir()">🔍 Conferir</button>
 
       <div class="info">
@@ -124,20 +111,16 @@
           <div style="flex:1"><div style="color:#94A3B8;font-size:0.78rem;margin-bottom:2px">Processos judiciais e sanções contra agentes públicos.</div><div><a href="https://www.cnj.jus.br/" target="_blank" rel="noopener" style="color:#7eb0e3;text-decoration:none;font-size:0.75rem">cnj.jus.br ↗</a></div></div>
         </div>
       </div>
-      <p style="color:#5A6B7E;font-size:0.72rem;margin-top:10px;text-align:center">⚙️ A verificação de voto é uma simulação. No MudaBrasil real, o código de 20 dígitos confere com o registro no TSE.</p>
+      <p style="color:#5A6B7E;font-size:0.72rem;margin-top:10px;text-align:center">⚙️ A conferência consulta a base anônima de votos do MudaBrasil pelo hash do seu código — nenhuma informação pessoal é exibida ou armazenada.</p>
     </div>
   </section>
 
   <script>
-    const VOTES = {
-      '4821 0394 7750 2218 9301': { name: 'Maria Silva', party: 'PT', state: 'SP', position: 'Deputada Federal', date: '15/03/2026 às 14:23', hash: '0x7f3a...e21b' },
-      '7305 8841 2209 5560 1734': { name: 'Carlos Souza', party: 'MDB', state: 'RJ', position: 'Deputado Federal', date: '02/04/2026 às 09:47', hash: '0x9b11...c40d' }
-    };
     const inputs = Array.from(document.querySelectorAll('.cv-code-input'));
 
     inputs.forEach((inp, i) => {
       inp.addEventListener('input', () => {
-        inp.value = inp.value.replace(/\D/g, '').slice(0, 4);
+        inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
         if (inp.value.length === 4 && i < inputs.length - 1) inputs[i + 1].focus();
       });
       inp.addEventListener('keydown', e => {
@@ -145,36 +128,78 @@
       });
     });
 
-    function fillCode(code) {
-      const groups = code.split(' ');
-      inputs.forEach((inp, i) => { inp.value = groups[i] || ''; });
-      inputs[0].focus();
-      document.getElementById('cv-code-field').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      document.getElementById('cv-result').classList.remove('show');
-    }
+    // Pré-preenche o código salvo pelo eleitor neste navegador (qualquer formato)
+    try {
+      const salvo = localStorage.getItem('mb_codigo');
+      if (salvo) {
+        const grupos = String(salvo).replace(/[^A-Z0-9]/gi, '').toUpperCase().match(/.{1,4}/g);
+        if (grupos) inputs.forEach((inp, i) => inp.value = grupos[i] || '');
+      }
+    } catch(_) { /* sem localStorage */ }
 
-    function conferir() {
-      const code = inputs.map(i => i.value).join(' ');
+    function setTexto(html) {
       const result = document.getElementById('cv-result');
       result.classList.add('show');
-      if (code.replace(/\s/g, '').length < 20) {
-        result.innerHTML = '<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">⚠️ Código incompleto</div>Preencha os 5 grupos de 4 dígitos do seu código de votação.</div>';
+      result.innerHTML = html;
+    }
+
+    async function conferir() {
+      const cru = inputs.map(i => i.value).join('').toUpperCase();
+      if (!cru) { setTexto('<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">⚠️ Digite seu código</div>Preencha os grupos do seu código de votação.</div>'); return; }
+
+      const soDigitos = /^\d+$/.test(cru);
+      const isSessao = soDigitos && cru.length === 20;
+      const isVoto = cru.length === 16 && /^[A-Z0-9]+$/.test(cru);
+
+      if (isSessao) {
+        // Código de verificação de 20 dígitos (conta logada) — formato do spec
+        setTexto('<div class="r-card"><div class="r-ok">⏳ Conferindo…</div></div>');
+        try {
+          const r = await fetch('/api/voto/conferir', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: cru })
+          });
+          const d = await r.json();
+          if (d.ok) {
+            setTexto(`<div class="r-card">
+              <div class="r-ok">✅ Código de verificação válido</div>
+              <div class="r-row"><span>Hash do eleitor</span><b>${(d.voterHash || '').slice(0, 12)}…</b></div>
+              <div class="r-row"><span>Votos vinculados</span><b>${(d.votos || []).length}</b></div>
+            </div>`);
+          } else {
+            setTexto('<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">❌ Código não encontrado</div>Nenhum código de verificação corresponde a estes dígitos.</div>');
+          }
+        } catch(_) { indisponivel(); }
         return;
       }
-      const v = VOTES[code];
-      if (!v) {
-        result.innerHTML = '<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">❌ Voto não encontrado</div>Nenhum voto corresponde a este código. Confira os dígitos e tente novamente.</div>';
+
+      if (isVoto) {
+        // Código do voto (16 caracteres, gerado na hora do voto)
+        const formatado = cru.match(/.{4}/g).join('-');
+        setTexto('<div class="r-card"><div class="r-ok">⏳ Conferindo…</div></div>');
+        try {
+          const r = await fetch('/api/voto?code=' + encodeURIComponent(formatado));
+          const d = await r.json();
+          if (d.ok) {
+            const b = d.ballot || {};
+            setTexto(`<div class="r-card">
+              <div class="r-ok">✅ Voto encontrado ${b.revoked ? '— porém revogado' : 'e ativo'}</div>
+              <div class="r-row"><span>Status</span><b style="color:${b.revoked ? '#fca5a5' : '#5fdf8a'}">${b.revoked ? '↩ Revogado' : '✓ Ativo'}</b></div>
+              <div class="r-row"><span>Peso atual do voto</span><b>${b.pesoAtual}</b></div>
+              <div class="r-row"><span>Dias desde a confirmação</span><b>${b.diasDesdeReafirmacao}</b></div>
+            </div>`);
+          } else {
+            setTexto('<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">❌ Voto não encontrado</div>Nenhum voto corresponde a este código. Confira os caracteres e tente novamente.</div>');
+          }
+        } catch(_) { indisponivel(); }
         return;
       }
-      result.innerHTML = `<div class="r-card">
-        <div class="r-ok">✅ Voto encontrado e verificado</div>
-        <div class="r-row"><span>Código</span><b>${code}</b></div>
-        <div class="r-row"><span>Candidato</span><b>${v.name} · ${v.party} ${v.state}</b></div>
-        <div class="r-row"><span>Cargo</span><b>${v.position}</b></div>
-        <div class="r-row"><span>Data do voto</span><b>${v.date}</b></div>
-        <div class="r-row"><span>Status</span><b style="color:#5fdf8a">Ativo</b></div>
-        <div class="r-row"><span>Hash de integridade</span><b>${v.hash}</b></div>
-      </div>`;
+
+      setTexto('<div class="r-card" style="border-color:rgba(220,38,38,0.35)"><div class="r-ok" style="color:#fca5a5">⚠️ Formato não reconhecido</div>Use o código do voto (4 grupos de 4 letras/números) ou o código de verificação (5 grupos de 4 dígitos).</div>');
+    }
+
+    function indisponivel() {
+      setTexto('<div class="r-card" style="border-color:rgba(255,165,0,0.35)"><div class="r-ok" style="color:#ffc94d">ℹ️ Verificação indisponível no modo site</div>Consultar a base de votos exige o servidor do MudaBrasil em execução (localmente: <b>node server/index.js</b>). Seu código continua válido e guardado por você.</div>');
     }
   </script>
 </body>

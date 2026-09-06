@@ -86,19 +86,13 @@
     <h1><span class="c-blue">Políticos</span> <span class="c-green">Revogados</span></h1>
     <p class="sub">Cidadãos que já revogaram o mandato de seus representantes. <strong>70%</strong> dos votos totais é o mínimo exigido para cassação.</p>
 
-    <div class="summary">
-      <div class="stat"><div class="stat-n">127</div><div class="stat-l">Total revogados</div></div>
-      <div class="stat"><div class="stat-n">38</div><div class="stat-l">Este mês</div></div>
-      <div class="stat"><div class="stat-n">12</div><div class="stat-l">Esta semana</div></div>
-      <div class="stat"><div class="stat-n">73%</div><div class="stat-l">Por descumprimento</div></div>
-    </div>
+    <div class="summary" id="summary"></div>
 
-    <p class="count" style="color:#94A3B8;margin-bottom:8px;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em">🏆 Top 10 Mais Revogados</p>
+    <p class="count" style="color:#94A3B8;margin-bottom:8px;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em">🏆 Mais revogados</p>
     <div class="top-list" id="top-list"></div>
 
-    <div class="filter-bar">
+    <div class="filter-bar" id="filters" hidden>
       <div class="field"><label>Nome</label><input class="txt" id="f-nome" placeholder="Buscar por nome" oninput="render()"></div>
-      <div class="field"><label>Nº do político</label><input class="txt" id="f-num" placeholder="Ex.: 1515" oninput="render()"></div>
       <div class="field"><label>Partido</label><select class="sel" id="f-partido" onchange="render()"></select></div>
       <div class="field"><label>Estado</label><select class="sel" id="f-estado" onchange="render()"></select></div>
     </div>
@@ -116,95 +110,135 @@
         <div class="f-row"><div class="f-name">🏛️ Senado</div><div class="f-info"><div class="f-desc">Atuação dos senadores, comissões e votações no plenário.</div><div class="f-link"><a href="https://www25.senado.leg.br/web/senadores/" target="_blank" rel="noopener">senado.leg.br ↗</a></div></div></div>
         <div class="f-row"><div class="f-name">⚖️ CNJ</div><div class="f-info"><div class="f-desc">Processos judiciais e sanções disciplinares contra agentes públicos.</div><div class="f-link"><a href="https://www.cnj.jus.br/" target="_blank" rel="noopener">cnj.jus.br ↗</a></div></div></div>
       </div>
-      <p class="f-footer">⚙️ A cassação acontece quando 70% dos votos que elegeram o político são revogados. Dados de exemplo em modo demo.</p>
+      <p class="f-footer" id="f-footer">⚙️ A cassação acontece quando 70% dos votos que elegeram o político são revogados.</p>
     </section>
   </div>
 
   <script>
-    const REVOGADOS = [
-      {nome:'Roberto Alves',iniciais:'RA',numero:101,partido:'NOVO',estado:'PR',cargo:'Vereador',motivo:'Prometeu transparência total e votou a favor de aumento do próprio salário em 2025.',votos:342,meta:500,quando:'há 3 dias'},
-      {nome:'Felipe Santos',iniciais:'FS',numero:111,partido:'PP',estado:'MG',cargo:'Senador',motivo:'Mudou de posição sobre reforma tributária após lobby de grandes empresas.',votos:1287,meta:1840,quando:'há 1 semana'},
-      {nome:'João Pereira',iniciais:'JP',numero:3333,partido:'PL',estado:'MG',cargo:'Dep. Estadual',motivo:'Abandonou 18 sessões consecutivas sem justificativa válida.',votos:892,meta:1275,quando:'há 2 semanas'},
-      {nome:'Patrícia Lima',iniciais:'PL',numero:55,partido:'PSD',estado:'RS',cargo:'Prefeita',motivo:'Envolvida em esquema de superfaturamento de obras públicas.',votos:2154,meta:3078,quando:'há 3 semanas'},
-      {nome:'Camila Rocha',iniciais:'CR',numero:4411,partido:'PSB',estado:'RJ',cargo:'Dep. Estadual',motivo:'Votou contra projeto de proteção ambiental de sua própria base eleitoral.',votos:567,meta:810,quando:'há 1 mês'},
-      {nome:'Renato Vieira',iniciais:'RV',numero:1414,partido:'PTB',estado:'SP',cargo:'Dep. Federal',motivo:'Prometeu combate à corrupção e foi flagrado em operação da PF.',votos:3421,meta:4888,quando:'há 2 meses'},
-      {nome:'Marcos Vieira',iniciais:'MV',numero:333,partido:'MDB',estado:'BA',cargo:'Senador',motivo:'Indicou parente para cargo comissionado no seu gabinete.',votos:998,meta:1425,quando:'há 2 meses'},
-      {nome:'Beatriz Mendes',iniciais:'BM',numero:1212,partido:'PDT',estado:'RS',cargo:'Dep. Federal',motivo:'Usou verba de gabinete em despesas pessoais reveladas pelo Portal da Transparência.',votos:654,meta:935,quando:'há 3 meses'},
+    /* Cascata: /api/voto/revogados (servidor) → amostra marcada (site estático).
+       As metas de cassação (70%) dependem dos votos oficiais da eleição (TSE),
+       que ainda não estão integrados — mostramos os números que existem de verdade. */
+    const AMOSTRA = [
+      {id:'amostra-1',name:'Roberto Alves',party:'NOVO',state:'PR',cargo:'Vereador (amostra)',revogacoes:342,votosAtivos:4820,motivo:'Registro de exemplo — conecte o servidor para ver os dados reais.'},
+      {id:'amostra-2',name:'Felipe Santos',party:'PP',state:'MG',cargo:'Senador (amostra)',revogacoes:1287,votosAtivos:6100,motivo:'Registro de exemplo — conecte o servidor para ver os dados reais.'},
+      {id:'amostra-3',name:'João Pereira',party:'PL',state:'MG',cargo:'Dep. Estadual (amostra)',revogacoes:892,votosAtivos:3950,motivo:'Registro de exemplo — conecte o servidor para ver os dados reais.'}
     ];
+    let DADOS = null;
+    let TERMOMETRO = null;
 
-    function fontesDe(p){
-      const links=[{t:'TSE',u:'https://divulgacand.tse.jus.br/'},{t:'Transparência',u:'https://portaldatransparencia.gov.br/'}];
-      if(p.cargo==='Senador'){links.unshift({t:'Senado',u:'https://www25.senado.leg.br/web/senadores/'});}
-      else if(p.cargo==='Dep. Federal'){links.unshift({t:'Câmara',u:'https://www.camara.leg.br/deputados/quem-e-quem/'});}
-      else {links.unshift({t:'CNJ',u:'https://www.cnj.jus.br/'});}
-      return links;
+    function cargoDe(p){
+      if (p.cargo) return p.cargo;
+      if (String(p.id || '').startsWith('senado-')) return 'Senador Federal';
+      if (String(p.id || '').startsWith('camara-')) return 'Deputado Federal';
+      return 'Parlamentar';
     }
+    function iniciais(n){ const s = (n||'?').trim().split(/\s+/); return s.length === 1 ? s[0].slice(0,2).toUpperCase() : (s[0][0] + s[s.length-1][0]).toUpperCase(); }
 
-    function fichaOficialLink(p){
-      const nome=encodeURIComponent((p.nome||'').trim());
-      if(!nome)return '';
-      const isSenado=(p.cargo==='Senador');
-      const url=isSenado
-        ? 'https://www25.senado.leg.br/web/senadores/'
-        : 'https://www.camara.leg.br/busca/?query='+nome;
-      const rotulo=isSenado?'Buscar ficha (Senado)':'Buscar ficha (Câmara)';
-      return `<a class="card-src ficha" href="${url}" target="_blank" rel="noopener" title="${rotulo}">🏛️ Ficha oficial ↗</a>`;
-    }
-
-    const partSel=document.getElementById('f-partido');
-    partSel.innerHTML='<option value="">Todos os partidos</option>'+[...new Set(REVOGADOS.map(p=>p.partido))].sort().map(pa=>`<option>${pa}</option>`).join('');
-    const estSel=document.getElementById('f-estado');
-    estSel.innerHTML='<option value="">Todos os estados</option>'+[...new Set(REVOGADOS.map(p=>p.estado))].sort().map(es=>`<option>${es}</option>`).join('');
-
-    function pctClass(v,meta){
-      const p=v/meta*100;
-      if(p>=70)return 'pct-high';
-      if(p>=40)return 'pct-mid';
-      return 'pct-low';
+    async function carregar(){
+      try {
+        const r = await fetch('/api/voto/revogados');
+        if (r.ok) {
+          const d = await r.json();
+          if (d.ok) {
+            DADOS = (d.politicos || []).map(p => ({ ...p, cargo: cargoDe(p) }));
+            DADOS._fonte = 'MudaBrasil (votos revogados registrados na plataforma)';
+          }
+        }
+      } catch(_) { /* sem servidor */ }
+      try {
+        const rt = await fetch('/api/termometro');
+        if (rt.ok) { const dt = await rt.json(); if (dt.ok) TERMOMETRO = dt; }
+      } catch(_) { /* opcional */ }
+      if (!DADOS) { DADOS = AMOSTRA.slice(); DADOS._fonte = 'amostra offline'; }
+      render();
     }
 
     function render(){
-      const qn=document.getElementById('f-nome').value.trim().toLowerCase();
-      const qnum=document.getElementById('f-num').value.trim();
-      const qp=document.getElementById('f-partido').value;
-      const qe=document.getElementById('f-estado').value;
-      const list=REVOGADOS.filter(p=>
-        (!qn||p.nome.toLowerCase().includes(qn)||p.partido.toLowerCase().includes(qn)||p.cargo.toLowerCase().includes(qn))&&
-        (!qnum||String(p.numero).includes(qnum))&&
-        (!qp||p.partido===qp)&&
-        (!qe||p.estado===qe)
+      const amostra = DADOS._fonte === 'amostra offline';
+      const totalRevog = DADOS.reduce((s,p) => s + (p.revogacoes || 0), 0);
+      const votosAtivos = TERMOMETRO ? TERMOMETRO.totalVotosAtivos : (amostra ? null : null);
+
+      document.getElementById('summary').innerHTML = `
+        <div class="stat"><div class="stat-n">${totalRevog.toLocaleString('pt-BR')}</div><div class="stat-l">Revogações registradas</div></div>
+        <div class="stat"><div class="stat-n">${DADOS.filter(p => p.revogacoes > 0).length}</div><div class="stat-l">Políticos com revogações</div></div>
+        <div class="stat"><div class="stat-n">${votosAtivos != null ? votosAtivos.toLocaleString('pt-BR') : '—'}</div><div class="stat-l">Votos de confiança ativos</div></div>
+        <div class="stat"><div class="stat-n">70%</div><div class="stat-l">Limite para cassação</div></div>`;
+
+      const footer = document.getElementById('f-footer');
+      footer.textContent = amostra
+        ? '⚙️ Nenhum servidor conectado — registros de exemplo. A cassação acontece quando 70% dos votos que elegeram o político são revogados (metas calibradas com os votos oficiais do TSE).'
+        : '⚙️ Dados reais da plataforma. A meta de cassação (70%) será calibrada com os votos oficiais da eleição (TSE) — hoje mostramos as revogações acumuladas.';
+
+      const grid = document.getElementById('grid');
+      if (!DADOS.length || totalRevog === 0 && !amostra) {
+        document.getElementById('top-list').innerHTML = '';
+        document.getElementById('filters').hidden = true;
+        document.getElementById('count').textContent = '';
+        grid.innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;padding:40px">
+          <h3 style="margin:0 0 8px">✅ Nenhuma revogação ainda</h3>
+          <p class="poli-meta" style="margin:0 auto;max-width:520px">Quando um eleitor revogar um voto de confiança, o político aparece aqui. Vote em um parlamentar na aba <a href="parlamentares.html" style="color:#AECF00">Pesquisar Políticos</a> e você poderá revogá-lo a qualquer momento.</p>
+        </div>`;
+        return;
+      }
+
+      document.getElementById('filters').hidden = amostra ? false : false;
+      const partSel = document.getElementById('f-partido');
+      if (!partSel.options.length) {
+        partSel.innerHTML = '<option value="">Todos os partidos</option>' + [...new Set(DADOS.map(p => p.party).filter(Boolean))].sort().map(pa => `<option>${pa}</option>`).join('');
+        const estSel = document.getElementById('f-estado');
+        estSel.innerHTML = '<option value="">Todos os estados</option>' + [...new Set(DADOS.map(p => p.state).filter(Boolean))].sort().map(es => `<option>${es}</option>`).join('');
+      }
+
+      const qn = document.getElementById('f-nome').value.trim().toLowerCase();
+      const qp = document.getElementById('f-partido').value;
+      const qe = document.getElementById('f-estado').value;
+      const list = DADOS.filter(p =>
+        (!qn || (p.name || '').toLowerCase().includes(qn) || (p.party || '').toLowerCase().includes(qn)) &&
+        (!qp || p.party === qp) && (!qe || p.state === qe)
       );
-      document.getElementById('count').innerHTML=`<b>${list.length}</b> político(s) encontrado(s)`;
-      const grid=document.getElementById('grid');
-      grid.innerHTML=list.map(p=>{
-        const pct=Math.min(p.votos/p.meta*100,100);
-        const cls=pctClass(p.votos,p.meta);
-        const srcs=fontesDe(p).map(s=>`<a class="card-src" href="${s.u}" target="_blank" rel="noopener">${s.t} ↗</a>`).join('');
-        const ficha=fichaOficialLink(p);
+      document.getElementById('count').innerHTML = `<b>${list.length}</b> político(s) na lista`;
+
+      grid.innerHTML = list.map(p => {
+        const pct = amostra ? Math.min((p.revogacoes / (p.votosAtivos + p.revogacoes)) * 100, 100) : null;
+        const barra = amostra
+          ? `<div class="progress-wrap">
+               <div class="progress-label"><span>Revogados: <b>${(p.revogacoes||0).toLocaleString('pt-BR')}</b></span><span class="pct-low"><b>${pct.toFixed(0)}%</b></span></div>
+               <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+               <div style="font-size:0.7rem;color:#5A6B7E;margin-top:3px">Proporção de exemplo — sem votos de eleição do TSE</div>
+             </div>`
+          : `<div class="progress-wrap">
+               <div class="progress-label"><span>Revogações: <b>${(p.revogacoes||0).toLocaleString('pt-BR')}</b></span><span class="pct-low"><b>—</b></span></div>
+               <div class="progress-track"><div class="progress-fill" style="width:0%"></div></div>
+               <div style="font-size:0.7rem;color:#5A6B7E;margin-top:3px">Meta de cassação aguarda calibragem com votos oficiais (TSE)</div>
+             </div>`;
+        const badge = amostra ? '<span style="font-size:0.68rem;color:#94A3B8;border:1px dashed rgba(148,163,184,0.4);padding:2px 8px;border-radius:6px;margin-left:auto">🧪 amostra</span>' : '';
         return `<div class="card">
           <div class="card-head">
-            <div class="avatar">${p.iniciais}</div>
+            <div class="avatar">${iniciais(p.name)}</div>
             <div>
-              <h3 class="nome">${p.nome}</h3>
-              <div class="poli-meta"><span class="num-urna">#${p.numero}</span><span class="b">${p.partido}</span> / ${p.estado} · ${p.cargo}</div>
+              <h3 class="nome">${p.name || 'Parlamentar'}</h3>
+              <div class="poli-meta"><span class="b">${p.party || '—'}</span> / ${p.state || '—'} · ${cargoDe(p)}</div>
             </div>
+            ${badge}
           </div>
-          <div class="motivo"><b>Motivo:</b> ${p.motivo}</div>
-          <div class="progress-wrap">
-            <div class="progress-label"><span>Votos revogados: <b>${p.votos.toLocaleString('pt-BR')}</b> / ${p.meta.toLocaleString('pt-BR')}</span><span class="${cls}"><b>${pct.toFixed(0)}%</b></span></div>
-            <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-            <div style="font-size:0.7rem;color:#5A6B7E;margin-top:3px">Mínimo 70% para cassação</div>
+          ${p.motivo ? `<div class="motivo"><b>Motivo:</b> ${p.motivo}</div>` : ''}
+          ${barra}
+          <div class="meta"><span>Votos de confiança ativos: <b>${(p.votosAtivos != null ? p.votosAtivos.toLocaleString('pt-BR') : '—')}</b></span><span>${amostra ? 'exemplo' : 'tempo real'}</span></div>
+          <div class="card-sources">
+            <a class="card-src ficha" href="parlamentares.html" title="Ver perfil e revogar voto">↩️ Revogar voto ↗</a>
+            ${String(p.id).startsWith('senado-') ? '<a class="card-src" href="https://www25.senado.leg.br/web/senadores/" target="_blank" rel="noopener">Senado ↗</a>' : ''}
+            ${String(p.id).startsWith('camara-') ? '<a class="card-src" href="https://www.camara.leg.br/deputados/quem-e-quem/" target="_blank" rel="noopener">Câmara ↗</a>' : ''}
           </div>
-          <div class="meta"><span>Votos necessários: <b>${Math.max(0,p.meta-p.votos).toLocaleString('pt-BR')}</b></span><span>${p.quando}</span></div>
-          <div class="card-sources">${ficha}${srcs}</div>
         </div>`;
       }).join('');
 
-      // Top 10
-      const top=[...REVOGADOS].sort((a,b)=>b.votos-a.votos).slice(0,10);
-      document.getElementById('top-list').innerHTML=top.map((p,i)=>`<div class="top-badge"><span class="top-pos">${i+1}</span><span class="top-name">${p.nome}</span><span class="top-votes">${p.votos.toLocaleString('pt-BR')} revogados</span></div>`).join('');
+      const top = [...DADOS].sort((a,b) => (b.revogacoes||0) - (a.revogacoes||0)).slice(0,10).filter(p => p.revogacoes > 0);
+      document.getElementById('top-list').innerHTML = top.length
+        ? top.map((p,i) => `<div class="top-badge"><span class="top-pos">${i+1}</span><span class="top-name">${p.name}</span><span class="top-votes">${(p.revogacoes||0).toLocaleString('pt-BR')} revogações</span></div>`).join('')
+        : '';
     }
-    render();
+
+    carregar();
   </script>
 </body>
 </html>

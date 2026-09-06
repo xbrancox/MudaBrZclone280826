@@ -998,28 +998,55 @@
   }
 
   async function conferirCodigo() {
-    const code = $$('.mb-code-group').map(i => i.value).join('');
-    if (code.length !== 20) { toast('Digite os 20 dígitos', 'error'); return; }
+    const cru = $$('.mb-code-group').map(i => i.value).join('').toUpperCase();
+    const out = $('#conferir-result');
+    if (!cru) { toast('Digite seu código', 'error'); return; }
+    const soDigitos = /^\d+$/.test(cru);
+    const isSessao = soDigitos && cru.length === 20;
+    const isVoto = cru.length === 16 && /^[A-Z0-9]+$/.test(cru);
+    if (!isSessao && !isVoto) {
+      out.className = 'mb-conferir-result error';
+      out.innerHTML = `⚠️ <strong>Formato não reconhecido</strong><br>Use o código do voto (4 grupos de 4 letras/números) ou o código de verificação (5 grupos de 4 dígitos).`;
+      return;
+    }
+    if (isVoto) {
+      // Código do voto (16 caracteres, gerado na hora do voto)
+      const formatado = cru.match(/.{4}/g).join('-');
+      try {
+        const r = await fetch('/api/voto?code=' + encodeURIComponent(formatado));
+        const d = await r.json();
+        if (d.ok) {
+          const b = d.ballot || {};
+          out.className = 'mb-conferir-result success';
+          out.innerHTML = `✅ <strong>Voto encontrado ${b.revoked ? '— porém revogado' : 'e ativo'}</strong><br>Status: <strong>${b.revoked ? '↩ Revogado' : '✓ Ativo'}</strong> · Peso atual: <strong>${b.pesoAtual}</strong> · Dias desde a confirmação: <strong>${b.diasDesdeReafirmacao}</strong>`;
+        } else {
+          out.className = 'mb-conferir-result error';
+          out.innerHTML = `❌ <strong>Voto não encontrado</strong><br>Confira os caracteres e tente novamente.`;
+        }
+      } catch (e) { erroConferir(); }
+      return;
+    }
+    // Código de verificação de 20 dígitos (conta logada)
     try {
       const r = await fetch('/api/voto/conferir', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ code: cru })
       });
       const d = await r.json();
-      const out = $('#conferir-result');
       if (d.ok) {
         out.className = 'mb-conferir-result success';
-        out.innerHTML = `✅ <strong>Código válido!</strong><br>Hash do eleitor: <code>${d.voterHash.slice(0, 24)}...</code><br>Total de votos vinculados: <strong>${d.votos.length}</strong>`;
+        out.innerHTML = `✅ <strong>Código de verificação válido!</strong><br>Hash do eleitor: <code>${d.voterHash.slice(0, 24)}...</code><br>Total de votos vinculados: <strong>${d.votos.length}</strong>`;
       } else {
         out.className = 'mb-conferir-result error';
         out.innerHTML = `❌ <strong>Código não encontrado</strong><br>Verifique se digitou corretamente.`;
       }
-    } catch (e) {
-      // Sem servidor (site estático): a verificação precisa do backend
-      const out = $('#conferir-result');
-      out.className = 'mb-conferir-result error';
-      out.innerHTML = `ℹ️ <strong>Verificação indisponível no modo site</strong><br>Consultar a base de votos exige o servidor do MudaBrasil em execução (localmente: <code>node server/index.js</code>). Seu código de 20 dígitos continua válido e guardado por você.`;
-    }
+    } catch (e) { erroConferir(); }
+  }
+
+  function erroConferir() {
+    const out = $('#conferir-result');
+    out.className = 'mb-conferir-result error';
+    out.innerHTML = `ℹ️ <strong>Verificação indisponível no modo site</strong><br>Consultar a base de votos exige o servidor do MudaBrasil em execução (localmente: <code>node server/index.js</code>). Seu código continua válido e guardado por você.`;
   }
 
   async function generateCode() {

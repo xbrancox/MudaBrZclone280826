@@ -85,59 +85,152 @@
         <div class="f-row"><div class="f-name">🏛️ Senado</div><div class="f-info"><div class="f-desc">Tramitação, inteiro teor e votações dos projetos no Senado Federal.</div><div class="f-link"><a href="https://www25.senado.leg.br/web/atividade/materias" target="_blank" rel="noopener">senado.leg.br/materias ↗</a></div></div></div>
         <div class="f-row"><div class="f-name">📌 Congresso Nacional</div><div class="f-info"><div class="f-desc">Acompanhamento consolidado da atividade legislativa.</div><div class="f-link"><a href="https://www.congressonacional.leg.br/" target="_blank" rel="noopener">congressonacional.leg.br ↗</a></div></div></div>
       </div>
-      <p class="f-footer">⚙️ Os PLs desta página são exemplos em modo demo. No MudaBrasil real, a lista é sincronizada com as APIs públicas da Câmara e do Senado.</p>
+      <p class="f-footer" id="f-footer">⚙️ Carregando PLs das fontes oficiais…</p>
     </section>
   </div>
 
   <script>
-    const PLS = [
-      {num:'PL 1234/2026',titulo:'Programa Nacional de Restauração Ambiental',autor:'Carlos Souza',partido:'MDB',casa:'camara',tema:'Meio Ambiente',sim:62,nao:38,url:'https://www.camara.leg.br/proposicoes-web/fichadetramitacao?idProposicao=2400000'},
-      {num:'PL 5678/2026',titulo:'Reforma do Ensino Médio com foco em tecnologia',autor:'Ana Beatriz',partido:'PSOL',casa:'senado',tema:'Educação',sim:54,nao:46,url:'https://www25.senado.leg.br/web/atividade/materias/-/materia/160000'},
-      {num:'PL 9101/2026',titulo:'Ampliação do programa Saúde da Família',autor:'Maria Silva',partido:'PT',casa:'camara',tema:'Saúde',sim:71,nao:29,url:'https://www.camara.leg.br/proposicoes-web/fichadetramitacao?idProposicao=2400001'},
-      {num:'PL 2468/2026',titulo:'Redução de jornada de trabalho para 36h semanais',autor:'Felipe Santos',partido:'PP',casa:'senado',tema:'Economia',sim:48,nao:52,url:'https://www25.senado.leg.br/web/atividade/materias/-/materia/160001'},
-      {num:'PL 8024/2026',titulo:'Lei de Proteção de Dados Eleitorais',autor:'Juliana Costa',partido:'REDE',casa:'sancao',tema:'Segurança',sim:78,nao:22,url:'https://www.camara.leg.br/proposicoes-web/fichadetramitacao?idProposicao=2400002'},
-      {num:'PL 3456/2026',titulo:'Criminalização do assédio em ambiente digital',autor:'Camila Rocha',partido:'PSB',casa:'camara',tema:'Segurança',sim:65,nao:35,url:'https://www.camara.leg.br/proposicoes-web/fichadetramitacao?idProposicao=2400003'},
+    /* Cascata: /api/pls (servidor, PLs reais + votos) → ../data/pls.json (snapshot Pages) → amostra */
+    const AMOSTRA = [
+      {id:'pl-amostra-1',number:'1234/2026',chamber:'Câmara',status:'Tramitando',title:'Programa Nacional de Restauração Ambiental (amostra)',ementa:'Registro de exemplo — connecte o servidor para ver os PLs reais',author:'Carlos Souza',party:'MDB',approvalCount:0,rejectionCount:0},
+      {id:'pl-amostra-2',number:'5678/2026',chamber:'Senado',status:'Tramitando',title:'Reforma do Ensino Médio com foco em tecnologia (amostra)',ementa:'Registro de exemplo — connecte o servidor para ver os PLs reais',author:'Ana Beatriz',party:'PSOL',approvalCount:0,rejectionCount:0}
     ];
-    const stClass={camara:'st-camara',senado:'st-senado',sancao:'st-sancao'};
-    const stLabel={camara:'Câmara',senado:'Senado',sancao:'Sanção'};
-    const partSel=document.getElementById('f-partido');
-    partSel.innerHTML='<option value="">Todos os partidos</option>'+[...new Set(PLS.map(p=>p.partido))].sort().map(pa=>`<option>${pa}</option>`).join('');
-    const grid=document.getElementById('grid');
+    let PLS = [];
+    let fonte = null;
+
+    const stLabel = { 'Câmara':'Câmara', 'Senado':'Senado' };
+    function casaDe(p){ return (p.chamber === 'Senado') ? 'senado' : 'camara'; }
+    function statusClasse(p){
+      const s = (p.status || '').toLowerCase();
+      if (s.includes('sanção') || s.includes('sancao')) return 'st-sancao';
+      if (p.chamber === 'Senado') return 'st-senado';
+      return 'st-camara';
+    }
+    function statusLabel(p){
+      const s = (p.status || '').toLowerCase();
+      if (s.includes('sanção') || s.includes('sancao')) return 'Sanção';
+      return (p.chamber === 'Senado') ? 'Senado' : 'Câmara';
+    }
+    function teorUrl(p){
+      if (p.url) return p.url;
+      if (p.id && String(p.id).startsWith('pl-camara-'))
+        return 'https://www.camara.leg.br/proposicoesweb/fichadetalhamento?idProposicao=' + String(p.id).replace('pl-camara-', '');
+      return 'https://www.camara.leg.br/busca-portal?pesquisa=' + encodeURIComponent(p.number || '');
+    }
+    function sessao(){
+      try { return JSON.parse(localStorage.getItem('mudabrasil.session') || 'null'); } catch(_) { return null; }
+    }
+    function toast(msg){
+      let t = document.getElementById('toast-cv');
+      if (!t) {
+        t = document.createElement('div');
+        t.id = 'toast-cv';
+        t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#152339;border:1px solid #AECF00;padding:14px 22px;border-radius:12px;z-index:300;font-size:0.9rem;box-shadow:0 12px 30px rgba(0,0,0,0.5)';
+        document.body.appendChild(t);
+      }
+      t.textContent = msg;
+      t.hidden = false;
+      clearTimeout(t._h);
+      t._h = setTimeout(() => { t.hidden = true; }, 4000);
+    }
+
+    async function carregarPls(){
+      try {
+        const r = await fetch('/api/pls');
+        if (r.ok) {
+          const d = await r.json();
+          if (d.pls && d.pls.length) { PLS = d.pls; fonte = d.source || 'Câmara dos Deputados'; }
+        }
+      } catch(_) { /* tenta snapshot */ }
+      if (!PLS.length) {
+        try {
+          const r2 = await fetch('../data/pls.json');
+          if (r2.ok) {
+            const d2 = await r2.json();
+            if (d2.pls && d2.pls.length) { PLS = d2.pls; fonte = 'Câmara dos Deputados (snapshot)'; }
+          }
+        } catch(_) { /* amostra */ }
+      }
+      if (!PLS.length) { PLS = AMOSTRA; fonte = 'amostra offline'; }
+      const footer = document.getElementById('f-footer');
+      footer.textContent = fonte.includes('Câmara')
+        ? '⚙️ Lista real de projetos de lei da Câmara dos Deputados (Dados Abertos). Clique em "inteiro teor" para conferir no site oficial.'
+        : '⚙️ ' + (fonte === 'amostra offline' ? 'Nenhum PL real disponível sem servidor — registros de exemplo. Execute node server/index.js para a lista real.' : 'Fonte: ' + fonte);
+      popularPartidos();
+      render();
+    }
+
+    function popularPartidos(){
+      const sel = document.getElementById('f-partido');
+      sel.innerHTML = '<option value="">Todos os partidos</option>' +
+        [...new Set(PLS.map(p => p.party).filter(Boolean))].sort().map(pa => `<option>${pa}</option>`).join('');
+    }
+
     function render(){
-      const qn=document.getElementById('f-num').value.trim().toLowerCase();
-      const qa=document.getElementById('f-autor').value.trim().toLowerCase();
-      const qp=document.getElementById('f-partido').value;
-      const list=PLS.filter(p=>
-        (!qn||p.num.toLowerCase().includes(qn)||p.titulo.toLowerCase().includes(qn))&&
-        (!qa||p.autor.toLowerCase().includes(qa)||p.titulo.toLowerCase().includes(qa))&&
-        (!qp||p.partido===qp)
-      );
-      document.getElementById('count').innerHTML=`<b>${list.length}</b> projeto(s) de lei em tramitação`;
-      grid.innerHTML=list.map(p=>{
+      const qn = document.getElementById('f-num').value.trim().toLowerCase();
+      const qa = document.getElementById('f-autor').value.trim().toLowerCase();
+      const qp = document.getElementById('f-partido').value;
+      const list = PLS.filter(p => {
+        const hayNum = ((p.number || '') + ' ' + (p.title || '') + ' ' + (p.ementa || '')).toLowerCase();
+        const hayAutor = ((p.author || '') + ' ' + (p.title || '') + ' ' + (p.ementa || '')).toLowerCase();
+        if (qn && !hayNum.includes(qn)) return false;
+        if (qa && !hayAutor.includes(qa)) return false;
+        if (qp && p.party !== qp) return false;
+        return true;
+      });
+      document.getElementById('count').innerHTML = `<b>${list.length}</b> projeto(s) de lei em tramitação`;
+      const grid = document.getElementById('grid');
+      if (!list.length) { grid.innerHTML = '<p class="count">Nenhum PL encontrado com esses filtros.</p>'; return; }
+      grid.innerHTML = list.map(p => {
+        const sim = p.approvalCount || 0, nao = p.rejectionCount || 0, total = sim + nao;
+        const barra = total > 0
+          ? `<div class="pl-bar"><div class="bar-sim" style="width:${Math.round(100*sim/total)}%"></div><div class="bar-nao" style="width:${Math.round(100*nao/total)}%"></div></div>
+             <div class="pl-votes"><span>Aprovo: <b>${sim}</b></span><span>Não aprovo: <b>${nao}</b></span></div>`
+          : `<div class="pl-votes" style="margin-top:14px"><span>🗳️ Seja o primeiro a dar sua opinião sobre este projeto</span></div>`;
         return `<article class="pl">
           <div class="pl-top">
-            <span class="pl-num">${p.num}</span>
-            <span class="pl-status ${stClass[p.casa]}">${stLabel[p.casa]}</span>
+            <span class="pl-num">PL ${p.number}</span>
+            <span class="pl-status ${statusClasse(p)}">${statusLabel(p)} · ${p.status || 'Tramitando'}</span>
           </div>
-          <h3>${p.titulo}</h3>
-          <p class="pl-meta">${p.autor} (${p.partido}) · ${p.tema}</p>
-          <div class="pl-bar"><div class="bar-sim" style="width:${p.sim}%"></div><div class="bar-nao" style="width:${p.nao}%"></div></div>
-          <div class="pl-votes"><span>Aprovo: <b>${p.sim}%</b></span><span>Não aprovo: <b>${p.nao}%</b></span></div>
+          <h3>${p.title || (p.ementa || '').slice(0, 120)}</h3>
+          <p class="pl-meta">✍️ ${p.author || 'Autoria não informada'}${p.party ? ' (' + p.party + (p.uf ? '-' + p.uf : '') + ')' : ''}</p>
+          <p class="pl-meta" style="margin-top:-8px">${p.ementa || ''}</p>
+          ${barra}
           <div class="pl-actions">
-            <button class="btn-vote btn-sim" onclick="registrarVoto('${p.num}',true)">Aprovo</button>
-            <button class="btn-vote btn-nao" onclick="registrarVoto('${p.num}',false)">Não aprovo</button>
+            <button class="btn-vote btn-sim" onclick="registrarVoto('${p.id}',true)">Aprovo</button>
+            <button class="btn-vote btn-nao" onclick="registrarVoto('${p.id}',false)">Não aprovo</button>
           </div>
-          <a class="pl-link" href="${p.url}" target="_blank" rel="noopener">📄 Ler inteiro teor do PL ↗</a>
+          <a class="pl-link" href="${teorUrl(p)}" target="_blank" rel="noopener">📄 Ler inteiro teor do PL ↗</a>
         </article>`;
       }).join('');
     }
-    function registrarVoto(num,sim){
-      const msg=sim?'Aprovação':'Rejeição';
-      const s=JSON.parse(localStorage.getItem('mudabrasil.session')||'{}');
-      if(s.email||s.name){alert(msg+' registrada! Seu posicionamento sobre o '+num+' foi contabilizado (modo demo).');return;}
-      alert(msg+' registrada! Para que seu voto conte de verdade, cadastre-se no MudaBrasil (modo demo).');
+
+    async function registrarVoto(plId, sim){
+      const s = sessao();
+      if (!s || !s.sessionToken) {
+        toast('🔐 Entre na plataforma para que seu voto seja registrado (botão Entrar, no topo).');
+        return;
+      }
+      try {
+        const r = await fetch('/api/pls/voto', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plId, vote: sim ? 'aprovo' : 'nao_aprovo', sessionToken: s.sessionToken })
+        });
+        const d = await r.json();
+        if (d.ok) {
+          const pl = PLS.find(x => x.id === plId);
+          if (pl) { pl.approvalCount = d.pl.approvalCount; pl.rejectionCount = d.pl.rejectionCount; }
+          toast(sim ? '👍 Aprovação registrada! Obrigado por participar.' : '👎 Posicionamento registrado! Obrigado por participar.');
+          render();
+        } else {
+          toast(d.error || 'Não foi possível registrar o voto agora.');
+        }
+      } catch(_) {
+        toast('ℹ️ O registro de opiniões exige o servidor do MudaBrasil (node server/index.js). Sua navegação pelos PLs continua disponível.');
+      }
     }
-    render();
+
+    carregarPls();
   </script>
 </body>
 </html>
