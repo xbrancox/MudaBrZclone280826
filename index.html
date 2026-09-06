@@ -770,12 +770,20 @@ $('#revList').innerHTML=l.map((p,i)=>{const pct=Math.round(p.rev/p.el*100);const
 const FAQ=[['O que é simulação?','A votação/revogação não tem valor jurídico hoje. Notícias, políticos e PLs são reais.'],['Como revogo?','No site, com código + login, só após a posse.'],['Quem pode responder reclamações?','Só o político/candidato com identidade verificada (selo).'],['Posso anexar provas?','Sim — o formulário aceita anexos.'],['O que é a regra dos 70%?','Proposta: 70% dos votos que elegeram = cassação.']];
 $('#faqList').innerHTML=FAQ.map(f=>`<div class="card"><b>${f[0]}</b><p class="muted" style="margin:6px 0 0">${f[1]}</p></div>`).join('');
 let NUF_FILTRO='GERAL';
-async function news(){try{const j=await fetch(API_BASE+'/api/noticias').then(r=>r.json());
- const it=(j.noticias||[]);
- window._NEWS=it;
- nufContador();renderNews();
- $('#nstatus').textContent=it.length?('Atualizado em '+new Date(j.geradoEm).toLocaleTimeString('pt-BR')+' · fontes: '+((j.fontes&&j.fontes.length)?j.fontes.join(', '):'Agência Brasil, G1 Política, Agência Senado')):'Sem notícias disponíveis agora.';
-}catch(e){$('#nstatus').textContent='Não foi possível carregar as notícias agora (backend).';}}
+let _newsRetry=0;
+async function news(){
+ try{
+  const j=await fetch(API_BASE+'/api/noticias').then(r=>r.json());
+  const it=(j.noticias||[]);
+  window._NEWS=it;
+  nufContador();renderNews();
+  $('#nstatus').textContent=it.length?('Atualizado em '+new Date(j.geradoEm).toLocaleTimeString('pt-BR')+' · fontes: '+((j.fontes&&j.fontes.length)?j.fontes.join(', '):'Agência Brasil, G1 Política, Agência Senado')):'Sem notícias disponíveis agora.';
+  _newsRetry=0;
+ }catch(e){
+  if(_newsRetry<2){_newsRetry++;$('#nstatus').textContent='Backend acordando (plano gratuito) — tentativa '+(_newsRetry+1)+' de 3…';setTimeout(news,4000);return}
+  $('#nstatus').innerHTML='Não foi possível carregar as notícias agora (backend gratuito frio). <button class="btn sm gold" onclick="news()">' + LUPA + ' Tentar de novo</button>';
+ }
+}
 const UFS_NOME={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
 function nufContador(){const ns=window._NEWS||[];const ct={};ns.forEach(n=>{if(n.uf&&n.uf!=='BR')ct[n.uf]=(ct[n.uf]||0)+1});
  const sel=document.getElementById('nf-uf');const atual=sel.value;
