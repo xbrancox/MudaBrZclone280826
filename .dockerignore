@@ -1,25 +1,14 @@
-# Dependências
-node_modules
-
-# Git
-.git
+# Arquivos que o Docker NÃO deve copiar pro container
+node_modules/
+.git/
 .gitignore
-
-# Documentação e arquivos de projeto
 *.md
-docs/
-
-# Testes / ferramentas de dev
 tests/
-test/
-playwright-report/
-test-results/
-
-# Ambiente local
-.env
-.env.local
-*.log
-
-# Sistema
+tmp/
+temp/
 .DS_Store
 Thumbs.db
+server/data/votos.db
+server/data/votos.json
+server/data/.salt
+server/data/enrich/

@@ -30,7 +30,9 @@ Thumbs.db
 tmp/
 temp/
 
-# Análise local dos specs (screenshots de referência)
-docs_analysis/
-
 # === FIM .gitignore ===
+# Snapshots públicos do front (data/politicos.json e data/pls.json ficam
+# versionados para o GitHub Pages carregar sem servidor). Caches do servidor:
+server/data/enrich/
+server/data/pls_reais.json
+node_modules/

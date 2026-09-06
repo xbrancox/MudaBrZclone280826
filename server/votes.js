@@ -39,6 +39,11 @@ const SALT_FILE = path.join(DATA_DIR, '.salt');
 
 /* ---- Configuração pública (espelha o contrato do config.js) ---- */
 const DECADENCIA = { cheioDias: 90, pisoDias: 180, piso: 0.5 };
+const ICM = {
+  versao: 'v1.0',
+  vigenteDesde: '2026-08-18',
+  pesos: { resposta: 0.40, cumprimento: 0.35, devolucao: 0.25 }
+};
 const K_SATURACAO = 100;
 
 /* ---- Rate-limit em memória (anti-brigada) ---- */
@@ -250,7 +255,8 @@ async function getTermometro({ topN = 10 } = {}) {
   return {
     mode: 'real',
     ok: true,
-    metodo: 'Termômetro de Confiança MudaBrasil — peso com decaimento temporal (90 dias peso cheio, 180 dias piso 0.5)',
+    metodo: 'Índice de Confiança MudaBrasil (ICM) — componente de confiança',
+    icm: ICM,
     decadencia: DECADENCIA,
     atualizadoEm: new Date(now).toISOString(),
     totalVotosAtivos: totalAtivos,
@@ -358,5 +364,5 @@ module.exports = {
   castVote, revokeVote, reaffirmVote, viewVote, getTermometro,
   getRevogados, getBallotsForVoter, revokeBallotById,
   voteWeight, onVoteChange, totals,
-  DECADENCIA, K_SATURACAO, VOTOS_FILE, VOTOS_DB, db
+  DECADENCIA, ICM, K_SATURACAO, VOTOS_FILE, VOTOS_DB, db
 };

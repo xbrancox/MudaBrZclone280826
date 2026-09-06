@@ -37,7 +37,6 @@ const auth = require('./auth');
 const verificacao = require('./verificacao');
 const reclamacoes = require('./reclamacoes');
 const seedPls = require('./seed_pls');
-const plsReais = require('./pls_reais');
 const tse = require('./tse');
 
 const ROOT = path.join(__dirname, '..');
@@ -76,31 +75,6 @@ const SEC_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer'
 };
-
-/* ---- Contagens de proposições do snapshot estático (data/politicos.json) ----
-   O snapshot é pré-enriquecido via scripts/enriquecer-snapshot.js; mesclar
-   aqui mantém o modo "servidor" consistente com o modo "Pages". */
-let billsFromSnapshot = null;
-function getBillsFromSnapshot() {
-  if (billsFromSnapshot) return billsFromSnapshot;
-  billsFromSnapshot = new Map();
-  try {
-    const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'politicos.json'), 'utf8'));
-    (snap.candidatos || []).forEach(c => {
-      if (c.id) billsFromSnapshot.set(c.id, c);
-    });
-  } catch (e) { /* snapshot ausente: segue sem merge */ }
-  return billsFromSnapshot;
-}
-/* Campos pré-enriquecidos no snapshot que complementam a API ao vivo */
-const SNAPSHOT_FIELDS = ['billsAuthored', 'dataSources', 'attendanceRate', 'sessoesDeliberativas2026', 'attendanceContext', 'votesPlenary2026', 'votesContext'];
-function mergeBills(c) {
-  const hit = getBillsFromSnapshot().get(c.id);
-  if (hit) {
-    SNAPSHOT_FIELDS.forEach(f => { if (c[f] == null && hit[f] != null) c[f] = hit[f]; });
-  }
-  return c;
-}
 
 function sendJson(res, status, obj, methods = 'GET, POST, OPTIONS') {
   res.writeHead(status, {
@@ -464,7 +438,6 @@ async function handleApi(req, res, url) {
       const todos = [...deputados, ...senadores];
       const verSet = new Set(Object.keys(verificacao.getAllVerified()));
       const candidatos = applyQuery(todos, q).map(c => (verSet.has(c.id) ? { ...c, selo: true, verificado: true } : c));
-      candidatos.forEach(mergeBills);
       return sendJson(res, 200, {
         mode: 'real',
         source: 'Câmara dos Deputados + Senado Federal',
@@ -512,7 +485,6 @@ async function handleApi(req, res, url) {
           cand.hasFullData = true;
         }
       }
-      cand = mergeBills(cand);
       return sendJson(res, 200, { ok: true, mode: 'real', source: fonte, candidato: cand });
     } catch (e) {
       return sendJson(res, 502, { error: e.message });
@@ -786,26 +758,9 @@ async function handleApi(req, res, url) {
 
   if (p === '/api/pls' && req.method === 'GET') {
     try {
-      /* PLs reais da Câmara (cache 24h); falha → cai no seed local */
-      let fonte = 'seed';
-      try {
-        const reais = await plsReais.fetchRealPls();
-        if (reais && reais.length) {
-          reais.forEach(pl => db.upsertPl(pl));
-          fonte = 'Câmara dos Deputados (Dados Abertos)';
-        }
-      } catch (e) { console.warn('[pls] sem dados reais, usando seed:', e.message); }
-
-      const todos = Object.values(db.readAllPls());
-      const camara = todos.filter(pl => pl.id && pl.id.startsWith('pl-camara-'));
-      const all = camara.length ? camara : todos;
-      return sendJson(res, 200, {
-        ok: true,
-        mode: camara.length ? 'real' : 'seed',
-        source: camara.length ? fonte : 'amostra local (seed)',
-        total: all.length,
-        pls: all
-      });
+      let all = Object.values(db.readAllPls());
+      if (!all.length) { try { seedPls.seed(); all = Object.values(db.readAllPls()); } catch (_) { } }
+      return sendJson(res, 200, { ok: true, mode: 'real', total: all.length, pls: all });
     } catch (e) { return sendJson(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -893,6 +848,35 @@ async function handleApi(req, res, url) {
       const r = await verificacao.startVerification(body.politicianId || '', body.email || '', baseUrl);
       return sendJson(res, 200, r);
     } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+  }
+
+  /* ===== PLACAR DO POVO (votos-pl) — agregado real dos usuários ===== */
+  if (p === '/api/votos-pl' && req.method === 'GET') {
+    try {
+      db.exec(`CREATE TABLE IF NOT EXISTS votos_pl (uid TEXT, pl TEXT, voto TEXT, PRIMARY KEY (uid, pl))`);
+      const rows = db.prepare(`SELECT pl, SUM(CASE WHEN voto='aprovo' THEN 1 ELSE 0 END) AS aprovo, SUM(CASE WHEN voto='nao' THEN 1 ELSE 0 END) AS nao FROM votos_pl GROUP BY pl`).all();
+      const out = {};
+      rows.forEach(r => { out[r.pl] = { aprovo: Number(r.aprovo) || 0, nao: Number(r.nao) || 0 }; });
+      return sendJson(res, 200, out);
+    } catch (e) {
+      return sendJson(res, 200, {});
+    }
+  }
+
+  if (p === '/api/votos-pl' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const { uid, pl, voto } = body || {};
+    if (!uid || !pl || !['aprovo', 'nao'].includes(voto)) {
+      return sendJson(res, 400, { ok: false, error: 'uid, pl e voto (aprovo|nao) obrigatorios' });
+    }
+    try {
+      db.exec(`CREATE TABLE IF NOT EXISTS votos_pl (uid TEXT, pl TEXT, voto TEXT, PRIMARY KEY (uid, pl))`);
+      db.prepare(`INSERT INTO votos_pl (uid, pl, voto) VALUES (?,?,?) ON CONFLICT(uid, pl) DO UPDATE SET voto = excluded.voto`).run(uid, pl, voto);
+      return sendJson(res, 200, { ok: true });
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: e.message });
+    }
   }
 
   return sendJson(res, 404, { error: 'Rota de API não encontrada' });

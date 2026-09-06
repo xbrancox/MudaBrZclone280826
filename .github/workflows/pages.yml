@@ -15,57 +15,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Validar snapshots de dados
-        run: |
-          node -e "
-            const d = require('./data/politicos.json');
-            if (!Array.isArray(d.candidatos) || d.candidatos.length < 500) {
-              throw new Error('Snapshot de parlamentares inválido: ' + d.candidatos.length);
-            }
-            const comBills = d.candidatos.filter(c => c.billsAuthored != null).length;
-            const comPresenca = d.candidatos.filter(c => c.attendanceRate != null || c.votesPlenary2026 != null).length;
-            console.log('Parlamentares OK:', d.detalhes.deputados, '+', d.detalhes.senadores,
-              '| proposições:', comBills, '| presença/votações:', comPresenca);
-          "
-          node -e "
-            const p = require('./data/pls.json');
-            if (!Array.isArray(p.pls) || p.pls.length < 10) {
-              throw new Error('Snapshot de PLs inválido: ' + p.pls.length);
-            }
-            console.log('PLs OK:', p.total, 'projetos reais da Câmara');
-          "
-
-      - name: Montar site estático (dist)
-        run: |
-          mkdir -p dist
-          cp index.html dist/
-          cp -r css js data pages dist/
-          # Remove fontes do servidor e dados privados — Pages é só o front estático
-          rm -f dist/pages/status.html dist/pages/termometro.html
-
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
   deploy:
-    needs: build
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

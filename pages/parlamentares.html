@@ -3,24 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MudaBrasil — Pesquisar Políticos</title>
-  <meta name="description" content="Pesquise, filtre e compare parlamentares com dados públicos oficiais. Radar cívico, PLs no Congresso, conferir e revogar voto.">
+  <title>MudaBrasil — Compare Candidatos, Radar Cívico, PLs</title>
+  <meta name="description" content="Plataforma cívica de voto contínuo e revogável. Compare candidatos, acompanhe reclamações, vote em PLs e revogue votos.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/parlamentares.css">
-  <script src="../js/header.js"></script>
 </head>
 <body>
-  <!-- ===================== HEADER (injetado por header.js) ===================== -->
+  <!-- ===================== HEADER ===================== -->
+  <header class="mb-header">
+    <a href="../index.html" class="mb-logo" aria-label="MudaBrasil - Início">
+      <span class="mb-logo-mark">M</span>
+      <span class="mb-logo-text">MudaBrasil</span>
+    </a>
+    <nav class="mb-nav" id="mb-nav">
+      <a href="../index.html" class="mb-nav-link">Início</a>
+      <a href="parlamentares.html" class="mb-nav-link active">Parlamentares</a>
+      <a href="meu-voto.html" class="mb-nav-link">Meu Voto</a>
+      <a href="proposta.html" class="mb-nav-link">Proposta</a>
+      <a href="comunidade.html" class="mb-nav-link">Comunidade</a>
+    </nav>
+    <div class="mb-header-actions">
+      <button class="mb-btn-ghost" id="mb-login-btn">Entrar</button>
+    </div>
+  </header>
 
   <!-- ===================== TÍTULO DA PÁGINA ===================== -->
   <section class="mb-hero">
-    <h1>🗳️ <strong>Pesquisar Políticos</strong></h1>
-    <p class="mb-hero-sub">Transparência total para o eleitor decidir. Busque entre os <strong>594 parlamentares em exercício</strong> (513 deputados + 81 senadores) com dados de fontes públicas oficiais.</p>
+    <h1>🗳️ <strong>Compare Candidatos</strong></h1>
+    <p class="mb-hero-sub">Transparência total para o eleitor decidir. Todos os dados são estruturados a partir de <strong>fontes públicas oficiais</strong>: TSE, Portal da Transparência, Câmara/Senado e CNJ.</p>
     <div class="mb-demo-banner">
-      <span class="mb-pill-icon">📡</span>
-      <span>Carregando dados oficiais… (Câmara dos Deputados + Senado Federal)</span>
+      <span class="mb-pill-icon">📌</span>
+      <span><strong>Modo demo</strong> — dados sintéticos de exemplo (API de dados reais em produção)</span>
     </div>
   </section>
 
@@ -77,31 +92,25 @@
           <select id="cand-filter-position">
             <option value="">Todos os cargos</option>
             <option value="Deputado Federal">Deputado Federal</option>
-            <option value="Senador Federal">Senador Federal</option>
+            <option value="Senador">Senador</option>
           </select>
         </label>
         <label class="mb-filter">
           <span class="mb-filter-ico">📊</span>
           <select id="cand-filter-sort">
-            <option value="proposicoes">Produção legislativa (maior)</option>
-            <option value="presenca">Presença em plenário (maior)</option>
+            <option value="transparency">Transparência (maior)</option>
             <option value="name">Nome (A-Z)</option>
             <option value="party">Partido</option>
-            <option value="transparency">Transparência (maior)</option>
             <option value="integrity">Índice de Integridade</option>
           </select>
         </label>
       </div>
 
       <div class="mb-result-count">
-        <span id="cand-count">0</span> parlamentar(es) encontrado(s)<span id="cand-count-note" class="mb-muted-sm"></span>
+        <span id="cand-count">0</span> candidato(s) encontrado(s)
       </div>
 
       <div class="mb-card-grid" id="cand-grid"></div>
-
-      <div id="cand-load-more-holder" style="text-align:center;margin:24px 0;" hidden>
-        <button class="mb-btn-secondary" id="cand-load-more">⬇️ Carregar mais</button>
-      </div>
 
       <div class="mb-compare-bar" id="compare-bar" hidden>
         <div class="mb-compare-bar-info">
@@ -246,7 +255,7 @@
 
       <div class="mb-card mb-conferir-card">
         <h3>🔐 Cole seu código de verificação</h3>
-        <p class="mb-muted-sm">Aceita o código do voto <b>XXXX XXXX XXXX XXXX</b> (16 letras/números) ou o código de verificação <b>0000 0000 0000 0000 0000</b> (20 dígitos, conta logada)</p>
+        <p class="mb-muted-sm">Formato: 5 grupos de 4 dígitos (0000 0000 0000 0000 0000)</p>
         <div class="mb-code-inputs">
           <input type="text" maxlength="4" class="mb-code-group" data-idx="0">
           <input type="text" maxlength="4" class="mb-code-group" data-idx="1">
@@ -355,7 +364,8 @@
     </div>
   </div>
 
-  <script src="../js/parlamentar-auth.js?v=20260906b"></script>
-  <script src="../js/parlamentares.js?v=20260906b"></script>
+  <script src="../config.js"></script>
+  <script src="../js/parlamentar-auth.js"></script>
+  <script src="../js/parlamentares.js"></script>
 </body>
 </html>
