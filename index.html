@@ -370,6 +370,13 @@ function fechar(id){document.getElementById(id).classList.remove('open')}
 function toggleMenu(){document.getElementById('mnav').classList.toggle('open')}
 function go(p){$$('.sec').forEach(s=>s.classList.remove('on'));$('#sec-'+p).classList.add('on');$$('#nav a').forEach(a=>a.classList.toggle('on',a.dataset.p===p));window.scrollTo(0,0);if(p=='radar')renderRad()}
 $$('#nav a').forEach(a=>a.onclick=()=>go(a.dataset.p));
+/* Deep-link: #conferir-voto, #radar, #revogados etc. abrem a seção direto
+   (usado pelos menus das páginas internas: congresso, votações…) */
+(function(){
+  const mapa={'conferir-voto':'conferir','revogar-voto':'revogar','revogados':'revogados','ajuda':'ajuda','quem-somos':'quem','radar':'radar','congresso':'inicio','voto':'revogar'};
+  const h=(location.hash||'').replace('#','');
+  if(mapa[h]!==undefined){setTimeout(()=>go(mapa[h]),50)}
+})();
 const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
 const CORES=['#2ECC71','#FFD700','#4a90f0','#E74C3C','#A855F7'],NOMES=['Maria','Carlos','Ana','João','Outros'];
 let POL=[],ready=false,PINS=[],SESS=LS.get('mb_sess',null),DET={},FTAB={},REMOTE_REC={},REMOTE_APO={},BACKEND_OK=false,VOT_CACHE={ts:0,list:[]},VOTOS_BY_ID={};
