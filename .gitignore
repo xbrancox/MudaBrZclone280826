@@ -30,6 +30,14 @@ Thumbs.db
 tmp/
 temp/
 
+# Sujidade de sessão (diagnósticos e rascunhos descartáveis)
+diagG-temp.js
+*-temp.js
+*-temp.ps1
+rec-*.txt
+up-*.json
+upload-*.ps1
+
 # === FIM .gitignore ===
 # Snapshots públicos do front (data/politicos.json e data/pls.json ficam
 # versionados para o GitHub Pages carregar sem servidor). Caches do servidor:
