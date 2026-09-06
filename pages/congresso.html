@@ -155,6 +155,7 @@ h2{margin:26px 0 10px}
 
   <h2 id="anc-lista">📜 Projetos de Lei em análise</h2>
   <div id="lista"></div>
+  <div id="filtro-ativo" class="vazio" hidden style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
   <div id="lista-vazio" class="vazio" hidden></div>
 
   <h2>🧬 Meu DNA Cívico</h2>
@@ -312,51 +313,9 @@ function aplicaFiltro(){
  const q=($('#busca').value||'').toLowerCase();let vis=0;
  $$('#lista .card').forEach(c=>{const t=c.dataset.tema||'Outros';const ok=c.dataset.busca.includes(q)&&(!temaAtivo||t===temaAtivo);c.style.display=ok?'':'none';if(ok)vis++});
  const vz=$('#lista-vazio');vz.hidden=vis>0;
- vz.textContent=vis>0?'':(temaAtivo?`Nenhuma PL de ${temaAtivo} em análise agora. Quando entrar, aparece aqui. 🔍`:'Nenhuma PL encontrada pra esse filtro. Aqui quem escolhe é você — use a busca. 🔍')}
-function renderPills(){
- const ord=['Saúde','Educação','Meio Ambiente','Economia','Segurança','Cultura','Outros'];
- const ct={};PLS.forEach(p=>{const t=temaDe(infoPL(p).desc)||'Outros';ct[t]=(ct[t]||0)+1});
- let h=`<button class="pill ${temaAtivo===''?'on':''}" data-acao="tema" data-t="">Todos (${PLS.length})</button>`;
- ord.forEach(t=>{if(ct[t])h+=`<button class="pill ${temaAtivo===t?'on':''}" data-acao="tema" data-t="${t}">${t} (${ct[t]})</button>`});
- $('#pills-tema').innerHTML=h}
-function renderTudo(){
- const lista=$('#lista');lista.innerHTML='';
- PLS.forEach(p=>lista.appendChild(cardPL(p)));
- if(!PLS.length)lista.innerHTML=`<div class="vazio">Nenhuma PL carregada. Confira o backend ou recarregue.</div>`;
- renderPills();aplicaFiltro();renderAgenda();renderUrna()}
-async function dna(btn){
- const mv=meusVotos();
- const comp=[];let comparadas=0,semPlenario=0;
- const bt=btn;const txt0=bt?bt.textContent:'';
- if(bt){bt.disabled=true;bt.textContent='🧬 Calculando sincronia…'}
- $('#dna').innerHTML=`<div class="vazio">⏳ Cruzando seus votos com as votações nominais reais…</div>`;
- try{
-  for(const f of fila){
-   let vid=f.tipo==='vot'?f.i.id:(MAPVOT[f.i.n+'/'+f.i.ano]||{}).id;
-   const my=mv[f.key];if(!my||!vid){continue}
-   const lista=VOTOS[vid]||await votosDe(vid);
-   if(!lista.length){semPlenario++;continue}
-   comparadas++;
-   lista.forEach(x=>{if(x.t==='cinza')return;comp.push({nome:x.nome,part:x.part,uf:x.uf,alinh:(my==='aprovo')===(x.t==='favor')})})
-  }
-  if(!comp.length){
-   const totVotadas=fila.filter(f=>f.tipo==='vot'||MAPVOT[f.i.n+'/'+f.i.ano]).length;
-   const meusNasVotadas=fila.filter(f=>mv[f.key]&&(f.tipo==='vot'||MAPVOT[f.i.n+'/'+f.i.ano])).length;
-   $('#dna').innerHTML=meusNasVotadas>0
-    ?`<div class="vazio">Você votou em ${meusNasVotadas} matéria(s) com votação nominal, mas o voto a voto do plenário não carregou agora (instabilidade na API da Câmara).<br><button class="pill on-g" data-acao="dna" style="margin-top:8px">🔄 Tentar de novo</button></div>`
-    :`<div class="vazio">Seu DNA compara seus votos com as votações <b>✅ JÁ VOTADAS</b> pelo Congresso — existem <b>${totVotadas}</b> disponíveis${mv&&Object.keys(mv).length?`, e dos seus ${Object.keys(mv).length} voto(s), nenhum era dessas`:' e você ainda não votou em nenhuma'}.<br>
-       <b>Como fazer:</b> na Urna Expressa acima, vote nas matérias marcadas <b>✅ JÁ VOTADA NO CONGRESSO</b> e volte aqui.<br>
-       <button class="pill on-g" data-acao="ir-urna" style="margin-top:10px">🗳️ Ir pra Urna Expressa</button></div>`;
-   return}
-  const por={};comp.forEach(c=>{por[c.nome]=por[c.nome]||{nome:c.nome,part:c.part,uf:c.uf,tot:0,ok:0};por[c.nome].tot++;por[c.nome].ok+=c.alinh?1:0});
-  const r=Object.values(por).map(x=>({...x,pct:Math.round(x.ok/x.tot*100)})).sort((a,b)=>b.pct-a.pct);
-  const top=r.slice(0,3),bot=r.slice(-3).reverse();
-  const li=x=>`<div class="li"><span class="av">${String(x.nome).slice(0,2).toUpperCase()}</span><span style="flex:1">${x.nome} <span class="mini">${x.part}-${x.uf}</span></span><b style="color:${x.pct>=50?'var(--green)':'var(--red)'}">${x.pct}%</b></div>`;
-  $('#dna').innerHTML=`<p class="mini">${comparadas} votação(ões) comparada(s) com seus votos${semPlenario?` · ${semPlenario} sem plenário carregado`:''}.</p><div class="cols"><div><h4>🟢 Top afinidades</h4>${top.map(li).join('')}</div><div><h4>🔴 Top divergências</h4>${bot.map(li).join('')}</div></div>`}
- catch(e){
-  $('#dna').innerHTML=`<div class="vazio">⚠️ Não deu pra calcular agora: ${String(e.message||e)}<br><button class="pill on-g" data-acao="dna" style="margin-top:8px">🔄 Tentar de novo</button></div>`}
- finally{if(bt){bt.disabled=false;bt.textContent=txt0}}
-}
+ vz.textContent=vis>0?'':(temaAtivo?'Nenhuma PL de '+temaAtivo+' em análise agora. Quando entrar, aparece aqui. 🔍':'Nenhuma PL encontrada pra esse filtro. Aqui quem escolhe é você — use a busca. 🔍');
+ const fb=$('#filtro-ativo');
+ if(fb){if(temaAtivo){fb.hidden=false;fb.innerHTML='<b style="color:var(--gold)">Assunto: '+temaAtivo+'</b><span class="mini">'+vis+' projeto(s) com esse tema</span><button class="pill ghost" data-acao="tema-limpar" style="margin-left:auto">✕ limpar filtro</button>'}else{fb.hidden=true}}}
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-acao]');if(!b)return;const a=b.dataset.acao;
  if(a==='votar'){const mv=meusVotos();mv[b.dataset.key]=b.dataset.v;LS.set('mb_votos_pl',mv);renderTudo();mandaVotoPl(b.dataset.key,b.dataset.v)}
@@ -364,6 +323,7 @@ document.addEventListener('click',e=>{
  else if(a==='sanf'){const p=PLS.find(x=>cssk(infoPL(x).key)===b.dataset.key);if(p){const i=infoPL(p);abreSanf(i,MAPVOT[i.n+'/'+i.ano])}}
  else if(a==='per'){$$('[data-acao="per"]').forEach(x=>x.classList.remove('on'));b.classList.add('on');perAtivo=+b.dataset.per;renderAgenda()}
  else if(a==='tema'){$$('[data-acao="tema"]').forEach(x=>x.classList.remove('on'));b.classList.add('on');temaAtivo=b.dataset.t;aplicaFiltro();document.getElementById('anc-lista').scrollIntoView({behavior:'smooth'})}
+ else if(a==='tema-limpar'){temaAtivo='';$$('#pills-tema [data-acao="tema"]').forEach(x=>x.classList.toggle('on',x.dataset.t===''));aplicaFiltro()}
  else if(a==='dna'){dna(b)}
  else if(a==='ir-urna'){document.getElementById('urna').scrollIntoView({behavior:'smooth'})}
  else if(a==='uf-limpar'){const n=$('#u-num'),t=$('#u-tema'),p=$('#u-parl');if(n)n.value='';if(t)t.value='';if(p)p.value='';pular=[];renderUrna()}});
