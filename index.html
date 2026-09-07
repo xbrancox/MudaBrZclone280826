@@ -143,6 +143,11 @@ textarea{min-height:70px;resize:vertical}
 .dk-leg div{display:flex;align-items:center;gap:6px}
 .dk-leg i{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
 .dk-leg b{margin-left:auto;color:#fff}
+.dk-leg span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px}
+.dk-empty{height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;padding:0 8px}
+.dk-empty b{font-size:13px;color:#eaf1fb}
+.dk-empty span{font-size:11px;color:var(--muted);line-height:1.4}
+.dk-total{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--green);text-align:center;margin:8px 0 0;text-transform:uppercase}
 @media(max-width:960px){.ncard-new{flex-basis:280px}}
 .news{max-width:420px}
 .ncard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
@@ -214,7 +219,7 @@ footer{background:#08142e;border-top:1px solid var(--line);padding:44px 0 20px;m
     <select id="dk-cidade" onchange="dkRender()" aria-label="Cidade" hidden></select>
   </div>
   <div class="dk-grid" id="dk-grid"></div>
-  <p class="muted" style="font-size:11px;text-align:center;margin-top:14px">🧪 Distribuição demonstrativa (protótipo) — em produção, alimentada pelos dados reais do TSE e da plataforma.</p>
+  <p class="muted" style="font-size:11px;text-align:center;margin-top:14px">🔴 <b>Senador</b> e <b>Deputado Federal</b>: distribuição real dos votos da plataforma, atualizada ao vivo (a cada novo voto o donut gira). Demais cargos entram nas próximas fases — prefeito e vereador nas eleições municipais.</p>
 </div>
   <div style="margin-top:40px"><h2 style="margin-top:0">Notícias do Congresso e da política</h2>
   <p class="muted">Só política, direto das fontes oficiais e da grande imprensa — <b>com os devidos créditos</b>. Filtre por Geral (nacional), Brasil ou qualquer um dos 27 estados — com notícias locais buscadas a cada 10 min.</p>
@@ -414,6 +419,9 @@ function initSSE(){
       try {
         const data = JSON.parse(e.data);
         atualizaContadoresSSE(data);
+        /* donuts do 02 ACOMPANHAMENTO: refresh ao vivo (debounce 2s) */
+        clearTimeout(window._dkLiveT);
+        window._dkLiveT = setTimeout(function(){ if (window.dkRefresh) window.dkRefresh(); }, 2000);
       } catch(_){}
     });
     /* 🔴 AO VIVO — nova reclamação de outra janela */
@@ -833,54 +841,87 @@ setTimeout(initSSE, 2000);
 <script>if(!localStorage.getItem('mb_aviso'))document.getElementById('bannerProto').style.display='flex'</script>
 
 <script>
-/* ===== 02 ACOMPANHAMENTO — donuts por cargo (demo determinístico rotulado) ===== */
+/* ===== 02 ACOMPANHAMENTO — donuts por cargo (dados REAIS da plataforma) ===== */
 (function(){
   var DK_CARGOS=[
     {id:'presidente',nome:'Presidente'},
     {id:'governador',nome:'Governador'},
-    {id:'senador',nome:'Senador'},
-    {id:'dep-federal',nome:'Deputado Federal'},
+    {id:'senador',nome:'Senador',votavel:true},
+    {id:'dep-federal',nome:'Deputado Federal',votavel:true},
     {id:'dep-estadual',nome:'Deputado Estadual / Distrital'},
     {id:'prefeito',nome:'Prefeito'},
     {id:'vereador',nome:'Vereador'}
   ];
-  var DK_BASE=[
-    {nome:'Maria Silva',cor:'#2ECC71'},
-    {nome:'Carlos Souza',cor:'#FFD700'},
-    {nome:'Ana Beatriz',cor:'#4a90d9'},
-    {nome:'João Pereira',cor:'#ff7a6e'},
-    {nome:'Outros',cor:'#a78bfa'}
-  ];
+  var DK_CORES=['#2ECC71','#FFD700','#4a90d9','#ff7a6e'];
+  var COR_OUTROS='#a78bfa';
   var DK_CIDADES={SP:['São Paulo','Campinas','Santos'],RJ:['Rio de Janeiro','Niterói'],MG:['Belo Horizonte','Uberlândia'],BA:['Salvador','Feira de Santana'],RS:['Porto Alegre','Caxias do Sul'],PR:['Curitiba','Londrina'],PE:['Recife','Olinda'],CE:['Fortaleza'],PA:['Belém'],SC:['Florianópolis','Joinville'],GO:['Goiânia'],MA:['São Luís']};
+  var DK_CACHE={};
+  var DK_TTL=60000;
+  var DK_SEQ=0;
   var dkModo='uf';
-  function dkSeed(str){var h=7;for(var i=0;i<str.length;i++){h=(h*31+str.charCodeAt(i))>>>0}return h}
-  function dkDist(chave){
-    var seed=dkSeed(chave);
-    var rnd=function(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
-    var pesos=DK_BASE.map(function(){return 10+rnd()*40});
-    var tot=pesos.reduce(function(a,b){return a+b},0);
-    var pcts=pesos.map(function(w){return Math.round(w/tot*100)});
-    pcts[0]+=100-pcts.reduce(function(a,b){return a+b},0);
-    return DK_BASE.map(function(b,i){return{nome:b.nome,cor:b.cor,pct:pcts[i]}}).sort(function(a,b){return b.pct-a.pct});
-  }
   function dkRecorte(){var uf=document.getElementById('dk-uf').value;return dkModo==='uf'?uf:(document.getElementById('dk-cidade').value||'Capital')}
-  function dkDonutSVG(cands){
+  function dkDonutSVG(parts){
     var r=55,cx=70,cy=70,circ=2*Math.PI*r,off=0;
-    var segs=cands.map(function(c){
-      var len=c.pct/100*circ;
+    var segs=parts.map(function(c){
+      var len=Math.max(0,c.pct)/100*circ;
       var s='<circle r="'+r+'" cx="'+cx+'" cy="'+cy+'" fill="none" stroke="'+c.cor+'" stroke-width="22" stroke-dasharray="'+len+' '+(circ-len)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
       off+=len;return s}).join('');
     return '<svg class="dk-svg" viewBox="0 0 140 140" width="150" height="150"><circle r="'+r+'" cx="'+cx+'" cy="'+cy+'" fill="none" stroke="#1f2c45" stroke-width="22"/>'+segs+'</svg>';
   }
-  function dkRender(){
+  function dkMini(){return '<span class="dk-mini"><button class="'+(dkModo==='uf'?'on':'')+'" onclick="dkSetModo(&quot;uf&quot;)" title="Recorte por estado">UF</button><button class="'+(dkModo==='cidade'?'on':'')+'" onclick="dkSetModo(&quot;cidade&quot;)" title="Recorte por cidade">Cidade</button></span>'}
+  function dkCardVazio(nome,titulo,sub){
+    return '<div class="dk-card"><h4>'+nome+dkMini()+'</h4><div class="dk-empty"><b>'+titulo+'</b>'+(sub?'<span>'+sub+'</span>':'')+'</div></div>';
+  }
+  function dkCardReal(nome,d){
+    var parts=d.candidatos.map(function(c,i){return{pct:c.pct,cor:DK_CORES[i]||COR_OUTROS}});
+    if(d.outrosPct>0)parts.push({pct:d.outrosPct,cor:COR_OUTROS});
+    var leg=d.candidatos.map(function(c,i){
+      return '<div><i style="background:'+(DK_CORES[i]||COR_OUTROS)+'"></i><span title="'+c.name+' ('+c.party+'-'+c.state+')">'+c.name+'</span><b>'+c.pct+'%</b></div>';
+    }).join('');
+    if(d.outrosPct>0)leg+='<div><i style="background:'+COR_OUTROS+'"></i><span>Outros</span><b>'+d.outrosPct+'%</b></div>';
+    return '<div class="dk-card"><h4>'+nome+dkMini()+'</h4>'+dkDonutSVG(parts)+
+      '<div class="dk-total">🔴 Real · '+d.totalVotos+' voto'+(d.totalVotos===1?'':'s')+' ativo'+(d.totalVotos===1?'':'s')+'</div>'+
+      '<div class="dk-leg">'+leg+'</div></div>';
+  }
+  function dkCardCarregando(nome){return '<div class="dk-card"><h4>'+nome+dkMini()+'</h4><div class="dk-empty"><b>⏳ Carregando…</b></div></div>'}
+  async function dkRender(){
     var grid=document.getElementById('dk-grid');if(!grid)return;
     var rec=dkRecorte();
+    var seq=++DK_SEQ;
+    /* Recorte por cidade: os votos hoje carregam UF — estado honesto, sem dados falsos */
+    if(dkModo==='cidade'){
+      grid.innerHTML=DK_CARGOS.map(function(c){
+        return dkCardVazio(c.nome,'Recorte por cidade: em breve','Os votos por cidade chegam junto com as eleições municipais.');
+      }).join('');
+      return;
+    }
+    var data=DK_CACHE[rec];
+    if(!data||Date.now()-data.ts>DK_TTL){
+      grid.innerHTML=DK_CARGOS.map(dkCardCarregando).join('');
+      try{
+        var r=await fetch(API_BASE+'/api/acompanhamento?uf='+encodeURIComponent(rec));
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        data={ts:Date.now(),j:await r.json()};
+        DK_CACHE[rec]=data;
+      }catch(e){
+        if(seq!==DK_SEQ)return;
+        grid.innerHTML=DK_CARGOS.map(function(c){
+          if(c.votavel)return dkCardVazio(c.nome,'Backend acordando…','<button class="btn sm gold" onclick="dkRefresh()">🔄 Tentar de novo</button>');
+          return dkCardVazio(c.nome,'Votação abre em breve','Este cargo entra na plataforma nas próximas fases.');
+        }).join('');
+        return;
+      }
+    }
+    if(seq!==DK_SEQ)return;
+    var cg=(data.j&&data.j.cargos)||{};
     grid.innerHTML=DK_CARGOS.map(function(c){
-      var cands=dkDist(c.id+':'+rec);
-      var mini='<span class="dk-mini"><button class="'+(dkModo==='uf'?'on':'')+'" onclick="dkSetModo(&quot;uf&quot;)" title="Recorte por estado">UF</button><button class="'+(dkModo==='cidade'?'on':'')+'" onclick="dkSetModo(&quot;cidade&quot;)" title="Recorte por cidade">Cidade</button></span>';
-      return '<div class="dk-card"><h4>'+c.nome+mini+'</h4>'+dkDonutSVG(cands)+'<div class="dk-leg">'+cands.map(function(x){return '<div><i style="background:'+x.cor+'"></i><span>'+x.nome+'</span><b>'+x.pct+'%</b></div>'}).join('')+'</div></div>';
+      if(!c.votavel)return dkCardVazio(c.nome,'Votação abre em breve','Este cargo entra na plataforma nas próximas fases.');
+      var d=cg[c.id];
+      if(!d||!d.totalVotos)return dkCardVazio(c.nome,'Ainda sem votos neste recorte','O primeiro voto pode ser o seu — escolha um parlamentar no radar e confie (ou não).');
+      return dkCardReal(c.nome,d);
     }).join('');
   }
+  window.dkRefresh=function(){DK_CACHE={};dkRender()};
   window.dkSetModo=function(m){
     dkModo=m;
     document.getElementById('dk-uf-btn').classList.toggle('on',m==='uf');
@@ -894,7 +935,7 @@ setTimeout(initSSE, 2000);
     }
     dkRender();
   };
-  window.dkRender = dkRender;
+  window.dkRender=dkRender;
   dkRender();
 })();
 </script>

@@ -562,6 +562,15 @@ async function handleApi(req, res, url) {
     }
   }
 
+  /* Donuts do "02 — ACOMPANHAMENTO" (home): preferência real por cargo no recorte BR/UF */
+  if (p === '/api/acompanhamento' && req.method === 'GET') {
+    try {
+      return sendJson(res, 200, await votes.getAcompanhamento({ uf: q.uf || 'BR' }));
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: 'Falha ao computar acompanhamento: ' + e.message });
+    }
+  }
+
   if (p === '/api/stream' && req.method === 'GET') {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
