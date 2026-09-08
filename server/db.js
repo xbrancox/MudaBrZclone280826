@@ -226,6 +226,13 @@ function openSqlite() {
     );
     CREATE INDEX IF NOT EXISTS idx_pl_votes_pl ON pl_votes(pl_id);
 
+    CREATE TABLE IF NOT EXISTS votos_pl (
+      uid             TEXT NOT NULL,
+      pl              TEXT NOT NULL,
+      voto            TEXT NOT NULL,
+      PRIMARY KEY (uid, pl)
+    );
+
     CREATE TABLE IF NOT EXISTS vote_codes (
       code            TEXT PRIMARY KEY,
       voter_hash      TEXT NOT NULL,
@@ -959,6 +966,20 @@ function getPoliticianFullDetails(id) {
   };
 }
 
+/* ===== Placar do Povo (votos_pl — uid anônimo do navegador) ===== */
+function castVotoPl(uid, pl, voto) {
+  openSqlite();
+  db.prepare(`INSERT INTO votos_pl (uid, pl, voto) VALUES (?, ?, ?)
+    ON CONFLICT(uid, pl) DO UPDATE SET voto = excluded.voto`).run(uid, pl, voto);
+}
+function plVotesAgg() {
+  openSqlite();
+  return db.prepare(`SELECT pl,
+    SUM(CASE WHEN voto='aprovo' THEN 1 ELSE 0 END) AS aprovo,
+    SUM(CASE WHEN voto='nao' THEN 1 ELSE 0 END) AS nao
+    FROM votos_pl GROUP BY pl`).all();
+}
+
 /* ===== Backup: dump completo de todas as tabelas ===== */
 const DUMP_TABLES = ['ballots', 'politicians', 'verifications', 'complaints',
   'supports', 'responses', 'voters', 'pls', 'pl_votes', 'vote_codes'];
@@ -986,6 +1007,7 @@ module.exports = {
   createResponse, getResponseByComplaint, getResponsesByPolitician,
   hashVoter, upsertVoter, getVoterById, getVoterByGoogleId, getVoterByPhone, getVoterByHash, getVoterByEmail,
   upsertPl, getPl, readAllPls, getPlsByFilters, castPlVote, getPlVoteForVoter,
+  castVotoPl, plVotesAgg,
   generateVoteCode, getVoteCodesForVoter, verifyVoteCode, markCodeUsed,
   getRevokedStats, dumpAll,
   VOTOS_DB, VOTOS_FILE

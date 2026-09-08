@@ -38,10 +38,10 @@
 
   var ITENS = [
     { chave: 'inicio',    pagina: 'index.html',            rotulo: 'In\u00edcio' },
-    { chave: 'radar',     pagina: 'parlamentares.html',    rotulo: 'Radar Pol\u00edtico' },
-    { chave: 'congresso', pagina: 'congresso.html',        rotulo: 'PLs no Congresso' },
-    { chave: 'votacoes',  pagina: 'votacoes.html',         rotulo: 'Vota\u00e7\u00f5es' },
-    { chave: 'eleicoes',  pagina: 'eleicoes-2026.html',    rotulo: 'Elei\u00e7\u00f5es 2026' },
+    { chave: 'radar',     pagina: 'pages/parlamentares.html', rotulo: 'Radar Pol\u00edtico' },
+    { chave: 'congresso', pagina: 'pages/congresso.html',     rotulo: 'PLs no Congresso' },
+    { chave: 'votacoes',  pagina: 'pages/votacoes.html',      rotulo: 'Vota\u00e7\u00f5es' },
+    { chave: 'eleicoes',  pagina: 'pages/eleicoes-2026.html', rotulo: 'Elei\u00e7\u00f5es 2026' },
     { chave: 'conferir',  pagina: 'index.html#conferir-voto', rotulo: 'Conferir Voto' },
     { chave: 'revogar',   pagina: 'index.html#revogar-voto',  rotulo: 'Revogar Voto' },
     { chave: 'revogados', pagina: 'index.html#revogados',     rotulo: 'Votos Revogados' },

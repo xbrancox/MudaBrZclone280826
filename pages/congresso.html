@@ -80,6 +80,10 @@ main{max-width:1150px;margin:0 auto;padding:24px 16px 100px}
 .selo.g{border-color:var(--green);color:var(--green)}.selo.r{border-color:var(--red);color:var(--red)}
 .selo.y{border-color:var(--gold);color:var(--gold)}.selo.c{border-color:var(--grey);color:var(--grey)}
 .parl{max-height:320px;overflow:auto;margin-top:8px}
+.pcor{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:800;color:#fff;flex:none;text-shadow:0 1px 2px #0009;border:1px solid #ffffff22}
+.vsrow{display:flex;gap:8px;align-items:center;margin:6px 0 2px;font-size:12px;flex-wrap:wrap}
+.mbar{flex:1;min-width:120px;height:10px;border-radius:999px;background:#22406b;overflow:hidden;display:flex}
+.mbar>span{height:10px}
 .li{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px}
 .av{width:30px;height:30px;border-radius:50%;background:var(--c2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none}
 .chip{border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800}
@@ -171,7 +175,7 @@ h2{margin:26px 0 10px}
 const API=(window.MudaBrasil&&window.MudaBrasil.API_BASE)||'';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const LS={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},set(k,v){localStorage.setItem(k,JSON.stringify(v))}};
-let PLS=[],VOT=[],VOTOS={},MAPVOT={},POVO={},temaAtivo='',perAtivo=30,pular=[],fila=[],ultimaKey='';
+let PLS=[],VOT=[],VOTOS={},MAPVOT={},VOT2PLKEY={},POVO={},temaAtivo='',perAtivo=30,pular=[],fila=[],ultimaKey='';
 const meuUid=()=>{let u=LS.get('mb_uid',null);if(!u){u='u'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);LS.set('mb_uid',u)}return u};
 const meusVotos=()=>LS.get('mb_votos_pl',{});
 const corte=(t,n=140)=>{t=(t||'').toString().trim();return t.length>n?t.slice(0,n).trim()+'…':t};
@@ -231,29 +235,41 @@ function cardPL(p){
  <button class="pill ghost" data-acao="sanf" data-key="${cssk(i.key)}">📊 Ver partidos e parlamentares ▾</button>
  <div id="d-${cssk(i.key)}" hidden></div>`;
  return el}
+const PARTCORES={PT:'#C8102A',PL:'#1F5FBF','PSOL':'#B01BB8',UNIÃO:'#0B6BB2',UNIAO:'#0B6BB2',PP:'#22B0C5',REPUBLICANOS:'#1A9A67',PSD:'#2E7D32',MDB:'#E52B2B',PODE:'#E91E63',PSB:'#F0932B',PSDB:'#1E6FD9',PDT:'#5b6b82',NOVO:'#8a6d3b',SOLIDARI:'#F0932B',CIDADANIA:'#4FC3F7',PV:'#37B24D',REDE:'#B39DDB',PCDOB:'#D32F2F',PSDIB:'#2E7D32',MOBILIZA:'#795548',AVANTE:'#7E57C2',PATRI:'#455A64',PROS:'#26A69A'};
+function corPartido(s){if(PARTCORES[s])return PARTCORES[s];let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return['#1F5FBF','#B01BB8','#F0932B','#1A9A67','#7E57C2','#26A69A'][h%6]}
 async function abreSanf(i,v){
  const box=$('#d-'+cssk(i.key));if(!box)return;
  if(box.dataset.ok){box.hidden=!box.hidden;return}
  if(!v){box.innerHTML=`<div class="vazio">Sem votação nominal registrada ainda.</div>`;box.hidden=false;box.dataset.ok=1;return}
- const lista=VOTOS[v.id]||await votosDe(v.id);const mv=meusVotos()[i.key];
+ const lista=VOTOS[v.id]||await votosDe(v.id);const mv=meusVotos();
+ /* Base de comparação: Placar do Povo REAL quando existir; senão a posição de quem olha */
+ const pp=POVO[i.key]||{aprovo:0,nao:0};const totP=pp.aprovo+pp.nao;
+ const base=totP?(Math.round(pp.aprovo/totP*100)>=50?'aprovo':'nao'):mv;
+ const rotulo=totP?`POVO (${totP} voto${totP>1?'s':''} real${totP>1?'is':''})`:'VOCÊ';
  const partes={};lista.forEach(x=>{(partes[x.part]=partes[x.part]||{favor:0,contra:0,cinza:0})[x.t]++});
  const ph=Object.entries(partes).sort((a,b)=>(b[1].favor+b[1].contra)-(a[1].favor+a[1].contra)).map(([s,p])=>{
   const tot=p.favor+p.contra+p.cinza,f=p.favor,c=p.contra,g=p.cinza;let selo;
-  if(!mv)selo=`<span class="mini">opine pra comparar</span>`;
+  if(!base)selo=`<span class="mini">opine pra comparar</span>`;
   else if(g/tot>.5)selo=`<span class="selo c" data-tip="Maioria da bancada não registrou voto">AUSENTOU</span>`;
   else if(Math.abs(f-c)/tot<=.1)selo=`<span class="selo y" data-tip="Bancada rachada, quase 50/50">PARTIDO DIVIDIDO</span>`;
-  else if((mv==='aprovo'&&f>c)||(mv==='nao'&&c>f))selo=`<span class="selo g" data-tip="Maioria da bancada votou alinhada com você">SEGUIU VOCÊ</span>`;
-  else selo=`<span class="selo r" data-tip="Maioria da bancada votou contra sua posição">CONTRA VOCÊ</span>`;
-  return `<div class="part"><span class="sig">${s}</span>${barPL({favor:f,contra:c,cinza:g,total:tot})}${selo}</div>`}).join('');
- const plh=lista.map(x=>`<div class="li" data-t="${x.t}"><span class="av">${String(x.nome).slice(0,2).toUpperCase()}</span><span style="flex:1">${x.nome} <span class="mini">${x.part}-${x.uf}</span></span><span class="chip ${x.t==='favor'?'green':x.t==='contra'?'red':'grey'}" data-tip="${x.t==='favor'?'Votou SIM':x.t==='contra'?'Votou NÃO':'Ausente ou abstenção'}">${x.t==='favor'?'a favor':x.t==='contra'?'contra':'não votou'}</span></div>`).join('');
- box.innerHTML=`<div class="cols" style="margin-top:10px"><div><h4>Partidos</h4>${ph}</div><div><h4>Parlamentares</h4>
+  else if((base==='aprovo'&&f>c)||(base==='nao'&&c>f))selo=`<span class="selo g" data-tip="Maioria da bancada alinhada com ${totP?'o Placar do Povo':'sua posição'}">SEGUIU O ${rotulo}</span>`;
+  else selo=`<span class="selo r" data-tip="Maioria da bancada contra ${totP?'o Placar do Povo':'sua posição'}">CONTRA O ${rotulo}</span>`;
+  return `<div class="part"><span class="pcor" style="background:${corPartido(s)}" title="${s}">${s.slice(0,4)}</span><span class="sig">${s}</span>${barPL({favor:f,contra:c,cinza:g,total:tot})}${selo}</div>`}).join('');
+ const plh=lista.map(x=>`<div class="li" data-t="${x.t}" data-busca="${(x.nome+' '+x.part+' '+x.uf).toLowerCase()}"><span class="av">${String(x.nome).slice(0,2).toUpperCase()}</span><span style="flex:1">${x.nome} <span class="mini">${x.part}-${x.uf}</span></span><span class="chip ${x.t==='favor'?'green':x.t==='contra'?'red':'grey'}" data-tip="${x.t==='favor'?'Votou SIM':x.t==='contra'?'Votou NÃO':'Ausente ou abstenção'}">${x.t==='favor'?'a favor':x.t==='contra'?'contra':'não votou'}</span></div>`).join('');
+ box.innerHTML=`<p class="mini" style="margin-bottom:8px">📊 Selos comparados ${totP?`ao <b style="color:var(--gold)">Placar do Povo</b> (${pp.aprovo} aprovo × ${pp.nao} não)`:'à <b>suas</b> respostas (vote na Urna pra comparar com o Povo)'}</p>
+ <div class="cols" style="margin-top:6px"><div><h4>Partidos</h4>${ph}</div><div><h4>Parlamentares</h4>
+ <input class="busca" id="q-parl-${cssk(i.key)}" placeholder="🔎 buscar deputado ou partido…" style="margin:6px 0;padding:10px;font-size:13px">
  <div class="pills"><button class="pill on" data-f="todos">Todos</button><button class="pill" data-f="favor">A favor</button><button class="pill" data-f="contra">Contra</button><button class="pill" data-f="cinza">Não votou</button></div>
  <div class="parl">${plh}</div></div></div>`;
  box.hidden=false;box.dataset.ok=1;
- box.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{box.querySelectorAll('[data-f]').forEach(x=>x.classList.remove('on'));b.classList.add('on');const f=b.dataset.f;box.querySelectorAll('.li').forEach(li=>li.style.display=(f==='todos'||li.dataset.t===f)?'':'none')})}
+ const aplicaF=()=>{const f=box.querySelector('[data-f].on');const ff=f?f.dataset.f:'todos';box.querySelectorAll('.li').forEach(li=>li.style.display=((ff==='todos'||li.dataset.t===ff)?'':'none'))};
+ box.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{box.querySelectorAll('[data-f]').forEach(x=>x.classList.remove('on'));b.classList.add('on');aplicaF()});
+ const qb=box.querySelector('input.busca');if(qb)qb.oninput=()=>{const q=qb.value.toLowerCase();box.querySelectorAll('.li').forEach(li=>li.style.display=(li.dataset.busca.includes(q)?'':'none'))}}
 function buildFila(){
  fila=[];
- PLS.forEach(p=>{const i=infoPL(p);fila.push({tipo:'pl',key:i.key,i,desc:i.desc,url:i.url,tema:temaDe(i.desc)||'Geral',extra:`${autorLabel(i)} · ${i.party} · ${i.chamber}`})});
+ VOT2PLKEY={};
+ PLS.forEach(p=>{const i=infoPL(p);const v=MAPVOT[i.n+'/'+i.ano];if(v&&v.id)VOT2PLKEY[v.id]=i.key;
+  fila.push({tipo:'pl',key:i.key,i,desc:i.desc,url:i.url,tema:temaDe(i.desc)||'Geral',extra:`${autorLabel(i)} · ${i.party} · ${i.chamber}`})});
  VOT.slice(0,10).forEach(v=>{const i=infoVot(v);fila.push({tipo:'vot',key:'VOT:'+i.id,i,desc:i.desc,url:'votacoes.html',tema:temaDe(i.desc)||'Geral',extra:'✅ JÁ VOTADA NO CONGRESSO'+(i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):'')})});
  popularFiltrosUrna();
 }
@@ -300,9 +316,25 @@ function renderAgenda(){
   <a class="link" target="_blank" href="${i.url}">📄 inteiro teor →</a>
   ${botoesVoto(i.key,mv)}</div>`}).join('')||`<div class="vazio">Nada pendente.</div>`;
  const votadas=VOT.map(v=>({v,i:infoVot(v)})).filter(x=>{if(!x.i.data)return true;return (agora-new Date(x.i.data))/864e5<=perAtivo}).sort((a,b)=>new Date(b.i.data||0)-new Date(a.i.data||0)).slice(0,10);
- $('#ag-dir').innerHTML=votadas.map(({v,i})=>{const pc=placar(VOTOS[v.id]||[]);const tot=pc.favor+pc.contra;const cong=tot?Math.round(pc.favor/tot*100):0;
-  const res=pc.favor>pc.contra?`<span class="chip green" data-tip="Aprovada no plenário">APROVADA</span>`:pc.contra>pc.favor?`<span class="chip red" data-tip="Rejeitada no plenário">REJEITADA</span>`:`<span class="chip grey">SEM MAIORIA</span>`;
-  return `<div class="item">${res}<h3 style="margin:6px 0">${corte(i.desc,80)}</h3><p class="mini">Congresso: ${cong}% a favor · 🪑 não votaram: ${pc.cinza}${i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):''}</p></div>`}).join('')||`<div class="vazio">Nenhuma votação nominal neste período.</div>`}
+ $('#ag-dir').innerHTML=votadas.map(({v,i})=>{
+  const pc=placar(VOTOS[v.id]||[]);const tot=pc.favor+pc.contra;const cong=tot?Math.round(pc.favor/tot*100):0;
+  const res=pc.favor>pc.contra?`<span class="chip green" data-tip="Aprovada no plenário">APROVADA</span>`:pc.contra>pc.favor?`<span class="chip red" data-tip="Rejeitada no plenário">REJEITADA</span>`:(pc.total?`<span class="chip grey">SEM MAIORIA</span>`:`<span class="chip grey" data-tip="Requerimento ou votação sem registro nominal de voto">SEM REGISTRO NOMINAL</span>`);
+  /* Povo × Congresso (conceito dos mockups): placar real dos usuários × votação nominal */
+  const plKey=VOT2PLKEY[v.id];const plObj=plKey?PLS.find(p=>infoPL(p).key===plKey):null;const plI=plObj?infoPL(plObj):null;
+  const pp=plKey?(POVO[plKey]||{aprovo:0,nao:0}):{aprovo:0,nao:0};const totP=pp.aprovo+pp.nao;
+  const povoPct=totP?Math.round(pp.aprovo/totP*100):null;
+  let vs='';
+  if(povoPct!=null){
+   const g=Math.abs(povoPct-cong);const contra=(povoPct>=50)!==(cong>=50);
+   vs=`<div class="vsrow"><span class="mini">Povo <b style="color:var(--green)">${povoPct}%</b></span>
+   <span class="mbar" data-tip="Verde: aprovação no Placar do Povo · vermelho: posição contrária do plenário"><span style="width:${povoPct}%;background:var(--green)"></span><span style="width:${100-povoPct}%;background:var(--red)"></span></span>
+   <span class="mini">Congresso <b style="color:${cong>=50?'var(--green)':'var(--red)'}">${cong}%</b></span></div>
+   <p class="mini" data-tip="Distância em pontos entre a vontade popular e o plenário">${totP} voto${totP>1?'s':''} real${totP>1?'is':''} · <b style="color:${contra?'var(--red)':'var(--green)'}">GAP ${g} pts ${contra?'contra o povo':'a favor do povo'}</b> · 🪑 não votaram: ${pc.cinza}${i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):''}</p>`;
+  }else{
+   vs=`<p class="mini">${pc.total?`Congresso: ${cong}% a favor · 🪑 não votaram: ${pc.cinza}`:'Sem registro nominal de voto a voto.'}${i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):''} · <span data-tip="Ninguém opinou nesta matéria ainda — vote na Urna Expressa!">Povo: sem votos ainda</span></p>`;
+  }
+  const teor=plI&&plI.url?` · <a class="link" target="_blank" rel="noopener" href="${plI.url}">📄 inteiro teor →</a>`:'';
+  return `<div class="item">${res}<h3 style="margin:6px 0">${plI?plI.key:corte(i.desc,60)}</h3><p class="mini">${plI?corte(i.desc,90):''}</p>${vs}${teor}</div>`}).join('')||`<div class="vazio">Nenhuma votação nominal neste período.</div>`}
 function renderPills(){
  const ord=['Saúde','Educação','Meio Ambiente','Economia','Segurança','Cultura','Outros'];
  const ct={};PLS.forEach(p=>{const t=temaDe(infoPL(p).desc)||'Outros';ct[t]=(ct[t]||0)+1});
@@ -371,7 +403,7 @@ $('#busca').addEventListener('input',aplicaFiltro);
 if(!LS.get('mb_popup_congresso',0))$('#popup').style.display='flex';
 $('#popup-ok').onclick=()=>{LS.set('mb_popup_congresso',1);$('#popup').style.display='none'};
 (async function(){
- try{const h=await fetch(API+'/api/health');$('#badge').textContent=h.ok?'backend ativo':'offline'}catch(e){$('#badge').textContent='modo demo'}
+ try{const h=await fetch(API+'/api/health');const b=$('#badge');if(b)b.textContent=h.ok?'backend ativo':'offline'}catch(e){const b=$('#badge');if(b)b.textContent='modo demo'}
  try{const j=await(await fetch(API+'/api/pls')).json();PLS=Array.isArray(j)?j:(j.pls||[])}catch(e){}
  // Prefere PLs REAIS da Câmara (snapshot com autor, partido e UF reais) quando a
  // lista servida for a amostra/seeds com autoria genérica ("Deputado", "Senadora"…)
