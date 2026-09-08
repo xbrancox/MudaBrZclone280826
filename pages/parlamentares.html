@@ -342,16 +342,16 @@ function renderFicha(id){
     ['Cargo',esc(p.cargo),eCam],
     ['E-mail institucional',p.email?`<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>`:'—',eCam],
     ['Legislatura',p.leg?esc(p.leg)+'ª':'—',eCam],
-    ['Nome civil',d.det.nomeCivil?esc(d.det.nomeCivil):'<span class="skel">carregando</span>',eCam],
-    ['Nascimento',d.det.nasc?esc(d.det.nasc)+(d.det.idade?' ('+d.det.idade+' anos)':''):'<span class="skel">carregando</span>',eCam],
-    ['Naturalidade',d.det.munic?esc(d.det.munic):'<span class="skel">carregando</span>',eCam],
-    ['Escolaridade',d.det.escolaridade?esc(d.det.escolaridade):'<span class="skel">carregando</span>',eCam],
-    ['Situação do mandato',d.det.situacao?esc(d.det.situacao+(d.det.condicao?' · '+d.det.condicao:'')):'<span class="skel">carregando</span>',eCam],
-    ['Gabinete',d.det.gabinete?esc(d.det.gabinete):'<span class="skel">carregando</span>',eCam],
-    ['Contato do gabinete',d.det.contato?esc(d.det.contato):'<span class="skel">carregando</span>',eCam],
-    ['Redes sociais',d.det.redes&&d.det.redes.length?d.det.redes.map(r=>`<a href="${esc(r)}" target="_blank" rel="noopener">${esc(r.replace(/^https?:\/\/(www\.)?/,'').slice(0,28))}</a>`).join(' · '):(p.fonte==='senado'&&(d.det.nomeCivil||d.det.erroSen)?'—':'<span class="skel">carregando</span>'),eCam],
+    ['Nome civil',d.det.nomeCivil?esc(d.det.nomeCivil):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
+    ['Nascimento',d.det.nasc?esc(d.det.nasc)+(d.det.idade?' ('+d.det.idade+' anos)':''):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
+    ['Naturalidade',d.det.munic?esc(d.det.munic):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
+    ['Escolaridade',d.det.escolaridade?esc(d.det.escolaridade):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
+    ['Situação do mandato',d.det.situacao?esc(d.det.situacao+(d.det.condicao?' · '+d.det.condicao:'')):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
+    ['Gabinete',d.det.gabinete?esc(d.det.gabinete):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
+    ['Contato do gabinete',d.det.contato?esc(d.det.contato):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
+    ['Redes sociais',d.det.redes&&d.det.redes.length?d.det.redes.map(r=>`<a href="${esc(r)}" target="_blank" rel="noopener">${esc(r.replace(/^https?:\/\/(www\.)?/,'').slice(0,28))}</a>`).join(' · '):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
     ['Projetos apresentados',d.props?d.props.length+' nesta legislatura (aba 📚 Projetos)':(p.propsSnap!=null?p.propsSnap+' (histórico) — detalhes na aba 📚':'<span class="skel">carregando</span>'),eCam],
-    ['Como votou (nominais)',d.votos&&d.votos.length?d.votos.length+' votações recentes (aba 🗳️)':'<span class="skel">carregando</span>',eCam],
+    ['Como votou (nominais)',d.votos&&d.votos.length?d.votos.length+' votações recentes (aba 🗳️)':(d.votosFim?'0 votações nominais nas recentes (aba 🗳️)':'<span class="skel">carregando</span>'),eCam],
     ['Patrimônio declarado','consultar',F_TSE(p.num)],
     ['Bens e rendas da campanha','consultar',F_TSE(p.num)],
     ['Despesas e gastos','consultar',F_PT(p.nome)],
@@ -410,6 +410,7 @@ async function preencheDetalhe(id){
       d.det.redes=[];
       if(par.UrlPaginaParlamentar&&!p.url)p.url=par.UrlPaginaParlamentar;
     }catch(e){d.det.erroSen=true}
+    d.detDone=true;
     try{const r=await fetch('https://legis.senado.leg.br/dadosabertos/senador/'+p.num+'/votacoes.json',{headers:{Accept:'application/json'}});
       const j=await r.json();const arr=[].concat((((j.VotacaoParlamentar||{}).Parlamentar||{}).Votacoes||{}).Votacao||[]);
       d.votosHist=arr;
@@ -436,6 +437,7 @@ async function preencheDetalhe(id){
     if(gab)d.det.gabinete=(gab.nome||'')+(gab.predio?' · '+gab.predio:'')+(gab.andar?' '+gab.andar:'')+(gab.sala?' '+gab.sala:'');
     if(gab)d.det.contato=[gab.telefone,gab.email].filter(Boolean).join(' · ');
   }catch(e){}
+  d.detDone=true;
   if(document.getElementById('mFicha').classList.contains('open'))renderFicha(id);
   try{const ex=await Promise.all([
     fetch(CA+'deputados/'+p.num+'/orgaos?itens=30').then(y=>y.json()).catch(()=>({dados:[]})),
