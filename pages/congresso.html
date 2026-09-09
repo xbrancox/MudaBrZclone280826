@@ -96,9 +96,10 @@ main{max-width:1150px;margin:0 auto;padding:24px 16px 100px}
 .urna .udesc .desc{flex:1;min-width:0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .urna .udesc .link{flex:none}
 .urna .pprox{display:table;margin:2px auto 0}
-.urna .botoes{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
-.urna .botoes button{flex:1;min-width:150px;border:none;border-radius:999px;padding:16px;font-size:17px;font-weight:800;cursor:pointer;transition:transform .1s}
+.urna .botoes{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.urna .botoes button{flex:1;min-width:110px;border:2px solid transparent;border-radius:999px;padding:9px 14px;font-size:13.5px;font-weight:800;cursor:pointer;transition:transform .1s}
 .urna .botoes button:hover{transform:scale(1.03)}
+.urna .botoes button.on{outline:3px solid var(--gold);outline-offset:2px}
 #bAprovo{background:var(--green);color:#04122b}#bNao{background:var(--red);color:#fff}
 .prog{height:8px;background:#22406b;border-radius:999px;margin:8px 0}.prog>div{height:8px;background:var(--gold);border-radius:999px;transition:width .3s}
 .quad{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch;margin-top:8px}
@@ -369,7 +370,11 @@ function syncBoxes(){
 function renderPlsMini(){
  const box=$('#qb-pls-mini');if(!box||qboxPls)return;
  if(!PLS.length){box.innerHTML='<div class="vazio">⏳ Carregando PLs…</div>';return}
- box.innerHTML=PLS.slice(0,3).map(p=>{
+ // dedupe com a caixa "SERÃO VOTADAS" (#ag-esq): aqui não repetem os mesmos números
+ const naEsq=new Set(PLS.filter(p=>{const i=infoPL(p);return !MAPVOT[i.n+'/'+i.ano]}).slice(0,agExpEsq?PLS.length:3).map(p=>infoPL(p).key));
+ const vis=PLS.filter(p=>!naEsq.has(infoPL(p).key));
+ if(!vis.length){box.innerHTML='<div class="vazio">Todas as PLs estão na caixa <b>SERÃO VOTADAS</b> — confira lá.</div>';return}
+ box.innerHTML=vis.slice(0,3).map(p=>{
   const i=infoPL(p),v=MAPVOT[i.n+'/'+i.ano],pc=v?placar(VOTOS[v.id]):null;
   const chip=pc?(pc.favor>pc.contra?'<span class="chip green">APROVADA</span>':pc.contra>pc.favor?'<span class="chip red">REJEITADA</span>':'<span class="chip grey">SEM MAIORIA</span>'):'<span class="chip blue" data-tip="Em tramitação — ainda sem votação nominal">EM ANÁLISE</span>';
   return `<div class="item">${chip}<h3 style="margin:6px 0">${i.key}</h3><p class="mini">${corte(i.desc,110)}</p>
@@ -565,19 +570,22 @@ function renderUrna(){
  $('#urna-txt').textContent=`${done} de ${tot} matérias votadas`;
  const fu=filtrosUrnaAtivos();
  const limp=$('#u-limpar');if(limp)limp.hidden=!fu.on;
- if(fu.n){const nd=fu.n.replace(/\D/g,'');pend=nd?pend.filter(f=>String(f.i.n||f.i.num||'').includes(nd)):pend}
- if(fu.t)pend=pend.filter(f=>f.tema===fu.t);
- if(fu.p)pend=pend.filter(f=>((f.i&&f.i.author||'')).toLowerCase().includes(fu.p.toLowerCase()));
- const atual=pend.filter(f=>!pular.includes(f.key))[0]||pend[0];
+ const casa=f=>{if(fu.n){const nd=fu.n.replace(/\D/g,'');if(nd&&!String(f.i.n||f.i.num||'').includes(nd))return false}if(fu.t&&f.tema!==fu.t)return false;if(fu.p&&!((f.i&&f.i.author||'')).toLowerCase().includes(fu.p.toLowerCase()))return false;return true};
+ pend=pend.filter(casa);
+ // âncora: após votar, permanece na MESMA matéria (escolha marcada, troca livre) — só "próxima →" avança
+ const cand=ultimaKey?fila.find(f=>f.key===ultimaKey):null;
+ const fix=cand&&casa(cand)&&!pular.includes(cand.key)?cand:null;
+ const atual=fix||pend.filter(f=>!pular.includes(f.key))[0]||pend[0];
  if(!atual){
   $('#urna-corpo').innerHTML=fu.on
    ?`<div class="vazio">Nenhuma matéria pendente com esses filtros.<br><button class="pill" data-acao="uf-limpar" style="margin-top:8px">✕ limpar filtros</button></div>`
    :`<div class="vazio">🎉 Você opinou sobre todas as matérias pendentes!</div>`;return}
  ultimaKey=atual.key;
+ const vk=mv[atual.key];
  $('#urna-corpo').innerHTML=`<div class="uline"><h3 style="color:var(--gold)" data-tip="${esc(atual.extra)}">Nº da PL: ${atual.i.key}</h3>
  <span class="chip blue" data-tip="Tema principal da matéria">${atual.tema}</span></div>
  <div class="udesc"><span class="desc" data-tip="${esc(atual.desc)}">${esc(atual.desc)}</span>${atual.tipo==='pl'?`<a class="link" target="_blank" href="${atual.url}">📄 inteiro teor →</a>`:`<a class="link" href="#" data-acao="vervot" data-id="${atual.i.id}">👥 ver o voto a voto ↓</a>`}</div>
- <div class="botoes"><button id="bAprovo" data-acao="votar" data-v="aprovo" data-key="${atual.key}" data-tip="Registra que você aprova (soma no Placar do Povo)">👍 APROVO</button><button id="bNao" data-acao="votar" data-v="nao" data-key="${atual.key}" data-tip="Registra que você não aprova (soma no Placar do Povo)">👎 NÃO APROVO</button></div>
+ <div class="botoes"><button id="bAprovo" class="${vk==='aprovo'?'on':''}" aria-pressed="${vk==='aprovo'}" data-acao="votar" data-v="aprovo" data-key="${atual.key}" data-tip="Registra que você aprova (soma no Placar do Povo)">${vk==='aprovo'?'✓ ':''}👍 APROVO</button><button id="bNao" class="${vk==='nao'?'on':''}" aria-pressed="${vk==='nao'}" data-acao="votar" data-v="nao" data-key="${atual.key}" data-tip="Registra que você não aprova (soma no Placar do Povo)">${vk==='nao'?'✓ ':''}👎 NÃO APROVO</button></div>
  <button class="pill ghost pprox" data-acao="pula" data-tip="Avança sem registrar voto">próxima →</button>`}
 function renderAgenda(){
  const agora=Date.now();
@@ -671,7 +679,7 @@ async function dna(btn){
 }
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-acao]');if(!b)return;const a=b.dataset.acao;
- if(a==='votar'){const mv=meusVotos();mv[b.dataset.key]=b.dataset.v;LS.set('mb_votos_pl',mv);renderTudo();mandaVotoPl(b.dataset.key,b.dataset.v)}
+ if(a==='votar'){const mv=meusVotos();if(mv[b.dataset.key]===b.dataset.v)return;mv[b.dataset.key]=b.dataset.v;LS.set('mb_votos_pl',mv);renderTudo();mandaVotoPl(b.dataset.key,b.dataset.v)}
  else if(a==='pula'){pular.push(ultimaKey);renderUrna()}
  else if(a==='sanf'){const p=PLS.find(x=>cssk(infoPL(x).key)===b.dataset.key);if(p){const i=infoPL(p);abreSanf(i,MAPVOT[i.n+'/'+i.ano])}}
  else if(a==='per'){$$('[data-acao="per"]').forEach(x=>x.classList.remove('on'));b.classList.add('on');perAtivo=+b.dataset.per;renderAgenda()}
