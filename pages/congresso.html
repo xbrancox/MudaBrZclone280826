@@ -105,6 +105,45 @@ main{max-width:1150px;margin:0 auto;padding:24px 16px 100px}
 footer{border-top:1px solid var(--line);padding:20px;text-align:center;color:#8ea2c0;font-size:13px}
 .mini{font-size:12px;color:#9fb0c8;margin-top:4px}
 h2{margin:26px 0 10px}
+/* ===== navegação por âncoras (sub-nav sticky) ===== */
+.subnav{position:sticky;top:52px;z-index:40;display:flex;gap:6px;flex-wrap:wrap;background:#061a3aee;backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:999px;padding:6px 8px;margin:18px 0 14px}
+.subnav a{color:var(--txt);text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:999px;transition:all .15s}
+.subnav a:hover{background:var(--c2)}
+.subnav a.on{background:var(--gold);color:#061a3a}
+@media(max-width:960px){.subnav{top:0}}
+/* ===== VOTAÇÕES (portado de votacoes.html) ===== */
+.resb{font:800 10.5px Manrope;padding:4px 10px;border-radius:999px;letter-spacing:.05em;flex:none}
+.resb.ap{color:var(--green);background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.4)}
+.resb.rj{color:var(--red);background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.4)}
+.resb.nc{color:#9fb0c8;background:rgba(148,163,184,.1);border:1px solid var(--line)}
+.placv{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+.placv .blv{flex:1;min-width:84px;background:var(--c2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;text-align:center}
+.placv .blv.sim{border-color:rgba(46,204,113,.4)}
+.placv .blv.nao{border-color:rgba(231,76,60,.4)}
+.placv .blv.abs{border-color:rgba(148,163,184,.4)}
+.placv b{font-size:19px;display:block;font-family:Montserrat}
+.placv small{color:#9fb0c8;font-size:11px}
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 8px}
+.subtab{border:1px solid var(--line);background:var(--c1);color:var(--txt);border-radius:999px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700}
+.subtab.on{background:var(--gold);color:#061a3a;border-color:var(--gold)}
+.votbox{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;max-height:400px;overflow-y:auto}
+.part-row{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px dashed var(--line);font-size:13px}
+.part-row:last-child{border-bottom:none}
+.ptchip{font:800 10.5px Manrope;color:#fff;padding:4px 8px;border-radius:8px;flex:none;min-width:52px;text-align:center;text-shadow:0 1px 2px #0009}
+.pbar{flex:1;height:14px;border-radius:999px;background:#22406b;overflow:hidden;display:flex}
+.pbar .g{background:var(--green)}.pbar .r{background:var(--red)}
+.pnums{font-size:12px;flex:none;min-width:150px;text-align:right}
+.dep-row{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px dashed var(--line);font-size:13px}
+.dep-row:last-child{border-bottom:none}
+.dep-row .av{width:32px;height:32px;border-radius:50%;object-fit:cover;object-position:top center;background:var(--c2);flex:none}
+.dep-row .av-fb{width:32px;height:32px;border-radius:50%;background:var(--c2);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+.dep-row .nm{flex:1}
+.votochip{font:800 11px Manrope;padding:3px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.08em;flex:none}
+.votochip.sim{color:var(--green);background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.4)}
+.votochip.nao{color:var(--red);background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.4)}
+.votochip.abs{color:#9fb0c8;background:rgba(148,163,184,.1);border:1px solid var(--line)}
+.anchor{scroll-margin-top:120px}
+@media(max-width:960px){.anchor{scroll-margin-top:64px}}
 </style>
   <script src="../js/site-header.js"></script>
 </head>
@@ -112,10 +151,18 @@ h2{margin:26px 0 10px}
 
 
 <main>
-  <section class="hero">
+  <section class="hero anchor" id="topo">
     <h1>PLs no Congresso</h1>
-    <p>Acompanhe projetos de lei em tramitação no Congresso Nacional. Aqui quem escolhe é você: busque, opine e veja — com dados REAIS — se o Congresso está sincronizado com a sua vontade.</p>
+    <p>Acompanhe projetos de lei em tramitação no Congresso Nacional — e como cada deputado votou de verdade. Aqui quem escolhe é você: busque, opine e veja — com dados REAIS — se o Congresso está sincronizado com a sua vontade.</p>
   </section>
+
+  <nav class="subnav" id="subnav" aria-label="Seções desta página">
+    <a href="#urna" data-sec="urna">🗳️ Urna Expressa</a>
+    <a href="#agenda" data-sec="agenda">🗓️ Agenda</a>
+    <a href="#votacoes" data-sec="votacoes">🏛️ Votações</a>
+    <a href="#anc-lista" data-sec="anc-lista">📜 PLs em análise</a>
+    <a href="#dna" data-sec="dna">🧬 Meu DNA</a>
+  </nav>
 
   <div class="legenda">
     <span><i class="dot" style="background:var(--green)"></i><span data-tip="Votou a favor da vontade popular ou alinhado com você">com o povo</span></span>
@@ -126,7 +173,7 @@ h2{margin:26px 0 10px}
   <input id="busca" class="busca" placeholder="Busque político, partido, PL nº, autor ou tema…">
   <div class="pills" id="pills-tema"></div>
 
-  <div class="card urna" id="urna">
+  <div class="card urna anchor" id="urna">
     <h3 data-tip="Vote nas matérias em 1 minuto — inclusive nas que o Congresso JÁ votou. Seu voto vai pro Placar do Povo REAL e alimenta seu DNA Cívico.">🗳️ URNA EXPRESSA DO POVO</h3>
     <p class="mini">Vote rápido em todas as matérias pendentes. Seu voto coloca. Seu voto tira.</p>
     <div class="prog" id="urna-prog"><div style="width:0%"></div></div>
@@ -140,7 +187,7 @@ h2{margin:26px 0 10px}
     <div id="urna-corpo"></div>
   </div>
 
-  <h2>🗓️ Agenda do Congresso</h2>
+  <h2 id="agenda" class="anchor">🗓️ Agenda do Congresso</h2>
   <div class="pills">
     <button class="pill on" data-acao="per" data-per="30">Último mês</button>
     <button class="pill" data-acao="per" data-per="90">Últimos 3 meses</button>
@@ -151,7 +198,25 @@ h2{margin:26px 0 10px}
     <div class="card"><h3 data-tip="Votações nominais já realizadas no plenário, voto a voto">✅ JÁ VOTADAS</h3><div id="ag-dir"></div></div>
   </div>
 
-  <h2 id="anc-lista">📜 Projetos de Lei em análise</h2>
+  <h2 id="votacoes" class="anchor">🏛️ Votações nominais do Plenário</h2>
+  <p class="mini" style="max-width:760px">Últimas votações da Câmara dos Deputados, direto da API oficial: placar, resultado (✅ aprovada / ❌ rejeitada) e o voto individual de cada parlamentar. Filtre pelo resultado e toque em <b>Ver como votaram</b> para abrir por partido ou por nome.</p>
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin:12px 0 4px">
+    <input id="v-busca" class="busca" style="margin:0" placeholder="🔎 Buscar votação por descrição (ex.: PL 74, redação final)…">
+    <select id="v-ordem" style="background:var(--c1);border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--txt);font-size:14px;cursor:pointer;outline:none">
+      <option value="data">Mais recentes</option>
+      <option value="desc">Descrição A–Z</option>
+    </select>
+  </div>
+  <div class="pills" id="pillsRes">
+    <button class="pill on" data-acao="vres" data-res="all">Todas</button>
+    <button class="pill" data-acao="vres" data-res="1" id="v-pAprov">✅ Aprovadas</button>
+    <button class="pill" data-acao="vres" data-res="0" id="v-pRej">❌ Rejeitadas</button>
+    <button class="pill" data-acao="vres" data-res="nc" id="v-pNc">⚪ Sem resultado</button>
+  </div>
+  <div id="v-loader" class="vazio">⏳ Carregando votações…</div>
+  <div id="v-lista"></div>
+
+  <h2 id="anc-lista" class="anchor">📜 Projetos de Lei em análise</h2>
   <div id="lista"></div>
   <div id="filtro-ativo" class="vazio" hidden style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
   <div id="lista-vazio" class="vazio" hidden></div>
@@ -159,7 +224,7 @@ h2{margin:26px 0 10px}
   <h2>🧬 Meu DNA Cívico</h2>
   <p class="mini" style="margin-bottom:8px" data-tip="Cruza seus votos com os votos REAIS dos deputados nas matérias que o Congresso já votou">Descubra quais parlamentares votam como você, com base em votações nominais reais.</p>
   <button class="pill on-g" data-acao="dna">🧬 Calcular minha sincronia</button>
-  <div class="card" id="dna" style="margin-top:12px"><div class="vazio">Vote em matérias na Urna (inclusive nas JÁ VOTADAS) e clique pra descobrir quem vota como você.</div></div>
+  <div class="card anchor" id="dna" style="margin-top:12px"><div class="vazio">Vote em matérias na Urna (inclusive nas JÁ VOTADAS) e clique pra descobrir quem vota como você.</div></div>
 </main>
 
 <footer>© 2026 MudaBrasil · Protótipo demonstrativo, sem valor jurídico. · <a href="../privacidade.html">Privacidade</a> · <a href="../termos.html">Termos</a></footer>
@@ -175,7 +240,7 @@ h2{margin:26px 0 10px}
 const API=(window.MudaBrasil&&window.MudaBrasil.API_BASE)||'';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const LS={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},set(k,v){localStorage.setItem(k,JSON.stringify(v))}};
-let PLS=[],VOT=[],VOTOS={},MAPVOT={},VOT2PLKEY={},POVO={},temaAtivo='',perAtivo=30,pular=[],fila=[],ultimaKey='',AUTOR=null,PLS_TODOS=null;
+ let PLS=[],VOT=[],VOTOS={},MAPVOT={},VOT2PLKEY={},POVO={},temaAtivo='',perAtivo=30,pular=[],fila=[],ultimaKey='',AUTOR=null,PLS_TODOS=null,VOTRAW={},VOTMODO={},filtroRes='all',VOTLOADED=false;
 const meuUid=()=>{let u=LS.get('mb_uid',null);if(!u){u='u'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);LS.set('mb_uid',u)}return u};
 const meusVotos=()=>LS.get('mb_votos_pl',{});
 const corte=(t,n=140)=>{t=(t||'').toString().trim();return t.length>n?t.slice(0,n).trim()+'…':t};
@@ -237,7 +302,139 @@ function cardPL(p){
  <div id="d-${cssk(i.key)}" hidden></div>`;
  return el}
 const PARTCORES={PT:'#C8102A',PL:'#1F5FBF','PSOL':'#B01BB8',UNIÃO:'#0B6BB2',UNIAO:'#0B6BB2',PP:'#22B0C5',REPUBLICANOS:'#1A9A67',PSD:'#2E7D32',MDB:'#E52B2B',PODE:'#E91E63',PSB:'#F0932B',PSDB:'#1E6FD9',PDT:'#5b6b82',NOVO:'#8a6d3b',SOLIDARI:'#F0932B',CIDADANIA:'#4FC3F7',PV:'#37B24D',REDE:'#B39DDB',PCDOB:'#D32F2F',PSDIB:'#2E7D32',MOBILIZA:'#795548',AVANTE:'#7E57C2',PATRI:'#455A64',PROS:'#26A69A'};
+/* ===== VOTAÇÕES NOMINAIS (ex-aba Votações, agora integrada a esta página) ===== */
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function parsePlacar(desc){
+ const m=String(desc||'').match(/Sim:\s*(\d+).*?N[aã]o:\s*(\d+).*?(?:Absten[çc][aã]o|Abs):?\s*(\d+)/i)||String(desc||'').match(/Sim\s*(\d+)\s*[;·]\s*N[aã]o\s*(\d+)\s*[;·]\s*(?:Abs|Abstenção)\s*(\d+)/i);
+ return m?{sim:+m[1],nao:+m[2],abs:+m[3]}:null}
+function votoClass(v){const s=String(v||'').toUpperCase();if(/^SIM/.test(s))return'sim';if(/^N[AÃ]O/.test(s))return'nao';return'abs'}
+function resInfo(v){
+ if(v.aprovacao===1)return{cls:'ap',txt:'✅ APROVADA'};
+ if(v.aprovacao===0)return{cls:'rj',txt:'❌ REJEITADA'};
+ return{cls:'nc',txt:'SEM RESULTADO'}}
+function resBadge(v){
+ if(v.aprovacao===1)return'<span class="resb ap">✅ APROVADA</span>';
+ if(v.aprovacao===0)return'<span class="resb rj">❌ REJEITADA</span>';
+ return'<span class="resb nc" title="A Câmara não marcou resultado nesta votação (ex.: requerimento protocolar ou registro incompleto)">SEM RESULTADO</span>'}
+function contagensRes(){
+ const c1=VOT.filter(v=>v.aprovacao===1).length,c0=VOT.filter(v=>v.aprovacao===0).length;
+ const pa=document.getElementById('v-pAprov'),pr=document.getElementById('v-pRej'),pn=document.getElementById('v-pNc');
+ if(pa)pa.textContent='✅ Aprovadas ('+c1+')';
+ if(pr)pr.textContent='❌ Rejeitadas ('+c0+')';
+ if(pn)pn.textContent='⚪ Sem resultado ('+(VOT.length-c1-c0)+')'}
+function renderVots(){
+ const holder=document.getElementById('v-lista');if(!holder)return;
+ const loader=document.getElementById('v-loader');
+ if(!VOT.length&&!VOTLOADED)return;
+ if(loader)loader.style.display='none';
+ if(!VOT.length){holder.innerHTML='<div class="vazio">Não foi possível carregar as votações agora — a API da Câmara pode estar indisponível. Recarregue a página em alguns instantes. 🔄</div>';return}
+ const q=norm((document.getElementById('v-busca')||{}).value).trim();
+ const ordem=(document.getElementById('v-ordem')||{}).value||'data';
+ let l=VOT.filter(v=>{
+  if(filtroRes==='1'&&v.aprovacao!==1)return false;
+  if(filtroRes==='0'&&v.aprovacao!==0)return false;
+  if(filtroRes==='nc'&&(v.aprovacao===1||v.aprovacao===0))return false;
+  if(!q)return true;
+  // palavras-chave em qualquer ordem: descrição + órgão + PL vinculado + nº/ano extraídos
+  const iv=infoVot(v);const pk=VOT2PLKEY[v.id]||'';
+  const fio=norm(v.descricao+' '+v.siglaOrgao+' '+pk+' '+iv.num+' '+iv.ano);
+  return q.split(/\s+/).every(t=>fio.includes(t))||q.split(/\s+/).some(t=>t.length>1&&fio.includes(t));});
+ if(ordem==='desc')l=[...l].sort((a,b)=>String(a.descricao).localeCompare(String(b.descricao),'pt-BR'));
+ if(!l.length){holder.innerHTML='<div class="vazio">Nenhuma votação com esse filtro — limpe a busca ou escolha "Todas".</div>';return}
+ holder.innerHTML=l.map(v=>{
+  const dataFmt=v.data?new Date(v.data+'T00:00:00').toLocaleDateString('pt-BR'):'';
+  const plKey=VOT2PLKEY[v.id];const plObj=plKey?PLS.find(p=>infoPL(p).key===plKey):null;const plI=plObj?infoPL(plObj):null;
+  const plac=v.placar?`<div class="placv"><div class="blv sim"><b>${v.placar.sim}</b><small>Sim</small></div><div class="blv nao"><b>${v.placar.nao}</b><small>Não</small></div><div class="blv abs"><b>${v.placar.abs}</b><small>Abs/Obst</small></div></div>`:'';
+  const exp=VOTRAW[v.id];
+  return `<div class="card" id="vot-${cssk(v.id)}">
+   <div class="plhead"><h3>${resBadge(v)}${v.siglaOrgao?` <span class="chip grey">${esc(v.siglaOrgao)}</span>`:''}${dataFmt?` <span class="mini">📅 ${dataFmt}</span>`:''}</h3>
+   ${plI?`<a class="link" href="#" data-acao="irpl" data-key="${cssk(plI.key)}">📜 ${esc(plI.key)} na lista de PLs →</a>`:''}</div>
+   <p class="desc">${corte(v.descricao,220)}</p>
+   ${plac}
+   <div class="pills" style="margin-bottom:0">
+    <button class="pill" data-acao="votexp" data-id="${v.id}" id="vbtn-${cssk(v.id)}" data-on="${exp?1:0}">${exp?'👥 Ocultar votos ▴':'👥 Ver como votaram ▾'}</button>
+    ${v.uriProposicaoObjeto?`<a class="pill ghost" target="_blank" rel="noopener" href="${v.uriProposicaoObjeto}">📄 proposição →</a>`:''}
+    ${v.uri?`<a class="pill ghost" target="_blank" rel="noopener" href="${v.uri}">🔗 fonte oficial</a>`:''}
+   </div>
+   <div id="vdet-${cssk(v.id)}"${exp?'':' hidden'}>${exp?renderDetalhe(VOTRAW[v.id],v.id):''}</div>
+  </div>`}).join('')}
+async function toggleVotos(id){
+ const det=document.getElementById('vdet-'+cssk(id));if(!det)return;
+ const btn=document.getElementById('vbtn-'+cssk(id));
+ if(VOTRAW[id]){
+  det.hidden=true;det.innerHTML='';delete VOTRAW[id];
+  if(btn){btn.dataset.on='0';btn.innerHTML='👥 Ver como votaram ▾'}return}
+ if(btn)btn.disabled=true;
+ det.hidden=false;det.innerHTML='<div class="vazio">⏳ Carregando voto a voto…</div>';
+ try{
+  const r=await fetch(API+'/api/camara/votacoes/'+id+'/votos');const j=await r.json();
+  const dados=j.dados||[];const votos=Array.isArray(dados)?dados:(dados.votos||j.votos||[]);
+  VOTRAW[id]=votos;VOTMODO[id]='partidos';
+  det.innerHTML=renderDetalhe(votos,id);
+  if(btn){btn.dataset.on='1';btn.innerHTML='👥 Ocultar votos ▴'}
+ }catch(e){det.innerHTML='<div class="vazio">Erro ao carregar: '+esc(e.message||e)+'</div>'}
+ finally{if(btn)btn.disabled=false}}
+function renderDetalhe(votos,id){
+ if(!votos||!votos.length)return'<div class="vazio">Esta votação foi <b>simbólica</b> (ex.: redação final, requerimento) — a presidência não registrou o voto individual dos deputados.</div>';
+ const modo=VOTMODO[id]||'partidos';
+ return `<div class="subtabs">
+  <button class="subtab ${modo==='partidos'?'on':''}" data-acao="votmodo" data-id="${id}" data-m="partidos">🏛️ Por partido</button>
+  <button class="subtab ${modo==='parlamentares'?'on':''}" data-acao="votmodo" data-id="${id}" data-m="parlamentares">👤 Por parlamentar</button></div>
+  <input class="busca" style="margin:0;padding:10px" id="vq-${cssk(id)}" placeholder="🔎 Filtrar por nome, partido ou UF…" oninput="renderModo('${id}')">
+  <div id="vbox-${cssk(id)}">${renderModo(votos,id)}</div>`}
+function setModo(id,m){
+ VOTMODO[id]=m;
+ const det=document.getElementById('vdet-'+cssk(id));
+ if(det&&VOTRAW[id])det.innerHTML=renderDetalhe(VOTRAW[id],id)}
 function corPartido(s){if(PARTCORES[s])return PARTCORES[s];let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return['#1F5FBF','#B01BB8','#F0932B','#1A9A67','#7E57C2','#26A69A'][h%6]}
+function renderModo(votos,id){
+ if(typeof votos==='string'){id=votos;votos=VOTRAW[id]}
+ if(!votos)return'';
+ const modo=VOTMODO[id]||'partidos';
+ const qEl=document.getElementById('vq-'+cssk(id));
+ const q=norm(qEl?qEl.value:'').trim();
+ let html;
+ if(modo==='partidos'){
+  const partes={};votos.forEach(v=>{
+   const p=(v.deputado_&&v.deputado_.siglaPartido)||v.partido||v.siglaPartido||'—';
+   const t=votoClass(v.voto||v.tipoVoto);
+   const k=t==='sim'?'favor':t==='nao'?'contra':'outros';
+   partes[p]=partes[p]||{favor:0,contra:0,outros:0,total:0};partes[p][k]++;partes[p].total++});
+  let arr=Object.entries(partes).sort((a,b)=>(b[1].favor+b[1].contra)-(a[1].favor+a[1].contra)||b[1].total-a[1].total);
+  if(q)arr=arr.filter(([s])=>norm(s).includes(q));
+  if(!arr.length)html='<div class="vazio">Nenhum partido corresponde ao filtro.</div>';
+  else html='<div class="votbox">'+arr.map(([s,p])=>{
+   const wF=p.total?p.favor/p.total*100:0,wC=p.total?p.contra/p.total*100:0;
+   return `<div class="part-row"><span class="ptchip" style="background:${corPartido(s)}">${esc(s)}</span>
+   <div class="pbar"><span class="g" style="width:${wF}%"></span><span class="r" style="width:${wC}%"></span></div>
+   <span class="pnums"><b style="color:var(--green)">${p.favor}</b> ✅ · <b style="color:var(--red)">${p.contra}</b> ❌${p.outros?' · <b>'+p.outros+'</b> ⚪':''} <span class="mini">/${p.total}</span></span></div>`}).join('')+'</div>'
+   +'<p class="mini" style="margin-top:6px">'+arr.length+' partido(s) · barras na ordem Sim × Não · mude para "Por parlamentar" para o voto individual.</p>';
+ }else{
+  const filtrados=q?votos.filter(v=>{
+   const nm=(v.deputado_&&v.deputado_.nome)||v.nomeDeputado||v.nome||'';
+   const pt=(v.deputado_&&v.deputado_.siglaPartido)||v.partido||'';
+   const uf=(v.deputado_&&v.deputado_.siglaUf)||v.uf||'';
+   return norm(nm).includes(q)||norm(pt).includes(q)||norm(uf).includes(q)}):votos;
+  html='<div class="votbox">'+renderDepRows(filtrados)+'</div>'
+   +'<p class="mini" style="margin-top:6px">'+filtrados.length+' de '+votos.length+' voto(s) registrado(s) · toque num deputado para abrir a página oficial dele.</p>';
+ }
+ const box=document.getElementById('vbox-'+cssk(id));
+ if(box)box.innerHTML=html;
+ return html}
+function renderDepRows(votos){
+ if(!votos||!votos.length)return'<div class="vazio">Nenhum parlamentar corresponde ao filtro.</div>';
+ return votos.map(v=>{
+  const nm=(v.deputado_&&v.deputado_.nome)||v.nomeDeputado||v.nome||'(?)';
+  const partido=(v.deputado_&&v.deputado_.siglaPartido)||v.partido||v.siglaPartido||'';
+  const uf=(v.deputado_&&v.deputado_.siglaUf)||v.uf||v.siglaUf||'';
+  const foto=(v.deputado_&&v.deputado_.urlFoto)||v.urlFoto||'';
+  const votoTxt=v.voto||v.tipoVoto||'—';
+  const did=(v.deputado_&&v.deputado_.id)||v.idDeputado||'';
+  const av=foto?`<img class="av" src="${foto}" alt="" onerror="this.outerHTML='<div class=av-fb>${esc(nm[0].toUpperCase())}</div>'">`:`<div class="av-fb">${esc(nm[0].toUpperCase())}</div>`;
+  const href=did?'https://www.camara.leg.br/deputados/'+did:'#';
+  return `<a class="dep-row" href="${href}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${av}
+  <div class="nm"><b>${esc(nm)}</b><div class="mini" style="margin:0">${esc(partido)}${uf?' · '+esc(uf):''}</div></div>
+  <span class="votochip ${votoClass(votoTxt)}">${esc(votoTxt)}</span></a>`}).join('')}
 async function abreSanf(i,v){
  const box=$('#d-'+cssk(i.key));if(!box)return;
  if(box.dataset.ok){box.hidden=!box.hidden;return}
@@ -271,7 +468,7 @@ function buildFila(){
  VOT2PLKEY={};
  PLS.forEach(p=>{const i=infoPL(p);const v=MAPVOT[i.n+'/'+i.ano];if(v&&v.id)VOT2PLKEY[v.id]=i.key;
   fila.push({tipo:'pl',key:i.key,i,desc:i.desc,url:i.url,tema:temaDe(i.desc)||'Geral',extra:`${autorLabel(i)} · ${i.party} · ${i.chamber}`})});
- VOT.slice(0,10).forEach(v=>{const i=infoVot(v);fila.push({tipo:'vot',key:'VOT:'+i.id,i,desc:i.desc,url:'votacoes.html',tema:temaDe(i.desc)||'Geral',extra:'✅ JÁ VOTADA NO CONGRESSO'+(i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):'')})});
+ VOT.slice(0,10).forEach(v=>{const i=infoVot(v);fila.push({tipo:'vot',key:'VOT:'+i.id,i,desc:i.desc,url:'#votacoes',tema:temaDe(i.desc)||'Geral',extra:'✅ JÁ VOTADA NO CONGRESSO'+(i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):'')})});
  popularFiltrosUrna();
 }
 function popularFiltrosUrna(){
@@ -305,7 +502,7 @@ function renderUrna(){
  $('#urna-corpo').innerHTML=`<h3 style="color:var(--gold)">Nº da PL: ${atual.i.key}</h3>
  <div class="pills"><span class="chip blue" data-tip="Tema principal da matéria">Assunto: ${atual.tema}</span></div>
  <div class="mini">${atual.extra}</div>
- <p class="desc">${corte(atual.desc,160)}</p><a class="link" target="_blank" href="${atual.url}">${atual.tipo==='pl'?'📄 inteiro teor →':'🗳️ ver votação real →'}</a>
+ <p class="desc">${corte(atual.desc,160)}</p>${atual.tipo==='pl'?`<a class="link" target="_blank" href="${atual.url}">📄 inteiro teor →</a>`:`<a class="link" href="#" data-acao="vervot" data-id="${atual.i.id}">👥 ver o voto a voto ↓</a>`}
  <div class="botoes"><button id="bAprovo" data-acao="votar" data-v="aprovo" data-key="${atual.key}" data-tip="Registra que você aprova (soma no Placar do Povo)">👍 APROVO</button><button id="bNao" data-acao="votar" data-v="nao" data-key="${atual.key}" data-tip="Registra que você não aprova (soma no Placar do Povo)">👎 NÃO APROVO</button></div>
  <button class="pill ghost" data-acao="pula" data-tip="Avança sem registrar voto">próxima →</button>`}
 function renderAgenda(){
@@ -335,7 +532,8 @@ function renderAgenda(){
    vs=`<p class="mini">${pc.total?`Congresso: ${cong}% a favor · 🪑 não votaram: ${pc.cinza}`:'Sem registro nominal de voto a voto.'}${i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):''} · <span data-tip="Ninguém opinou nesta matéria ainda — vote na Urna Expressa!">Povo: sem votos ainda</span></p>`;
   }
   const teor=plI&&plI.url?` · <a class="link" target="_blank" rel="noopener" href="${plI.url}">📄 inteiro teor →</a>`:'';
-  return `<div class="item">${res}<h3 style="margin:6px 0">${plI?plI.key:corte(i.desc,60)}</h3><p class="mini">${plI?corte(i.desc,90):''}</p>${vs}${teor}</div>`}).join('')||`<div class="vazio">Nenhuma votação nominal neste período.</div>`}
+  const ver=pc.total?` · <a class="link" href="#" data-acao="vervot" data-id="${v.id}">👥 ver como votaram ↓</a>`:'';
+  return `<div class="item">${res}<h3 style="margin:6px 0">${plI?plI.key:corte(i.desc,60)}</h3><p class="mini">${plI?corte(i.desc,90):''}</p>${vs}${teor}${ver}</div>`}).join('')||`<div class="vazio">Nenhuma votação nominal neste período.</div>`}
 function renderPills(){
  const ord=['Saúde','Educação','Meio Ambiente','Economia','Segurança','Cultura','Outros'];
  const ct={};PLS.forEach(p=>{const t=temaDe(infoPL(p).desc)||'Outros';ct[t]=(ct[t]||0)+1});
@@ -398,12 +596,38 @@ document.addEventListener('click',e=>{
  else if(a==='autor-limpar'){AUTOR=null;if(PLS_TODOS){PLS=PLS_TODOS;PLS_TODOS=null}$('#busca').value='';renderTudo();document.getElementById('anc-lista').scrollIntoView({behavior:'smooth'})}
  else if(a==='dna'){dna(b)}
  else if(a==='ir-urna'){document.getElementById('urna').scrollIntoView({behavior:'smooth'})}
- else if(a==='uf-limpar'){const n=$('#u-num'),t=$('#u-tema'),p=$('#u-parl');if(n)n.value='';if(t)t.value='';if(p)p.value='';pular=[];renderUrna()}});
+ else if(a==='uf-limpar'){const n=$('#u-num'),t=$('#u-tema'),p=$('#u-parl');if(n)n.value='';if(t)t.value='';if(p)p.value='';pular=[];renderUrna()}
+ else if(a==='vres'){filtroRes=b.dataset.res;$$('[data-acao="vres"]').forEach(x=>x.classList.toggle('on',x===b));renderVots()}
+ else if(a==='votexp'){toggleVotos(b.dataset.id)}
+ else if(a==='votmodo'){setModo(b.dataset.id,b.dataset.m)}
+ else if(a==='vervot'){
+  const id=b.dataset.id;const card=document.getElementById('vot-'+cssk(id));
+  if(card&&!VOTRAW[id]){
+   card.scrollIntoView({behavior:'smooth',block:'center'});
+   toggleVotos(id);
+  }else if(card){card.scrollIntoView({behavior:'smooth',block:'center'})}}
+ else if(a==='irpl'){
+  const target=PLS.find(x=>cssk(infoPL(x).key)===b.dataset.key);
+  if(target){const i2=infoPL(target);$('#busca').value=i2.n+'/'+i2.ano;temaAtivo='';aplicaFiltro();document.getElementById('anc-lista').scrollIntoView({behavior:'smooth'})}}});
+/* navegação por seções + scroll-spy */
+document.querySelectorAll('#subnav a').forEach(a=>a.addEventListener('click',e=>{
+ const alvo=document.querySelector(a.getAttribute('href'));if(!alvo)return;e.preventDefault();alvo.scrollIntoView({behavior:'smooth'})}));
+const spySecs=['urna','agenda','votacoes','anc-lista','dna'];
+// Seção ativa = a última cujo título já passou da linha de leitura (top<=140).
+// (Testar só top<=topo<bottom do h2 falha entre um título curto e o próximo:
+// a área de conteúdo da seção ficaria sem destaque.)
+const _spy=()=>{let ativo='';spySecs.forEach(id=>{const el=document.getElementById(id);if(!el)return;const r=el.getBoundingClientRect();if(r.top<=140)ativo=id});
+ // fim da página: a seção final é curta e nunca cruza a linha de leitura — destaca-a se estiver na tela
+ if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-40){const elF=document.getElementById(spySecs[spySecs.length-1]);if(elF&&elF.getBoundingClientRect().top<window.innerHeight-80)ativo=spySecs[spySecs.length-1]}
+ document.querySelectorAll('#subnav a').forEach(a=>a.classList.toggle('on',a.dataset.sec===(ativo||'urna')))};
+window.addEventListener('scroll',_spy,{passive:true});_spy();
 ['u-num','u-tema','u-parl'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener(el.tagName==='INPUT'?'input':'change',()=>renderUrna())});
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-compartilhar]');if(!b)return;
  window.open('https://twitter.com/intent?text='+encodeURIComponent(b.dataset.compartilhar+' · #MudaBrasil'),'_blank')});
 $('#busca').addEventListener('input',aplicaFiltro);
+$('#v-busca').addEventListener('input',renderVots);
+$('#v-ordem').addEventListener('change',renderVots);
 if(!LS.get('mb_popup_congresso',0))$('#popup').style.display='flex';
 $('#popup-ok').onclick=()=>{LS.set('mb_popup_congresso',1);$('#popup').style.display='none'};
 (async function(){
@@ -420,10 +644,23 @@ $('#popup-ok').onclick=()=>{LS.set('mb_popup_congresso',1);$('#popup').style.dis
   }
  }catch(e){}
  try{const j=await(await fetch(API+'/api/camara/votacoes')).json();VOT=Array.isArray(j)?j:(j.dados||[])}catch(e){}
- VOT.forEach(v=>{const i=infoVot(v);if(i.num)MAPVOT[i.num+'/'+i.ano]=v});
+ VOTLOADED=true;
+ VOT.forEach(v=>{v.placar=parsePlacar(v.descricao);const i=infoVot(v);if(i.num)MAPVOT[i.num+'/'+i.ano]=v});
  await Promise.all([...new Set(VOT.slice(0,10).map(v=>v.id))].filter(Boolean).map(id=>votosDe(id)));
  await carregaPovo();
  buildFila();
+ contagensRes();
+ renderVots();
+ // Deep-links da antiga aba Votações (agora seção desta página):
+ // congresso.html#votacoes rola até a seção; congresso.html?resultado=aprovadas|rejeitadas
+ // já abre com o filtro de resultado aplicado; ?votacao=ID expande o voto a voto.
+ const dRes={aprovadas:'1',rejeitadas:'0'}[new URLSearchParams(location.search).get('resultado')||''];
+ if(dRes){filtroRes=dRes;$$('[data-acao="vres"]').forEach(x=>x.classList.toggle('on',x.dataset.res===dRes));renderVots()}
+ const dVot=new URLSearchParams(location.search).get('votacao')||'';
+ setTimeout(()=>{
+  if(dRes||/#votacoes/.test(location.hash))document.getElementById('votacoes').scrollIntoView({behavior:'smooth'});
+  if(dVot){const card=document.getElementById('vot-'+cssk(dVot));if(card)toggleVotos(dVot)}
+ },700);
  // Deep-link de autoria: ?autor=Nome (e ?autorId=ID do deputado na Câmara,
  // vindo do link "Projetos apresentados" da ficha no Radar Político) abre a
  // área de PLs mostrando as proposições daquele autor — buscadas direto na

@@ -40,7 +40,6 @@
     { chave: 'inicio',    pagina: 'index.html',            rotulo: 'In\u00edcio' },
     { chave: 'radar',     pagina: 'pages/parlamentares.html', rotulo: 'Radar Pol\u00edtico' },
     { chave: 'congresso', pagina: 'pages/congresso.html',     rotulo: 'PLs no Congresso' },
-    { chave: 'votacoes',  pagina: 'pages/votacoes.html',      rotulo: 'Vota\u00e7\u00f5es' },
     { chave: 'eleicoes',  pagina: 'pages/eleicoes-2026.html', rotulo: 'Elei\u00e7\u00f5es 2026' },
     { chave: 'conferir',  pagina: 'index.html#conferir-voto', rotulo: 'Conferir Voto' },
     { chave: 'revogar',   pagina: 'index.html#revogar-voto',  rotulo: 'Revogar Voto' },
@@ -63,7 +62,7 @@
 
   function chaveAtiva() {
     if (!naHome) {
-      var mapa = { 'parlamentares.html': 'radar', 'congresso.html': 'congresso', 'votacoes.html': 'votacoes', 'eleicoes-2026.html': 'eleicoes' };
+      var mapa = { 'parlamentares.html': 'radar', 'congresso.html': 'congresso', 'votacoes.html': 'congresso', 'eleicoes-2026.html': 'eleicoes' };
       return mapa[arquivoAtual] || null;
     }
     var mapaHash = { 'radar': 'radar', 'conferir-voto': 'conferir', 'revogar-voto': 'revogar', 'revogados': 'revogados', 'ajuda': 'ajuda', 'quem-somos': 'quem' };

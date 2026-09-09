@@ -301,7 +301,9 @@ async function handleApi(req, res, url) {
       const itens = parseInt(q.itens || '30', 10);
       const pagina = parseInt(q.pagina || '1', 10);
       const ordem = q.ordem || 'DESC';
-      const ordenarPor = q.ordenarPor || 'data';
+      // dataHoraRegistro em vez de "data": com "data" a API da Câmara devolve
+      // pouquíssimos itens (quirk do endpoint), encolhendo demais a lista.
+      const ordenarPor = q.ordenarPor || 'dataHoraRegistro';
       const r = await fetch(`https://dadosabertos.camara.leg.br/api/v2/votacoes?itens=${itens}&pagina=${pagina}&ordem=${ordem}&ordenarPor=${ordenarPor}`, { headers: { Accept: 'application/json' } });
       if (!r.ok) return sendJson(res, r.status === 404 ? 404 : 502, { ok: false, error: 'Câmara respondeu ' + r.status });
       const j = await r.json();
