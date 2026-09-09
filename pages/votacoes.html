@@ -77,6 +77,26 @@ input{background:var(--card2);border:1px solid var(--line);border-radius:10px;co
 footer{background:#08142e;border-top:1px solid var(--line);padding:24px 0;margin-top:60px;text-align:center;color:var(--muted);font-size:12px}
 footer a{color:var(--gold)}
 .muted{color:var(--muted);font-size:12.5px}
+.pills-f{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 0}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--muted);font:700 12.5px Manrope;padding:8px 14px;cursor:pointer;transition:.15s}
+.pill:hover{color:var(--ink)}
+.pill.on{background:var(--gold);border-color:var(--gold);color:#1a1400}
+.resb{font:800 10.5px Manrope;padding:4px 10px;border-radius:999px;letter-spacing:.06em;flex:none}
+.resb.ap{color:var(--green);background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.45)}
+.resb.rj{color:var(--red);background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.45)}
+.resb.nc{color:var(--muted);background:rgba(148,163,184,.1);border:1px solid var(--line)}
+.card h3{margin-bottom:6px}
+.subtabs{display:flex;gap:6px;margin:10px 0 8px}
+.subtab{border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font:700 11.5px Manrope;padding:6px 12px;cursor:pointer;transition:.15s}
+.subtab.on{background:var(--card2);color:var(--gold);border-color:var(--gold)}
+.part-row{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.part-row:last-child{border-bottom:none}
+.ptchip{font:800 11px Manrope;padding:3px 9px;border-radius:7px;color:#fff;flex:none;min-width:52px;text-align:center}
+.pbar{flex:1;height:14px;border-radius:999px;background:var(--card2);overflow:hidden;display:flex}
+.pbar .g{background:var(--green);height:100%}
+.pbar .r{background:var(--red);height:100%}
+.pnums{flex:none;font-size:11.5px;color:var(--muted)}
+.pnums b{font-family:Montserrat}
 </style>
   <script src="../js/site-header.js"></script>
 </head>
@@ -85,7 +105,7 @@ footer a{color:var(--gold)}
 <section class="hero">
 <span class="kick">VOTAÇÕES NOMINAIS</span>
 <h1>Como cada deputado <span style="color:var(--gold)">votou de verdade</span></h1>
-<p>Veja o placar e o voto individual de cada parlamentar nas últimas votações da Câmara. Nada de discurso: só o voto registrado, direto da API oficial.</p>
+<p>Veja o placar e o voto individual de cada parlamentar nas últimas votações da Câmara — separadas em <b style="color:var(--green)">aprovadas</b> e <b style="color:var(--red)">rejeitadas</b>, com resumo por partido e voto a voto. Nada de discurso: só o voto registrado, direto da API oficial.</p>
 <div class="badge-row">
 <span class="badge ok" id="bModo">buscando…</span>
 <span class="badge blue" id="bTotal">—</span>
@@ -99,6 +119,13 @@ footer a{color:var(--gold)}
 <option value="data">Mais recentes</option>
 <option value="desc">Descrição A–Z</option>
 </select>
+</div>
+
+<div class="pills-f" id="pillsRes">
+<button class="pill on" data-res="all" onclick="setRes(this)">Todas</button>
+<button class="pill" data-res="1" id="pAprov" onclick="setRes(this)">✅ Aprovadas</button>
+<button class="pill" data-res="0" id="pRej" onclick="setRes(this)">❌ Rejeitadas</button>
+<button class="pill" data-res="nc" id="pNc" onclick="setRes(this)">⚪ Sem resultado</button>
 </div>
 
 <div id="loader" class="loader"><i class="fa-solid fa-spinner"></i> Carregando votações…</div>
@@ -136,6 +163,7 @@ async function carregar(retry){
       dataHora: v.dataHoraRegistro,
       descricao: v.descricao || '(sem descrição)',
       aprovacao: v.aprovacao,
+      siglaOrgao: v.siglaOrgao,
       uri: v.uri,
       uriProposicao: v.uriProposicaoObjeto,
       placar: parsePlacar(v.descricao)
@@ -144,6 +172,7 @@ async function carregar(retry){
     $('#bTotal').textContent = VOTS.length + ' votação(ões)';
     clearTimeout(_timeoutId);
     $('#loader').style.display = 'none';
+    contagens();
     render();
   }catch(e){
     clearTimeout(_timeoutId);
@@ -171,10 +200,41 @@ function votoClass(v){
   return 'abs';
 }
 
+let filtroRes = 'all';
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+
+function contagens(){
+  const c1 = VOTS.filter(v => v.aprovacao === 1).length;
+  const c0 = VOTS.filter(v => v.aprovacao === 0).length;
+  $('#pAprov').textContent = '✅ Aprovadas (' + c1 + ')';
+  $('#pRej').textContent = '❌ Rejeitadas (' + c0 + ')';
+  $('#pNc').textContent = '⚪ Sem resultado (' + (VOTS.length - c1 - c0) + ')';
+}
+
+function setRes(b){
+  filtroRes = b.dataset.res;
+  document.querySelectorAll('#pillsRes .pill').forEach(x => x.classList.toggle('on', x === b));
+  render();
+}
+
+function resBadge(v){
+  if(v.aprovacao === 1) return '<span class="resb ap">✅ APROVADA</span>';
+  if(v.aprovacao === 0) return '<span class="resb rj">❌ REJEITADA</span>';
+  return '<span class="resb nc" title="A Câmara não marcou resultado nesta votação (ex.: requerimento protocolar ou registro incompleto)">SEM RESULTADO</span>';
+}
+
 function render(){
-  const q = ($('#fBusca').value || '').toLowerCase().trim();
+  if(!VOTS.length && $('#loader').style.display !== 'none') return;
+  const q = norm($('#fBusca').value).trim();
   const ordem = $('#fOrdem').value;
-  let l = VOTS.filter(v => !q || v.descricao.toLowerCase().includes(q));
+  let l = VOTS.filter(v => {
+    if(filtroRes === '1' && v.aprovacao !== 1) return false;
+    if(filtroRes === '0' && v.aprovacao !== 0) return false;
+    if(filtroRes === 'nc' && (v.aprovacao === 1 || v.aprovacao === 0)) return false;
+    const d = norm(v.descricao);
+    return !q || d.includes(q) || norm(v.siglaOrgao).includes(q);
+  });
   if(ordem === 'desc') l = [...l].sort((a,b) => a.descricao.localeCompare(b.descricao,'pt-BR'));
   if(!l.length){
     $('#lista').innerHTML = '<div class="card" style="text-align:center;padding:40px"><i class="fa-solid fa-inbox" style="font-size:30px;color:var(--gold)"></i><br>Nada encontrado.</div>';
@@ -191,10 +251,15 @@ function render(){
     const expandido = DETALHES[v.id] ? renderDetalhe(DETALHES[v.id], v.id) : '<div class="muted" style="padding:8px 0">Clique em "Ver votos individuais" para carregar o voto de cada deputado.</div>';
     return '<div class="card">' +
       '<h3 style="font-size:15px;line-height:1.35">' + escapeHtml(v.descricao) + '</h3>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 4px">' +
+        resBadge(v) +
+        (v.siglaOrgao ? '<span class="badge">' + escapeHtml(v.siglaOrgao) + '</span>' : '') +
+        '<span class="data" style="margin:0"><i class="fa-regular fa-calendar"></i> ' + dataFmt + '</span>' +
+      '</div>' +
       placar +
-      '<div class="data"><i class="fa-regular fa-calendar"></i> ' + dataFmt + (v.uriProposicao ? ' · <a href="' + v.uriProposicao + '" target="_blank" rel="noopener">Proposição no site oficial →</a>' : '') + '</div>' +
+      '<div class="data">' + (v.uriProposicao ? '<a href="' + v.uriProposicao + '" target="_blank" rel="noopener">Proposição no site oficial →</a>' : '') + '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">' +
-        '<button class="btn sm" onclick="toggleVotos(\'' + v.id + '\')" id="btn-' + v.id + '"><i class="fa-solid fa-users"></i> Ver votos individuais</button>' +
+        '<button class="btn sm" onclick="toggleVotos(\'' + v.id + '\')" id="btn-' + v.id + '" data-on="0"><i class="fa-solid fa-users"></i> Ver como votaram</button>' +
         (v.uri ? '<a class="btn sm" href="' + v.uri + '" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square"></i> Fonte oficial</a>' : '') +
       '</div>' +
       '<div id="det-' + v.id + '" style="margin-top:10px">' + expandido + '</div>' +
@@ -210,8 +275,12 @@ async function toggleVotos(id){
   const detEl = document.getElementById('det-' + id);
   const btnEl = document.getElementById('btn-' + id);
   if(DETALHES[id]){
-    detEl.innerHTML = '<div class="muted" style="padding:8px 0">Clique em "Ver votos individuais" para carregar o voto de cada deputado.</div>';
+    detEl.innerHTML = '<div class="muted" style="padding:8px 0">Clique em "Ver como votaram" para carregar o voto de cada deputado.</div>';
     delete DETALHES[id];
+    if(btnEl){
+      btnEl.dataset.on = '0';
+      btnEl.innerHTML = '<i class="fa-solid fa-users"></i> Ver como votaram';
+    }
     return;
   }
   if(btnEl) btnEl.disabled = true;
@@ -220,9 +289,16 @@ async function toggleVotos(id){
     const r = await fetch(API_B + '/api/camara/votacoes/' + id + '/votos');
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
-    const votos = (j.dados && j.dados.votos) || j.votos || [];
+    /* a API devolve o array de votos direto em `dados` (não em dados.votos) */
+    const dados = j.dados || [];
+    const votos = Array.isArray(dados) ? dados : (dados.votos || j.votos || []);
     DETALHES[id] = votos;
+    MODO[id] = 'partidos';
     detEl.innerHTML = renderDetalhe(votos, id);
+    if(btnEl){
+      btnEl.dataset.on = '1';
+      btnEl.innerHTML = '<i class="fa-solid fa-chevron-up"></i> Ocultar votos';
+    }
   }catch(e){
     detEl.innerHTML = '<div class="muted" style="color:var(--red);padding:8px 0">Erro ao carregar: ' + e.message + '</div>';
   }finally{
@@ -230,12 +306,79 @@ async function toggleVotos(id){
   }
 }
 
+const MODO = {};
+const PARTCORES = {PT:'#C8102A',PL:'#1F5FBF',PSOL:'#B01BB8','UNIÃO':'#0B6BB2',UNIAO:'#0B6BB2',PP:'#22B0C5',REPUBLICANOS:'#1A9A67',PSD:'#2E7D32',MDB:'#E52B2B',PODE:'#E91E63',PSB:'#F0932B',PSDB:'#1E6FD9',PDT:'#5b6b82',NOVO:'#8a6d3b',SOLIDARI:'#F0932B',CIDADANIA:'#4FC3F7',PV:'#37B24D',REDE:'#B39DDB',PCDOB:'#D32F2F',PSDIB:'#2E7D32',MOBILIZA:'#795548',AVANTE:'#7E57C2',PATRI:'#455A64',PROS:'#26A69A'};
+function corPartido(s){
+  if(PARTCORES[s]) return PARTCORES[s];
+  let h = 0;
+  for(let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return ['#1F5FBF','#B01BB8','#F0932B','#1A9A67','#7E57C2','#26A69A'][h % 6];
+}
+
 function renderDetalhe(votos, id){
-  if(!votos || !votos.length) return '<div class="muted" style="padding:8px 0">Sem votos individuais disponíveis para esta votação.</div>';
-  const searchId = 'busca-' + id;
-  return '<input id="' + searchId + '" placeholder="Buscar deputado por nome…" oninput="filtrarDetalhe(\'' + id + '\')" style="margin-bottom:8px;background:var(--card2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:8px 12px;font:500 13px Manrope;width:100%">' +
-    '<div class="deputados-box" id="box-' + id + '">' + renderDepRows(votos) + '</div>' +
-    '<div class="muted" style="margin-top:6px;font-size:11.5px">' + votos.length + ' voto(s) registrado(s) · clique num deputado para abrir a ficha dele no Radar.</div>';
+  if(!votos || !votos.length) return '<div class="muted" style="padding:8px 0">Esta votação foi <b>simbólica</b> (ex.: redação final, requerimento) — a presidência não registrou o voto individual dos deputados. <a href="https://dadosabertos.camara.leg.br/docs/api" target="_blank" rel="noopener">Como funciona</a></div>';
+  const modo = MODO[id] || 'partidos';
+  return '<div class="subtabs">' +
+    '<button class="subtab ' + (modo === 'partidos' ? 'on' : '') + '" id="st-part-' + id + '" onclick="setModo(\'' + id + '\',\'partidos\')">🏛️ Por partido</button>' +
+    '<button class="subtab ' + (modo === 'parlamentares' ? 'on' : '') + '" id="st-dep-' + id + '" onclick="setModo(\'' + id + '\',\'parlamentares\')">👤 Por parlamentar</button>' +
+    '</div>' +
+    '<input id="busca-' + id + '" placeholder="🔎 Filtrar por nome, partido ou UF…" oninput="renderModo(\'' + id + '\')" style="margin-bottom:8px;background:var(--card2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:8px 12px;font:500 13px Manrope;width:100%">' +
+    '<div id="box-' + id + '">' + renderModo(votos, id) + '</div>';
+}
+
+function setModo(id, m){
+  MODO[id] = m;
+  const votos = DETALHES[id];
+  if(!votos) return;
+  const box = document.getElementById('det-' + id);
+  if(box) box.innerHTML = renderDetalhe(votos, id);
+}
+
+function renderModo(votos, id){
+  if(typeof votos === 'string'){ id = votos; votos = DETALHES[id]; }
+  if(!votos) return '';
+  const modo = MODO[id] || 'partidos';
+  const q = norm(document.getElementById('busca-' + id) ? document.getElementById('busca-' + id).value : '').trim();
+  let html;
+  if(modo === 'partidos'){
+    const partes = {};
+    votos.forEach(v => {
+      const p = (v.deputado_ && v.deputado_.siglaPartido) || v.partido || v.siglaPartido || '—';
+      const t = votoClass(v.voto || v.tipoVoto);
+      const k = t === 'sim' ? 'favor' : t === 'nao' ? 'contra' : 'outros';
+      partes[p] = partes[p] || {favor: 0, contra: 0, outros: 0, total: 0};
+      partes[p][k]++;
+      partes[p].total++;
+    });
+    let arr = Object.entries(partes).sort((a,b) => (b[1].favor + b[1].contra) - (a[1].favor + a[1].contra) || b[1].total - a[1].total);
+    if(q) arr = arr.filter(([s]) => norm(s).includes(q));
+    if(!arr.length){
+      html = '<div class="muted" style="padding:8px 0">Nenhum partido corresponde ao filtro.</div>';
+    }else{
+      html = '<div class="deputados-box">' + arr.map(([s, p]) => {
+        const wF = p.total ? p.favor / p.total * 100 : 0;
+        const wC = p.total ? p.contra / p.total * 100 : 0;
+        return '<div class="part-row">' +
+          '<span class="ptchip" style="background:' + corPartido(s) + '">' + esc(s) + '</span>' +
+          '<div class="pbar"><span class="g" style="width:' + wF + '%"></span><span class="r" style="width:' + wC + '%"></span></div>' +
+          '<span class="pnums"><b style="color:var(--green)">' + p.favor + '</b> ✅ · <b style="color:var(--red)">' + p.contra + '</b> ❌' + (p.outros ? ' · <b>' + p.outros + '</b> ⚪' : '') + ' <span class="muted">/' + p.total + '</span></span>' +
+          '</div>';
+      }).join('') + '</div>' +
+      '<div class="muted" style="margin-top:6px;font-size:11.5px">' + arr.length + ' partido(s) · barras na ordem Sim × Não · clique em "Por parlamentar" para o voto individual.</div>';
+    }
+  }else{
+    const filtrados = q ? votos.filter(v => {
+      const nm = ((v.deputado_ && v.deputado_.nome) || v.nomeDeputado || v.nome || '');
+      const pt = ((v.deputado_ && v.deputado_.siglaPartido) || v.partido || '');
+      const uf = ((v.deputado_ && v.deputado_.siglaUf) || v.uf || '');
+      return norm(nm).includes(q) || norm(pt).includes(q) || norm(uf).includes(q);
+    }) : votos;
+    html = '<div class="deputados-box">' + renderDepRows(filtrados) + '</div>' +
+      '<div class="muted" style="margin-top:6px;font-size:11.5px">' + filtrados.length + ' de ' + votos.length + ' voto(s) registrado(s) · clique num deputado para abrir a página oficial dele.</div>';
+  }
+  const box = document.getElementById('box-' + id);
+  if(box) box.innerHTML = html;
+  return html;
 }
 
 function renderDepRows(votos){
@@ -256,20 +399,16 @@ function renderDepRows(votos){
   }).join('');
 }
 
-function filtrarDetalhe(id){
-  const votos = DETALHES[id];
-  if(!votos) return;
-  const q = (document.getElementById('busca-' + id).value || '').toLowerCase().trim();
-  const filtrados = q ? votos.filter(v => {
-    const nm = ((v.deputado_ && v.deputado_.nome) || v.nomeDeputado || v.nome || '').toLowerCase();
-    const pt = ((v.deputado_ && v.deputado_.siglaPartido) || v.partido || '').toLowerCase();
-    const uf = ((v.deputado_ && v.deputado_.siglaUf) || v.uf || '').toLowerCase();
-    return nm.includes(q) || pt.includes(q) || uf.includes(q);
-  }) : votos;
-  document.getElementById('box-' + id).innerHTML = renderDepRows(filtrados);
-}
-
 carregar();
+(function(){
+  const r = new URLSearchParams(location.search).get('resultado');
+  if(!r) return;
+  const map = {aprovadas: '1', rejeitadas: '0'};
+  if(map[r]){
+    const b = document.querySelector('#pillsRes .pill[data-res="' + map[r] + '"]');
+    if(b) setRes(b);
+  }
+})();
 </script>
 </body>
 </html>
