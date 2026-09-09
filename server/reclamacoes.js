@@ -87,9 +87,14 @@ function createComplaint({ politicianId, voterHash, voterIp, content }) {
 function listComplaints(politicianId, options) {
   if (options === undefined) options = {};
   const complaints = db.getComplaintsByPolitician(politicianId, options);
-  return complaints.map(c => ({
-    id: c.id, politicianId: c.politicianId, content: c.content, status: c.status, createdAt: c.createdAt
-  }));
+  return complaints.map(c => {
+    const resp = db.getResponseByComplaint(c.id);
+    return {
+      id: c.id, politicianId: c.politicianId, content: c.content, status: c.status, createdAt: c.createdAt,
+      responded: !!resp,
+      response: resp ? { content: resp.content, createdAt: resp.createdAt } : null
+    };
+  });
 }
 
 function listAllComplaints(options) {

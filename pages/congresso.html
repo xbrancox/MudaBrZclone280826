@@ -175,12 +175,13 @@ h2{margin:26px 0 10px}
 const API=(window.MudaBrasil&&window.MudaBrasil.API_BASE)||'';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const LS={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},set(k,v){localStorage.setItem(k,JSON.stringify(v))}};
-let PLS=[],VOT=[],VOTOS={},MAPVOT={},VOT2PLKEY={},POVO={},temaAtivo='',perAtivo=30,pular=[],fila=[],ultimaKey='';
+let PLS=[],VOT=[],VOTOS={},MAPVOT={},VOT2PLKEY={},POVO={},temaAtivo='',perAtivo=30,pular=[],fila=[],ultimaKey='',AUTOR=null,PLS_TODOS=null;
 const meuUid=()=>{let u=LS.get('mb_uid',null);if(!u){u='u'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);LS.set('mb_uid',u)}return u};
 const meusVotos=()=>LS.get('mb_votos_pl',{});
 const corte=(t,n=140)=>{t=(t||'').toString().trim();return t.length>n?t.slice(0,n).trim()+'…':t};
 const cssk=k=>k.replace(/[^a-zA-Z0-9]/g,'');
-function infoPL(p){p=p||{};const parts=String(p.number||p.numero||'').split('/');const n=parts[0]||'';const ano=parts[1]||p.year||p.ano||'';const sigla=(p.chamber||'Câmara')==='Senado'?'PLS':'PL';const desc=p.ementa||p.title||'Sem descrição informada.';const id=p.id||p.idProposicao||'';const url=p.url||p.urlProposicao||p.uri||(id?`https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${id}`:`https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?numero=${n}&ano=${ano}&sigla=${sigla}`);return{key:`${sigla} ${n}/${ano}`,n,ano,desc,url,chamber:p.chamber||'Câmara',author:p.author||'',party:p.party||''}}
+const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function infoPL(p){p=p||{};const parts=String(p.number||p.numero||'').split('/');const n=parts[0]||'';const ano=parts[1]||p.year||p.ano||'';const sigla=p.sigla||((p.chamber||'Câmara')==='Senado'?'PLS':'PL');const desc=p.ementa||p.title||'Sem descrição informada.';const id=p.id||p.idProposicao||'';const url=p.url||p.urlProposicao||p.uri||(id?`https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${id}`:`https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?numero=${n}&ano=${ano}&sigla=${sigla}`);return{key:`${sigla} ${n}${ano?'/'+ano:''}`,n,ano,desc,url,chamber:p.chamber||'Câmara',author:p.author||'',party:p.party||''}}
 function infoVot(v){v=v||{};const desc=v.descricao||'Votação nominal no plenário.';const data=v.data||v.dataHoraRegistro||'';const id=v.id||'';const m=desc.match(/(?:PLC?|MPV?|Projeto de Lei(?: Complementar)?)[^\d]*(\d+)[\/,](?:\s*de\s*)?(\d{4})/i);return{id,key:'Votação '+id,num:m?m[1]:'',ano:m?m[2]:'',data,desc}}
 function votoParl(v){v=v||{};const dep=v.deputado_||{};const nome=dep.nome||'—',part=dep.siglaPartido||'—',uf=dep.siglaUf||'';const tipo=String(v.tipoVoto||'');let t='cinza';if(/^sim$/i.test(tipo))t='favor';else if(/^n[ãa]o$/i.test(tipo))t='contra';return{nome,part,uf,t}}
 function placar(l){const p={favor:0,contra:0,cinza:0};(l||[]).forEach(x=>p[x.t]++);p.total=l?l.length:0;return p}
@@ -352,7 +353,9 @@ function aplicaFiltro(){
  const vz=$('#lista-vazio');vz.hidden=vis>0;
  vz.textContent=vis>0?'':(temaAtivo?'Nenhuma PL de '+temaAtivo+' em análise agora. Quando entrar, aparece aqui. 🔍':'Nenhuma PL encontrada pra esse filtro. Aqui quem escolhe é você — use a busca. 🔍');
  const fb=$('#filtro-ativo');
- if(fb){if(temaAtivo){fb.hidden=false;fb.innerHTML='<b style="color:var(--gold)">Assunto: '+temaAtivo+'</b><span class="mini">'+vis+' projeto(s) com esse tema</span><button class="pill ghost" data-acao="tema-limpar" style="margin-left:auto">✕ limpar filtro</button>'}else{fb.hidden=true}}}
+ if(fb){if(temaAtivo){fb.hidden=false;fb.innerHTML='<b style="color:var(--gold)">Assunto: '+temaAtivo+'</b><span class="mini">'+vis+' projeto(s) com esse tema</span><button class="pill ghost" data-acao="tema-limpar" style="margin-left:auto">✕ limpar filtro</button>'}
+ else if(AUTOR){fb.hidden=false;fb.innerHTML='<b style="color:var(--gold)">📜 Proposições apresentadas por '+esc(AUTOR)+'</b> <span class="mini">'+vis+' projeto(s) recentes — dados abertos da Câmara</span><button class="pill ghost" data-acao="autor-limpar" style="margin-left:auto">✕ ver todos os PLs</button>'}
+ else{fb.hidden=true}}}
 async function dna(btn){
  const mv=meusVotos();
  const comp=[];let comparadas=0,semPlenario=0;
@@ -392,6 +395,7 @@ document.addEventListener('click',e=>{
  else if(a==='per'){$$('[data-acao="per"]').forEach(x=>x.classList.remove('on'));b.classList.add('on');perAtivo=+b.dataset.per;renderAgenda()}
  else if(a==='tema'){$$('[data-acao="tema"]').forEach(x=>x.classList.remove('on'));b.classList.add('on');temaAtivo=b.dataset.t;aplicaFiltro();document.getElementById('anc-lista').scrollIntoView({behavior:'smooth'})}
  else if(a==='tema-limpar'){temaAtivo='';$$('#pills-tema [data-acao="tema"]').forEach(x=>x.classList.toggle('on',x.dataset.t===''));aplicaFiltro()}
+ else if(a==='autor-limpar'){AUTOR=null;if(PLS_TODOS){PLS=PLS_TODOS;PLS_TODOS=null}$('#busca').value='';renderTudo();document.getElementById('anc-lista').scrollIntoView({behavior:'smooth'})}
  else if(a==='dna'){dna(b)}
  else if(a==='ir-urna'){document.getElementById('urna').scrollIntoView({behavior:'smooth'})}
  else if(a==='uf-limpar'){const n=$('#u-num'),t=$('#u-tema'),p=$('#u-parl');if(n)n.value='';if(t)t.value='';if(p)p.value='';pular=[];renderUrna()}});
@@ -420,7 +424,32 @@ $('#popup-ok').onclick=()=>{LS.set('mb_popup_congresso',1);$('#popup').style.dis
  await Promise.all([...new Set(VOT.slice(0,10).map(v=>v.id))].filter(Boolean).map(id=>votosDe(id)));
  await carregaPovo();
  buildFila();
- const dep=new URLSearchParams(location.search).get('dep');if(dep)$('#busca').value=dep;
+ // Deep-link de autoria: ?autor=Nome (e ?autorId=ID do deputado na Câmara,
+ // vindo do link "Projetos apresentados" da ficha no Radar Político) abre a
+ // área de PLs mostrando as proposições daquele autor — buscadas direto na
+ // API da Câmara quando temos o id; sem id, cai na busca por nome nos cards.
+ const QP=new URLSearchParams(location.search);
+ const autor=QP.get('autor')||QP.get('dep');
+ const autorId=QP.get('autorId');
+ if(autor){
+  AUTOR=autor;
+  if(autorId&&/^\d+$/.test(autorId)){
+   $('#lista').innerHTML='<div class="vazio">⏳ Buscando as proposições de '+esc(autor)+' na Câmara…</div>';
+   try{
+    const r=await fetch(API+'/api/camara/proposicoes?idDeputadoAutor='+encodeURIComponent(autorId)+'&itens=30&ordem=DESC&ordenarPor=id');
+    const j=await r.json();
+    const props=(j.dados||[]).map(x=>({sigla:x.siglaTipo||'',number:(x.numero||'')+'/'+(x.ano||''),ementa:x.ementa||x.titulo||'',chamber:'Câmara',author:autor,party:'',id:x.id,ano:x.ano}));
+    if(props.length){PLS_TODOS=PLS;PLS=props;$('#busca').value=''}
+    else $('#lista').innerHTML='<div class="vazio">Nenhuma proposição autoral encontrada para '+esc(autor)+' na Câmara nesta legislatura. 🔍</div>';
+   }catch(e){$('#lista').innerHTML='<div class="vazio">Não deu pra buscar as proposições agora — confira o inteiro teor na página oficial. 🔍</div>'}
+  }else{
+   $('#busca').value=autor;
+  }
+  setTimeout(()=>{const a=document.getElementById('anc-lista');if(a)a.scrollIntoView({behavior:'smooth'})},500);
+  // se o autor tiver matéria pendente na Urna, pré-filtra também lá
+  setTimeout(()=>{const sel=$('#u-parl');
+   if(sel&&[...sel.options].some(o=>o.value===autor)){sel.value=autor;pular=[];renderUrna()}},300);
+ }
  renderTudo()})();
 </script>
 </body>
