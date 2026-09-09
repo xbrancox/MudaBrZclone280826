@@ -90,6 +90,12 @@ main{max-width:1150px;margin:0 auto;padding:24px 16px 100px}
 .chip.gold{background:var(--gold);color:#061a3a}.chip.blue{background:#115FCB;color:#fff}.chip.grey{background:#5b6b82;color:#fff}
 .chip.green{background:var(--green);color:#04122b}.chip.red{background:var(--red);color:#fff}
 .urna{border:2px solid var(--gold);box-shadow:0 0 24px #ffd70033;background:linear-gradient(135deg,#0d2242,#123059)}
+.urna .uline{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:4px 0 2px}
+.urna .uline h3{margin:0}
+.urna .udesc{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 2px}
+.urna .udesc .desc{flex:1;min-width:0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.urna .udesc .link{flex:none}
+.urna .pprox{display:table;margin:2px auto 0}
 .urna .botoes{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
 .urna .botoes button{flex:1;min-width:150px;border:none;border-radius:999px;padding:16px;font-size:17px;font-weight:800;cursor:pointer;transition:transform .1s}
 .urna .botoes button:hover{transform:scale(1.03)}
@@ -568,12 +574,11 @@ function renderUrna(){
    ?`<div class="vazio">Nenhuma matéria pendente com esses filtros.<br><button class="pill" data-acao="uf-limpar" style="margin-top:8px">✕ limpar filtros</button></div>`
    :`<div class="vazio">🎉 Você opinou sobre todas as matérias pendentes!</div>`;return}
  ultimaKey=atual.key;
- $('#urna-corpo').innerHTML=`<h3 style="color:var(--gold)">Nº da PL: ${atual.i.key}</h3>
- <div class="pills"><span class="chip blue" data-tip="Tema principal da matéria">Assunto: ${atual.tema}</span></div>
- <div class="mini">${atual.extra}</div>
- <p class="desc">${corte(atual.desc,160)}</p>${atual.tipo==='pl'?`<a class="link" target="_blank" href="${atual.url}">📄 inteiro teor →</a>`:`<a class="link" href="#" data-acao="vervot" data-id="${atual.i.id}">👥 ver o voto a voto ↓</a>`}
+ $('#urna-corpo').innerHTML=`<div class="uline"><h3 style="color:var(--gold)" data-tip="${esc(atual.extra)}">Nº da PL: ${atual.i.key}</h3>
+ <span class="chip blue" data-tip="Tema principal da matéria">${atual.tema}</span></div>
+ <div class="udesc"><span class="desc" data-tip="${esc(atual.desc)}">${esc(atual.desc)}</span>${atual.tipo==='pl'?`<a class="link" target="_blank" href="${atual.url}">📄 inteiro teor →</a>`:`<a class="link" href="#" data-acao="vervot" data-id="${atual.i.id}">👥 ver o voto a voto ↓</a>`}</div>
  <div class="botoes"><button id="bAprovo" data-acao="votar" data-v="aprovo" data-key="${atual.key}" data-tip="Registra que você aprova (soma no Placar do Povo)">👍 APROVO</button><button id="bNao" data-acao="votar" data-v="nao" data-key="${atual.key}" data-tip="Registra que você não aprova (soma no Placar do Povo)">👎 NÃO APROVO</button></div>
- <button class="pill ghost" data-acao="pula" data-tip="Avança sem registrar voto">próxima →</button>`}
+ <button class="pill ghost pprox" data-acao="pula" data-tip="Avança sem registrar voto">próxima →</button>`}
 function renderAgenda(){
  const agora=Date.now();
  const avot=PLS.filter(p=>{const i=infoPL(p);return !MAPVOT[i.n+'/'+i.ano]});
