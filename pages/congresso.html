@@ -95,8 +95,10 @@ main{max-width:1150px;margin:0 auto;padding:24px 16px 100px}
 .urna .botoes button:hover{transform:scale(1.03)}
 #bAprovo{background:var(--green);color:#04122b}#bNao{background:var(--red);color:#fff}
 .prog{height:8px;background:#22406b;border-radius:999px;margin:8px 0}.prog>div{height:8px;background:var(--gold);border-radius:999px;transition:width .3s}
-.agenda{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:800px){.agenda{grid-template-columns:1fr}}
+.agenda{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.agenda>div{min-width:0}
+.agenda>div>h2,.duo>div>h2{margin-top:0}
+@media(max-width:900px){.agenda{grid-template-columns:1fr}}
 .item{background:var(--c2);border-radius:12px;padding:12px;margin:8px 0}
 .vermais{display:block;width:100%;text-align:center;border:1px dashed var(--line);background:transparent;color:var(--txt);border-radius:12px;padding:10px;cursor:pointer;font:700 12.5px Manrope;margin-top:6px;transition:all .15s}
 .vermais:hover{background:var(--c2);border-color:var(--gold);color:var(--gold)}
@@ -168,8 +170,8 @@ h2{margin:26px 0 10px}
   <nav class="subnav" id="subnav" aria-label="Seções desta página">
     <a href="#urna" data-sec="urna">🗳️ Urna Expressa</a>
     <a href="#agenda" data-sec="agenda">🗓️ Agenda</a>
-    <a href="#votacoes" data-sec="votacoes">🏛️ Votações</a>
     <a href="#anc-lista" data-sec="anc-lista">📜 PLs em análise</a>
+    <a href="#votacoes" data-sec="votacoes">🏛️ Votações</a>
     <a href="#dna" data-sec="dna">🧬 Meu DNA</a>
   </nav>
 
@@ -197,14 +199,15 @@ h2{margin:26px 0 10px}
   </div>
 
   <h2 id="agenda" class="anchor">🗓️ Agenda do Congresso</h2>
-  <div class="pills">
-    <button class="pill on" data-acao="per" data-per="30">Último mês</button>
-    <button class="pill" data-acao="per" data-per="90">Últimos 3 meses</button>
-    <button class="pill" data-acao="per" data-per="365">Ano 2026</button>
-  </div>
   <div class="agenda">
     <div class="card"><h3 data-tip="Projetos em tramitação, sem votação nominal registrada ainda. Opine direto daqui!">🗓️ SERÃO VOTADAS</h3><div id="ag-esq"></div></div>
-    <div class="card"><h3 data-tip="Votações nominais já realizadas no plenário, voto a voto">✅ JÁ VOTADAS</h3><div id="ag-dir"></div></div>
+    <div>
+      <h2 id="anc-lista" class="anchor">📜 Projetos de Lei em análise</h2>
+      <div id="lista"></div>
+      <button id="pl-vermais" class="vermais" data-acao="plexpall" hidden>Ver todos os PLs ▾</button>
+      <div id="filtro-ativo" class="vazio" hidden style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+      <div id="lista-vazio" class="vazio" hidden></div>
+    </div>
   </div>
 
   <div class="duo">
@@ -227,12 +230,14 @@ h2{margin:26px 0 10px}
     <div id="v-loader" class="vazio">⏳ Carregando votações…</div>
     <div id="v-lista"></div>
    </div>
-   <div>
-    <h2 id="anc-lista" class="anchor">📜 Projetos de Lei em análise</h2>
-    <div id="lista"></div>
-    <button id="pl-vermais" class="vermais" data-acao="plexpall" hidden>Ver todos os PLs ▾</button>
-    <div id="filtro-ativo" class="vazio" hidden style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
-    <div id="lista-vazio" class="vazio" hidden></div>
+   <div class="card">
+    <h3 data-tip="Votações nominais já realizadas no plenário, voto a voto">✅ JÁ VOTADAS</h3>
+    <div class="pills" style="margin:4px 0 2px">
+      <button class="pill on" data-acao="per" data-per="30">Último mês</button>
+      <button class="pill" data-acao="per" data-per="90">Últimos 3 meses</button>
+      <button class="pill" data-acao="per" data-per="365">Ano 2026</button>
+    </div>
+    <div id="ag-dir"></div>
    </div>
   </div>
 
@@ -655,20 +660,13 @@ document.addEventListener('click',e=>{
 /* navegação por seções + scroll-spy */
 document.querySelectorAll('#subnav a').forEach(a=>a.addEventListener('click',e=>{
  const alvo=document.querySelector(a.getAttribute('href'));if(!alvo)return;e.preventDefault();alvo.scrollIntoView({behavior:'smooth'})}));
-const spySecs=['urna','agenda','votacoes','anc-lista','dna'];
+const spySecs=['urna','agenda','anc-lista','votacoes','dna'];
 // Seção ativa = a última cujo título já passou da linha de leitura (top<=140).
 // (Testar só top<=topo<bottom do h2 falha entre um título curto e o próximo:
 // a área de conteúdo da seção ficaria sem destaque.)
-let _mx=null;window.addEventListener('mousemove',e=>{_mx=e.clientX},{passive:true});
+// A ordem segue o layout em linhas: 1) Serão votadas | PLs em análise,
+// 2) Votações | Já votadas — assim o destaque desce na ordem que o usuário lê.
 const _spy=()=>{let ativo='';spySecs.forEach(id=>{const el=document.getElementById(id);if(!el)return;const r=el.getBoundingClientRect();if(r.top<=140)ativo=id});
- // votações e PLs em análise ficam lado a lado (mesma altura): o destaque segue
- // a coluna sob o cursor — sem mouse (toque), fica na esquerda (votações)
- if(ativo==='votacoes'||ativo==='anc-lista'){
-  const hv=document.getElementById('votacoes');
-  if(document.getElementById('anc-lista').getBoundingClientRect().top<=140){
-   const duo=hv.closest('.duo');
-   const mid=duo?(duo.getBoundingClientRect().left+duo.getBoundingClientRect().width/2):window.innerWidth/2;
-   ativo=(_mx==null||_mx<mid)?'votacoes':'anc-lista'}}
  // fim da página: a seção final é curta e nunca cruza a linha de leitura — destaca-a se estiver na tela
  if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-40){const elF=document.getElementById(spySecs[spySecs.length-1]);if(elF&&elF.getBoundingClientRect().top<window.innerHeight-80)ativo=spySecs[spySecs.length-1]}
  document.querySelectorAll('#subnav a').forEach(a=>a.classList.toggle('on',a.dataset.sec===(ativo||'urna')))};
