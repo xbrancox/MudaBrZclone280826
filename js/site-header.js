@@ -33,7 +33,8 @@
     '#mbtopo .mnav{display:none;flex-direction:column;background:#0d2242;border-top:1px solid #1d3a66;padding:10px 16px;flex-basis:100%}',
     '#mbtopo .mnav.open{display:flex}',
     '#mbtopo .mnav a{color:#eaf1fb;text-decoration:none;padding:10px 4px;border-bottom:1px dashed #1d3a66;font-size:14px}',
-    '@media(max-width:1180px){#mbtopo nav{display:none}#mbtopo .ham{display:block}}'
+    '@media(max-width:1180px){#mbtopo nav{display:none}#mbtopo .ham{display:block}}',
+    '@media(max-width:640px){#mbtopo .lg small{display:none}#mbtopo .lg b{font-size:13px}#mbtopo .hbadge{display:none}#mbtopo .hbtn{padding:6px 9px;font-size:11.5px}}'
   ].join('\n');
 
   var ITENS = [
