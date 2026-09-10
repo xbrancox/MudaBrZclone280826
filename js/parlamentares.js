@@ -844,7 +844,7 @@
       const teorHref = p.url
         ? p.url
         : (p.id && p.id.startsWith('pl-camara-')
-            ? 'https://www.camara.leg.br/proposicoesweb/fichadetalhamento?idProposicao=' + p.id.replace('pl-camara-', '')
+            ? 'https://www.camara.leg.br/proposicoesweb/fichadetramitacao?idProposicao=' + p.id.replace('pl-camara-', '')
             : 'https://www.camara.leg.br/busca-portal?pesquisa=' + encodeURIComponent(p.number || ''));
       return `
       <article class="mb-pl-card" data-pl="${escapeHtml(p.id)}">

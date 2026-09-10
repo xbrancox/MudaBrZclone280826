@@ -324,6 +324,7 @@ footer{background:#08142e;border-top:1px solid var(--line);padding:44px 0 20px;m
 <input type="file" id="fFile" multiple style="padding:8px"/>
 <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end"><button class="btn" onclick="fechar('mForm')">Cancelar</button><button class="btn gold" onclick="enviaForm()"><i class="fa-solid fa-paper-plane"></i> Enviar</button></div></div></div>
 <div class="overlay" id="mDados"><div class="modal"><div id="dadosBody"></div><button class="btn" style="width:100%;margin-top:12px" onclick="fechar('mDados')">Fechar</button></div></div>
+<div class="overlay" id="mProc"><div class="modal"><div id="procBody"></div><button class="btn" style="width:100%;margin-top:12px" onclick="fechar('mProc')">Fechar</button></div></div>
 <div class="overlay" id="mLogin"><div class="modal"><h3 style="margin-bottom:10px">Entrar</h3>
 <button class="btn blue" style="width:100%;margin-bottom:10px" onclick="entrarCidadao()"><i class="fa-solid fa-user"></i> Sou cidadão (simulado)</button>
 <button class="btn gold" style="width:100%" onclick="souPolitico()"><i class="fa-solid fa-landmark"></i> Sou político ou candidato</button>
@@ -645,6 +646,73 @@ function fichaHTML(p,i){const d=DET[i];
   <div id="real-${i}" style="margin-top:10px"></div>
   <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap"><button class="btn red sm" onclick="abrirForm(${i},'rec')"><i class="fa-solid fa-bullhorn"></i> Fazer reclamação</button><button class="btn green sm" onclick="abrirForm(${i},'apo')"><i class="fa-solid fa-thumbs-up"></i> Dar apoio</button><button class="btn sm" onclick="abrirDados(${i})"><i class="fa-solid fa-magnifying-glass-chart"></i> Dados públicos</button><button class="btn sm" onclick="souPolitico(${i})"><i class="fa-solid fa-fingerprint"></i> É você? Verificar</button></div>
   </div>`}
+/* ---------- TSE 2026: candidatura por político (bens + processos) ----------
+   O DivulgaCandContas TEM página por candidato:
+   #/candidato/{REGIAO}/{UF}/{ELEICAO}/{SQ}/2026/{UF} — com as seções
+   "Bens do Candidato" e "Processos". O SQ vem de /api/candidatos-tse
+   (snapshot oficial dos CSVs do TSE). Quem não concorre em 2026 não tem
+   SQ → popup honesto ("não consta"), nunca um link que não leva a lugar
+   nenhum. */
+const tseEsc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const REGIAO_UF={AC:'NORTE',AP:'NORTE',AM:'NORTE',PA:'NORTE',RO:'NORTE',RR:'NORTE',TO:'NORTE',AL:'NORDESTE',BA:'NORDESTE',CE:'NORDESTE',MA:'NORDESTE',PB:'NORDESTE',PE:'NORDESTE',PI:'NORDESTE',RN:'NORDESTE',SE:'NORDESTE',DF:'CENTRO OESTE',GO:'CENTRO OESTE',MS:'CENTRO OESTE',MT:'CENTRO OESTE',ES:'SUDESTE',MG:'SUDESTE',RJ:'SUDESTE',SP:'SUDESTE',PR:'SUL',RS:'SUL',SC:'SUL'};
+const TSE_ELEICAO='20322002026';
+const SIT_RUIM=/INDEFERIDO|INAPTO|CASSAD|CANCELAD/;
+const CARGO_TSE_N={1:'Presidente',2:'Vice-Presidente',3:'Governador',4:'Vice-Governador',5:'Senador',6:'Deputado Federal',7:'Dep. Estadual',8:'Dep. Distrital'};
+const tseNorm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const tseCandUrl=c=>{const uf=String(c.uf||'').toUpperCase();return 'https://divulgacandcontas.tse.jus.br/divulga/#/candidato/'+encodeURIComponent(REGIAO_UF[uf]||'BR')+'/'+uf+'/'+TSE_ELEICAO+'/'+c.sq+'/2026/'+uf};
+const TSE_CAND={};const TSE_CAND_RES={};
+function tseBusca(nome,uf){const k=tseNorm(nome)+'|'+String(uf||'').toUpperCase();
+  if(TSE_CAND[k])return TSE_CAND[k];
+  TSE_CAND[k]=(async()=>{try{
+    const r=await fetch(camaraBase()+'/api/candidatos-tse?busca='+encodeURIComponent(nome)+(uf?'&uf='+encodeURIComponent(uf):'')+'&porPagina=20');
+    const j=await r.json();const alvo=tseNorm(nome);
+    const vistos={};const lista=(j.candidatos||[]).filter(c=>{
+      const ok=(tseNorm(c.nomeUrna)===alvo||tseNorm(c.nomeCivil)===alvo)&&c.sq&&!vistos[c.sq];
+      if(ok)vistos[c.sq]=1;return ok});
+    return TSE_CAND_RES[k]={estado:lista.length?'ok':'vazio',lista};
+  }catch(e){return TSE_CAND_RES[k]={estado:'erro',lista:[]}}})();
+  return TSE_CAND[k]}
+/* ---------- POPUP ⚖️ Processos e condenações ---------- */
+const CE_CAMARA='https://www2.camara.leg.br/a-camara/estruturaadm/eticaedecoro/processos.html';
+const CE_SENADO='https://www25.senado.leg.br/web/conselhos';
+let PROCI=null;
+function abreProc(html){document.getElementById('procBody').innerHTML=html;document.getElementById('mProc').classList.add('open')}
+function procHTML(nome,cands,erro,cargo){
+  const linhas=(cands||[]).map(c=>{const ruim=SIT_RUIM.test(String(c.situacao||'').toUpperCase());
+    return `<div class="quote ${ruim?'':'info'}" style="margin-top:6px">🗳️ <b>${CARGO_TSE_N[c.cargo]||'Candidatura'}</b> ${tseEsc(c.uf)} · nº ${tseEsc(c.numero||'—')} — situação no TSE: <b style="color:${ruim?'var(--red)':'var(--green)'}">${tseEsc(c.situacao||'—')}</b>${ruim?'<br><small class="muted">Situação que pode refletir decisão judicial (Lei Ficha Limpa) — confirme na página oficial.</small>':''}<br><a href="${tseCandUrl(c)}" target="_blank" rel="noopener" style="color:var(--blueL)">💰⚖️ Bens e processos da candidatura — página oficial no TSE ↗</a></div>`}).join('');
+  let corpo;
+  if(cands===null)corpo='<div class="quote info" style="margin-top:6px">⏳ Consultando o TSE…</div>';
+  else if(erro)corpo='<div class="quote" style="margin-top:6px">⚠️ O TSE não respondeu agora (serviço instável). <a href="javascript:void(0)" onclick="reabrirProc()" style="color:var(--blueL)">tentar de novo ↻</a></div>';
+  else if(!cands.length)corpo='<div class="quote" style="margin-top:6px">🗳️ <b>Não consta processo eleitoral</b> — nenhuma candidatura deste nome em 2026 no TSE, nesta UF. Sem candidatura no ano, não há declaração de bens nem processo publicado no DivulgaCandContas.</div>';
+  else corpo=linhas;
+  const ce=/senador/i.test(String(cargo||''))
+    ?`<div class="quote info" style="margin-top:6px">🏛️ Processo ético (mandato): Conselho de Ética e Decoro Parlamentar do Senado — <a href="${CE_SENADO}" target="_blank" rel="noopener" style="color:var(--blueL)">ver Conselhos no site do Senado ↗</a></div>`
+    :`<div class="quote info" style="margin-top:6px">🏛️ Processo ético (mandato): Representações ao Conselho de Ética da Câmara — <a href="${CE_CAMARA}" target="_blank" rel="noopener" style="color:var(--blueL)">ver no site da Câmara ↗</a></div>`;
+  return `<h3 style="margin-bottom:6px">⚖️ Processos e condenações — ${tseEsc(nome)}</h3>
+  <p class="muted" style="margin:6px 0">O que consta <b>nesta plataforma</b>: nada — aqui não há registro de processo contra este político. E não existe no Brasil consulta pública unificada de processos por pessoa: cada tribunal (Justiça Federal/Estadual, STF, STJ) exige consulta individual com CPF e captcha. O que dá para verificar oficialmente, sem inventar nada:</p>
+  ${corpo}${ce}`}
+function verProc(i){const p=POL[i];if(!p)return;PROCI=i;
+  abreProc(procHTML(p.nome,null,false,p.cargo));
+  tseBusca(p.nome,p.uf).then(r=>{if(PROCI===i&&document.getElementById('mProc').classList.contains('open'))abreProc(procHTML(p.nome,r.lista,r.estado==='erro',p.cargo))})}
+function reabrirProc(){if(PROCI==null)return;const p=POL[PROCI];if(!p)return;
+  /* limpa o resultado com erro pra permitir retry real */
+  const k=tseNorm(p.nome)+'|'+String(p.uf||'').toUpperCase();
+  if(TSE_CAND_RES[k]&&TSE_CAND_RES[k].estado==='erro'){delete TSE_CAND[k];delete TSE_CAND_RES[k]}
+  verProc(PROCI)}
+/* Linhas ⚖️ do modal Dados Públicos: Patrimônio → página oficial do
+   candidato no TSE (seção Bens) quando há candidatura 2026; Processos →
+   popup com o que existe oficialmente. Enquanto consulta: "…". */
+function patTSE(p,i){
+  const st=(l,v)=>`<div class="stat"><small>${l}</small><b style="font-size:13px">${v}</b></div>`;
+  const r=TSE_CAND_RES[tseNorm(p.nome)+'|'+String(p.uf||'').toUpperCase()];
+  let pat;
+  if(!r)pat='<span class="muted">⏳ consultando candidatura no TSE…</span>';
+  else if(r.estado==='erro')pat=`<a href="javascript:void(0)" onclick="verProc(${i})" style="color:var(--blueL)">TSE indisponível — verificar ↗</a>`;
+  else if(r.lista.length===1)pat=`<a href="${tseCandUrl(r.lista[0])}" target="_blank" rel="noopener" style="color:var(--blueL)">bens declarados 2026 — página oficial no TSE ↗</a>`;
+  else if(r.lista.length>1)pat=`<a href="javascript:void(0)" onclick="verProc(${i})" style="color:var(--blueL)">${r.lista.length} candidaturas em 2026 — escolher no TSE ↗</a>`;
+  else pat=`<a href="javascript:void(0)" onclick="verProc(${i})" style="color:var(--blueL)">sem candidatura em 2026 — verificar por quê ↗</a>`;
+  return st('Patrimônio declarado',pat)+st('Processos/condenações',`<a href="javascript:void(0)" onclick="verProc(${i})" style="color:var(--blueL)">verificar processos ↗</a>`)
+}
 let DADOS_I=null;
 function abrirDados(i){const p=POL[i];const d=DET[i]||{};DADOS_I=i;
 $('#dadosBody').innerHTML=(function(){const esc=v=>(v!=null&&v!=='')?v:null;const row=(l,v)=>esc(v)?`<div class="stat"><small>${l}</small><b style="font-size:13px">${v}</b></div>`:'';
@@ -660,8 +728,8 @@ $('#dadosBody').innerHTML=(function(){const esc=v=>(v!=null&&v!=='')?v:null;cons
   ${grp('🏛️ Mandato',row('Partido/UF',p.partido+' · '+p.uf)+row('Cargo',p.cargo)+row('Nº eleitoral',p.num)+row('Legislatura',d.legislatura?d.legislatura+'ª':null)+row('Situação',d.situacao)+row('Gabinete',d.gabinete)+row('Contato',d.contato)+row('Descrição do status',d.descStatus))}
   ${(org||fre||hi)?grp('🧩 Atuação institucional',(org?`<div class="stat"><small>Comissões/Órgãos</small></div>${org}`:'')+(fre?`<div class="stat"><small>Frentes parlamentares (${d.frentes.length})</small></div>${fre}`:'')+(hi?`<div class="stat"><small>Histórico recente</small></div>${hi}`:'')):''}
   ${grp('🌐 Presença digital',redes?`<div class="stat"><small>Redes sociais (Câmara)</small><b style="font-size:13px">${redes}</b></div>`:row('Redes sociais','não informadas à Câmara'))}
-  ${grp('📊 Atuação em números',row('Projetos apresentados',(d.props||[]).length)+row('Votações registradas',(d.votosHist||d.votos||[]).length)+(p.cargo==='Deputado Federal'?row('Despesas de cota',`<a href="https://www.camara.leg.br/deputados/${p.num}/despesas" target="_blank" style="color:var(--blueL)">ver despesas na Câmara ↗</a>`):row('Despesas de cota',`<a href="https://www.portaltransparencia.gov.br/busca?termo=${encodeURIComponent(p.nome)}" target="_blank" style="color:var(--blueL)">buscar no Portal da Transparência ↗</a>`)))}
-  ${grp('⚖️ Transparência externa',row('Patrimônio declarado','sem link direto — DivulgaCand (TSE) não tem URL por candidato')+row('Processos/condenações','sem dado aberto por parlamentar (CNJ)'))}
+  ${grp('📊 Atuação em números',row('Projetos apresentados',(d.props||[]).length)+row('Votações registradas',(d.votosHist||d.votos||[]).length)+(p.cargo==='Deputado Federal'?row('Despesas de cota',`<a href="https://www.camara.leg.br/cota-parlamentar/" target="_blank" style="color:var(--blueL)">cota parlamentar na Câmara ↗</a>`):row('Despesas de cota',`<a href="https://www.portaltransparencia.gov.br/busca?termo=${encodeURIComponent(p.nome)}" target="_blank" style="color:var(--blueL)">buscar no Portal da Transparência ↗</a>`)))}
+  ${grp('⚖️ Transparência externa',patTSE(p,i))}
   <h4 style="color:var(--blueL);font-size:12px;margin:12px 0 4px">🗳️ Últimas votações nominais</h4>
   ${votosHTML(d,p,i)}
   <p class="muted" style="margin-top:10px">${DET[i]?'':'⏳ Complementando com a fonte oficial (Câmara/Senado)…<br>'}Fontes oficiais no final da página do Radar.</p>`})();
@@ -669,7 +737,10 @@ document.getElementById('mDados').classList.add('open');setupVotosObserver(i);
 /* "Dados públicos" aberto direto do card: os detalhes (Pessoal, Atuação
    institucional, votações) vêm da fonte oficial — dispara a busca e
    re-renderiza quando chegarem, se o modal seguir aberto neste político. */
-if(!DET[i])preencheDetalhe(i).then(()=>{if(DADOS_I===i){const md=document.getElementById('mDados');if(md&&md.classList.contains('open'))abrirDados(i)}})}
+if(!DET[i])preencheDetalhe(i).then(()=>{if(DADOS_I===i){const md=document.getElementById('mDados');if(md&&md.classList.contains('open'))abrirDados(i)}})
+/* Candidatura no TSE (bens/processos): consulta e re-renderiza o modal
+   se ele seguir aberto neste político. */
+if(!TSE_CAND_RES[tseNorm(p.nome)+'|'+String(p.uf||'').toUpperCase()])tseBusca(p.nome,p.uf).then(()=>{if(DADOS_I===i){const md=document.getElementById('mDados');if(md&&md.classList.contains('open'))abrirDados(i)}})}
 function renderRad(){if(!ready)return;const q=($('#cbusca').value||'').toLowerCase();const uf=$('#fUF').value;const pt=$('#fPartido').value;const cg=$('#fCargo').value;const ord=$('#fOrdem').value;
 	const temFiltro=q||uf||pt||cg;
 	if(!temFiltro){$('#cCount').textContent='';$('#radList').innerHTML=`<div class="card" style="grid-column:1/-1;text-align:center;padding:40px"><i class="fa-solid fa-magnifying-glass" style="font-size:30px;color:var(--gold)"></i><h3 style="margin:12px 0 6px">Pesquise um político</h3><p class="muted">Digite nome, número, estado, partido ou área pra abrir a ficha completa com dados reais.</p></div>`;return}
@@ -770,9 +841,10 @@ try{
 let PLS=[];let TERM_RANK={};
 async function carregaPLS(){try{const r=await fetch('https://dadosabertos.camara.leg.br/api/v2/proposicoes?siglaTipo=PL&itens=8&ordem=DESC&ordenarPor=id');const j=await r.json();PLS=(j.dados||[]).map(d=>({num:(d.siglaTipo||'PL')+' '+(d.numero||'')+'/'+(d.ano||''),txt:(d.ementa||d.titulo||'').slice(0,180),id:d.id,autor:d.autor||''}))}catch(e){PLS=[]}
 if(!PLS.length)PLS=[{num:'PL 5183/2026',txt:'Altera a Lei Rouanet para assegurar critérios específicos de avaliação e cota mínima de recursos.',id:1},{num:'PL 5182/2026',txt:'Institui o Programa Nacional de Recuperação de Rodovias Municipais com materiais recicláveis.',id:2}];renderPLS()}
+function plOficialUrl(p){const m=/(\d+)\/(\d+)/.exec(p.num||'');if(p.id>1000)return 'https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao='+p.id;if(m)return 'https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?numero='+m[1]+'&ano='+m[2]+'&sigla=PL';return 'https://www.camara.leg.br/proposicoesWeb/fichadetramitacao'}
 function renderPLS(){if(!$('#plBusca')||!$('#plsList'))return;const q=($('#plBusca').value||'').toLowerCase();const l=PLS.filter(p=>(p.num+' '+p.txt+' '+p.autor).toLowerCase().includes(q));
 $('#plsList').innerHTML=l.map(p=>`<div class="card"><b style="color:var(--gold)">${p.num}</b><p class="muted" style="margin:8px 0">${p.txt}…</p>
-<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn green sm" onclick="toast('Aprovo registrado.')">Aprovo</button><button class="btn red sm" onclick="toast('Não aprovo registrado.')">Não aprovo</button><button class="btn sm" onclick="abrirVotacoesPL('${p.id}','${(p.num||'').replace(/'/g,'')}')">🗳️ Votações</button><a class="btn sm" href="https://www.camara.leg.br/proposicoes/WebFichTramitacao?idProposicao=${p.id}" target="_blank">Inteiro teor</a></div></div>`).join('')||'<p class="muted">Nada encontrado.</p>'}
+<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn green sm" onclick="toast('Aprovo registrado.')">Aprovo</button><button class="btn red sm" onclick="toast('Não aprovo registrado.')">Não aprovo</button><button class="btn sm" onclick="abrirVotacoesPL('${p.id}','${(p.num||'').replace(/'/g,'')}')">🗳️ Votações</button><a class="btn sm" href="${plOficialUrl(p)}" target="_blank" rel="noopener">Tramitação oficial ↗</a></div></div>`).join('')||'<p class="muted">Nada encontrado.</p>'}
 const DEMO_BAL={'Presidente':'Maria Santos (PT 13)','Governador':'Roberto Lima (MDB 15)','Senador':'BRANCO'};
 function usarDemo(){renderCedula('35001500100212345789',DEMO_BAL)}
 function conferir(){const raw=($('#chk').value||'').replace(/\D/g,'');if(raw.length!==20){toast('Código inválido (20 dígitos).');return}

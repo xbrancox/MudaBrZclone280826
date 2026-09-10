@@ -287,7 +287,7 @@ const meusVotos=()=>LS.get('mb_votos_pl',{});
 const corte=(t,n=140)=>{t=(t||'').toString().trim();return t.length>n?t.slice(0,n).trim()+'…':t};
 const cssk=k=>k.replace(/[^a-zA-Z0-9]/g,'');
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function infoPL(p){p=p||{};const parts=String(p.number||p.numero||'').split('/');const n=parts[0]||'';const ano=parts[1]||p.year||p.ano||'';const sigla=p.sigla||((p.chamber||'Câmara')==='Senado'?'PLS':'PL');const desc=p.ementa||p.title||'Sem descrição informada.';const id=p.id||p.idProposicao||'';const url=p.url||p.urlProposicao||p.uri||(id?`https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${id}`:`https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?numero=${n}&ano=${ano}&sigla=${sigla}`);return{key:`${sigla} ${n}${ano?'/'+ano:''}`,n,ano,desc,url,chamber:p.chamber||'Câmara',author:p.author||'',party:p.party||''}}
+function infoPL(p){p=p||{};const parts=String(p.number||p.numero||'').split('/');const n=parts[0]||'';const ano=parts[1]||p.year||p.ano||'';const senado=(p.chamber||'Câmara')==='Senado';const sigla=p.sigla||(senado?'PLS':'PL');const desc=p.ementa||p.title||'Sem descrição informada.';const ext=String(p.url||p.urlProposicao||p.uri||'').replace('fichadetalhamento','fichadetramitacao');const okExt=/^https?:\/\//.test(ext)&&!/pl-/.test(ext);const camUrl=(n&&ano)?`https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?numero=${n}&ano=${ano}&sigla=${sigla}`:'https://www.camara.leg.br/proposicoesWeb/fichadetramitacao';const url=okExt?ext:(senado?'https://www25.senado.leg.br/web/atividade/materias':camUrl);return{key:`${sigla} ${n}${ano?'/'+ano:''}`,n,ano,desc,url,chamber:p.chamber||'Câmara',author:p.author||'',party:p.party||''}}
 function infoVot(v){v=v||{};const desc=v.descricao||'Votação nominal no plenário.';const data=v.data||v.dataHoraRegistro||'';const id=v.id||'';const m=desc.match(/(?:PLC?|MPV?|Projeto de Lei(?: Complementar)?)[^\d]*(\d+)[\/,](?:\s*de\s*)?(\d{4})/i);return{id,key:'Votação '+id,num:m?m[1]:'',ano:m?m[2]:'',data,desc}}
 function votoParl(v){v=v||{};const dep=v.deputado_||{};const nome=dep.nome||'—',part=dep.siglaPartido||'—',uf=dep.siglaUf||'';const tipo=String(v.tipoVoto||'');let t='cinza';if(/^sim$/i.test(tipo))t='favor';else if(/^n[ãa]o$/i.test(tipo))t='contra';return{nome,part,uf,t}}
 function placar(l){const p={favor:0,contra:0,cinza:0};(l||[]).forEach(x=>p[x.t]++);p.total=l?l.length:0;return p}
@@ -331,7 +331,7 @@ function cardPL(p){
  const i=infoPL(p),v=MAPVOT[i.n+'/'+i.ano],mv=meusVotos()[i.key],pc=v?placar(VOTOS[v.id]):null;
  const el=document.createElement('div');el.className='card';el.dataset.tema=temaDe(i.desc)||'Outros';el.dataset.busca=(i.key+' '+i.desc+' '+i.party+' '+i.author).toLowerCase();
  el.innerHTML=`
- <div class="plhead"><h3 data-tip="Número e sigla do projeto (${i.chamber})">${i.key}</h3><a class="link" target="_blank" rel="noopener" href="${i.url}" data-tip="Abre o documento oficial no site da ${i.chamber}">📄 inteiro teor →</a></div>
+ <div class="plhead"><h3 data-tip="Número e sigla do projeto (${i.chamber})">${i.key}</h3><a class="link" target="_blank" rel="noopener" href="${i.url}" data-tip="Abre a ficha oficial de tramitação no site da ${i.chamber}">📄 tramitação oficial →</a></div>
  <div class="mini">${autorLabel(i)} · ${i.party} · ${i.chamber} · <span class="chip blue">Assunto: ${temaDe(i.desc)||'Geral'}</span></div>
  <p class="desc">${corte(i.desc,260)}</p>
  ${botoesVoto(i.key,mv)}
@@ -518,7 +518,7 @@ function renderDepRows(votos){
   const votoTxt=v.voto||v.tipoVoto||'—';
   const did=(v.deputado_&&v.deputado_.id)||v.idDeputado||'';
   const av=foto?`<img class="av" src="${foto}" alt="" onerror="this.outerHTML='<div class=av-fb>${esc(nm[0].toUpperCase())}</div>'">`:`<div class="av-fb">${esc(nm[0].toUpperCase())}</div>`;
-  const href=did?'https://www.camara.leg.br/deputados/'+did:'#';
+  const href=did?'https://www.camara.leg.br/deputados/quem-sao/resultado?search='+encodeURIComponent(nm):'#';
   return `<a class="dep-row" href="${href}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${av}
   <div class="nm"><b>${esc(nm)}</b><div class="mini" style="margin:0">${esc(partido)}${uf?' · '+esc(uf):''}</div></div>
   <span class="votochip ${votoClass(votoTxt)}">${esc(votoTxt)}</span></a>`}).join('')}
@@ -591,7 +591,7 @@ function renderUrna(){
  const vk=mv[atual.key];
  $('#urna-corpo').innerHTML=`<div class="uline"><h3 style="color:var(--gold)" data-tip="${esc(atual.extra)}">Nº da PL: ${atual.i.key}</h3>
  <span class="chip ${atual.simb?'grey':'blue'}" data-tip="Tema principal da matéria${atual.simb?' · votação simbólica: o plenário registrou só o resultado, sem voto individual dos deputados':''}">${atual.tema}</span></div>
- <div class="udesc"><span class="desc" data-tip="${esc(atual.desc)}">${esc(atual.desc)}</span>${atual.tipo==='pl'?`<a class="link" target="_blank" href="${atual.url}">📄 inteiro teor →</a>`:`<a class="link" href="#" data-acao="vervot" data-id="${atual.i.id}">👥 ver o voto a voto ↓</a>`}</div>
+ <div class="udesc"><span class="desc" data-tip="${esc(atual.desc)}">${esc(atual.desc)}</span>${atual.tipo==='pl'?`<a class="link" target="_blank" rel="noopener" href="${atual.url}">📄 tramitação oficial →</a>`:`<a class="link" href="#" data-acao="vervot" data-id="${atual.i.id}">👥 ver o voto a voto ↓</a>`}</div>
  <div class="botoes"><button id="bAprovo" class="${vk==='aprovo'?'on':''}" aria-pressed="${vk==='aprovo'}" data-acao="votar" data-v="aprovo" data-key="${atual.key}" data-tip="Registra que você aprova (soma no Placar do Povo)">${vk==='aprovo'?'✓ ':''}👍 APROVO</button><button id="bNao" class="${vk==='nao'?'on':''}" aria-pressed="${vk==='nao'}" data-acao="votar" data-v="nao" data-key="${atual.key}" data-tip="Registra que você não aprova (soma no Placar do Povo)">${vk==='nao'?'✓ ':''}👎 NÃO APROVO</button></div>
  <button class="pill ghost pprox" data-acao="pula" data-tip="Avança sem registrar voto">próxima →</button>`}
 function renderAgenda(){
@@ -600,7 +600,7 @@ function renderAgenda(){
  $('#ag-esq').innerHTML=avot.slice(0,agExpEsq?avot.length:3).map(p=>{const i=infoPL(p);const mv=meusVotos()[i.key];const mov=p.updatedAt;const parada=mov&&(agora-mov)/864e5>90;
   const chip=parada?`<span class="chip grey" data-tip="Sem movimentação registrada há mais de 90 dias">PARADA HÁ +90 DIAS</span>`:`<span class="chip blue" data-tip="Em tramitação, sem data de votação definida">EM ANÁLISE</span>`;
   return `<div class="item">${chip}<h3 style="margin:6px 0">${i.key}</h3><p class="mini">${corte(i.desc,110)}</p>
-  <a class="link" target="_blank" href="${i.url}">📄 inteiro teor →</a>
+  <a class="link" target="_blank" rel="noopener" href="${i.url}">📄 tramitação oficial →</a>
   ${botoesVoto(i.key,mv)}</div>`}).join('')
   +(avot.length>3?`<button class="vermais" data-acao="agexp-esq">${agExpEsq?'Mostrar menos ▴':'Ver todas as '+avot.length+' ▾'}</button>`:'')
   ||`<div class="vazio">Nada pendente.</div>`;
@@ -623,7 +623,7 @@ function renderAgenda(){
   }else{
    vs=`<p class="mini">${pc.total?`Congresso: ${cong}% a favor · 🪑 não votaram: ${pc.cinza}`:`Votação simbólica — plenário registrou só o resultado, sem voto a voto.`}${i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):''} · <span data-tip="Ninguém opinou nesta matéria ainda — vote na Urna Expressa!">Povo: sem votos ainda</span></p>`;
   }
-  const teor=plI&&plI.url?` · <a class="link" target="_blank" rel="noopener" href="${plI.url}">📄 inteiro teor →</a>`:'';
+  const teor=plI&&plI.url?` · <a class="link" target="_blank" rel="noopener" href="${plI.url}">📄 tramitação oficial →</a>`:'';
   const ver=simb?` · <span class="mini" data-tip="Nesta votação simbólica a Câmara não registrou o voto individual dos deputados">⚖️ simbólica — sem voto a voto</span>`:` · <a class="link" href="#" data-acao="vervot" data-id="${v.id}">👥 ver como votaram ↓</a>`;
   return `<div class="item">${res}<h3 style="margin:6px 0">${plI?plI.key:corte(i.desc,60)}</h3>${plI?`<p class="mini">${corte(i.desc,90)}</p>`:''}${vs}${teor}${ver}</div>`}).join('')
   +(votadas.length>3?`<button class="vermais" data-acao="agexp-dir">${agExpDir?'Mostrar menos ▴':'Ver as '+votadas.length+' votadas ▾'}</button>`:'')

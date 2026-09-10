@@ -181,6 +181,12 @@ a.badge:hover{filter:brightness(1.25)}
   <div id="fichaBody"></div>
 </div></div>
 
+<!-- MODAL PROCESSOS/CONDENACOES -->
+<div class="overlay" id="mProc"><div class="modal">
+  <button class="mx" onclick="fechar('mProc')">✕</button>
+  <div id="procBody"></div>
+</div></div>
+
 <!-- MODAL COMPARAR -->
 <div class="overlay" id="mCmp"><div class="modal">
   <button class="mx" onclick="fechar('mCmp')">✕</button>
@@ -254,8 +260,8 @@ let REC_STATS={},FICHA_ID=null; /* contadores de reclamações/apoios (backend) 
    (ficha oficial, página de despesas, busca nomeada, PLs, redes, e-mail).
    Onde não existe destino por parlamentar (patrimônio no TSE, processos no
    CNJ) NÃO há link — a informação vira texto puro, sem âncora genérica. */
-const F_CAMARA=n=>`<a class="fonte" href="https://www.camara.leg.br/deputados/${n}" target="_blank" rel="noopener" title="Ficha oficial na Câmara">Câmara ↗</a>`;
-const F_SENADO=n=>`<a class="fonte" href="https://www25.senado.leg.br/web/senadores/${n}" target="_blank" rel="noopener" title="Página oficial no Senado">Senado ↗</a>`;
+const F_CAMARA=p=>`<a class="fonte" href="https://www.camara.leg.br/deputados/quem-sao/resultado?search=${encodeURIComponent(p.nome)}" target="_blank" rel="noopener" title="Localizar o deputado no portal oficial da Câmara">Câmara ↗</a>`;
+const F_SENADO=n=>`<a class="fonte" href="https://www25.senado.leg.br/web/senadores/senador/-/perfil/${n}" target="_blank" rel="noopener" title="Página oficial no Senado">Senado ↗</a>`;
 const F_PT=n=>`<a class="fonte pt" href="https://www.portaltransparencia.gov.br/busca?termo=${encodeURIComponent(n)}" target="_blank" rel="noopener" title="Busca pelo nome no Portal da Transparência (remuneração e gastos)">Transparência (busca) ↗</a>`;
 /* Despesas: deputado tem página própria na Câmara (cota parlamentar,
    verba de gabinete, passagens). Senador não tem página por parlamentar
@@ -263,7 +269,7 @@ const F_PT=n=>`<a class="fonte pt" href="https://www.portaltransparencia.gov.br/
    dizendo exatamente que é busca. */
 const F_DESP=p=>p.fonte==='senado'
   ?F_PT(p.nome)
-  :`<a class="fonte" href="https://www.camara.leg.br/deputados/${p.num}/despesas" target="_blank" rel="noopener" title="Cota parlamentar e despesas do deputado — página oficial na Câmara">Despesas na Câmara ↗</a>`;
+  :`<a class="fonte" href="https://www.camara.leg.br/cota-parlamentar/" target="_blank" rel="noopener" title="Cota parlamentar e despesas — consulte pelo nome do deputado no portal oficial da Câmara">Despesas na Câmara ↗</a>`;
 /* Link "ver PLs no Congresso": abre a área de PLs do Congresso buscando
    direto na API da Câmara as proposições do autor (id do deputado +
    nome de exibição). Na mesma aba se possível; com Ctrl/Cmd+click o
@@ -298,6 +304,84 @@ async function carregaTseIdx(){
       if(FICHA_ID&&document.getElementById('mFicha').classList.contains('open'))renderFicha(FICHA_ID);
     }}
   catch(e){/* índice opcional: sem ele, ficha mostra "—" no nº do candidato */}}
+
+/* ---------- TSE 2026: página oficial da candidatura (bens + processos) ----------
+   O DivulgaCandContas TEM página por candidato:
+   #/candidato/{REGIAO}/{UF}/{ELEICAO}/{SQ}/2026/{UF} — com as seções "Bens do
+   Candidato" e "Processos". O SQ (que o tse-index.json não tem) vem de
+   /api/candidatos-tse (snapshot oficial dos CSVs do TSE). Quem não concorre
+   em 2026 não tem SQ → popup honesto ("não consta"), nunca link morto. */
+const REGIAO_UF={AC:'NORTE',AP:'NORTE',AM:'NORTE',PA:'NORTE',RO:'NORTE',RR:'NORTE',TO:'NORTE',AL:'NORDESTE',BA:'NORDESTE',CE:'NORDESTE',MA:'NORDESTE',PB:'NORDESTE',PE:'NORDESTE',PI:'NORDESTE',RN:'NORDESTE',SE:'NORDESTE',DF:'CENTRO OESTE',GO:'CENTRO OESTE',MS:'CENTRO OESTE',MT:'CENTRO OESTE',ES:'SUDESTE',MG:'SUDESTE',RJ:'SUDESTE',SP:'SUDESTE',PR:'SUL',RS:'SUL',SC:'SUL'};
+const TSE_ELEICAO='20322002026';
+const SIT_RUIM=/INDEFERIDO|INAPTO|CASSAD|CANCELAD/;
+const tseCandUrl=c=>{const uf=String(c.uf||'').toUpperCase();return 'https://divulgacandcontas.tse.jus.br/divulga/#/candidato/'+encodeURIComponent(REGIAO_UF[uf]||'BR')+'/'+uf+'/'+TSE_ELEICAO+'/'+c.sq+'/2026/'+uf};
+const TSE_CAND={};const TSE_CAND_RES={};
+function tseBusca(nome,uf){const k=normNome(nome)+'|'+String(uf||'').toUpperCase();
+  if(TSE_CAND[k])return TSE_CAND[k];
+  TSE_CAND[k]=(async()=>{try{
+    const r=await fetch(camaraBase()+'/api/candidatos-tse?busca='+encodeURIComponent(nome)+(uf?'&uf='+encodeURIComponent(uf):'')+'&porPagina=20');
+    const j=await r.json();const alvo=normNome(nome);
+    const vistos={};const lista=(j.candidatos||[]).filter(c=>{
+      const ok=(normNome(c.nomeUrna)===alvo||normNome(c.nomeCivil)===alvo)&&c.sq&&!vistos[c.sq];
+      if(ok)vistos[c.sq]=1;return ok});
+    return TSE_CAND_RES[k]={estado:lista.length?'ok':'vazio',lista};
+  }catch(e){return TSE_CAND_RES[k]={estado:'erro',lista:[]}}})();
+  return TSE_CAND[k]}
+/* ---------- POPUP ⚖️ Processos e condenações ---------- */
+const CE_CAMARA='https://www2.camara.leg.br/a-camara/estruturaadm/eticaedecoro/processos.html';
+const CE_SENADO='https://www25.senado.leg.br/web/conselhos';
+let PROCI=null;
+function abreProc(html){document.getElementById('procBody').innerHTML=html;document.getElementById('mProc').classList.add('open')}
+function procHTML(nome,cands,erro,cargo){
+  const linhas=(cands||[]).map(c=>{const ruim=SIT_RUIM.test(String(c.situacao||'').toUpperCase());
+    return `<div class="quote ${ruim?'':'info'}" style="margin-top:6px">🗳️ <b>${CARGO_TSE[c.cargo]||'Candidatura'}</b> ${esc(c.uf)} · nº ${esc(c.numero||'—')} — situação no TSE: <b style="color:${ruim?'var(--red)':'var(--green)'}">${esc(c.situacao||'—')}</b>${ruim?'<br><small class="muted">Situação que pode refletir decisão judicial (Lei Ficha Limpa) — confirme na página oficial.</small>':''}<br><a href="${tseCandUrl(c)}" target="_blank" rel="noopener" style="color:var(--blueL)">💰⚖️ Bens e processos da candidatura — página oficial no TSE ↗</a></div>`}).join('');
+  let corpo;
+  if(cands===null)corpo='<div class="quote info" style="margin-top:6px">⏳ Consultando o TSE…</div>';
+  else if(erro)corpo='<div class="quote" style="margin-top:6px">⚠️ O TSE não respondeu agora (serviço instável). <a href="javascript:void(0)" onclick="reabrirProc()" style="color:var(--blueL)">tentar de novo ↻</a></div>';
+  else if(!cands.length)corpo='<div class="quote" style="margin-top:6px">🗳️ <b>Não consta processo eleitoral</b> — nenhuma candidatura deste nome em 2026 no TSE, nesta UF. Sem candidatura no ano, não há declaração de bens nem processo publicado no DivulgaCandContas.</div>';
+  else corpo=linhas;
+  const ce=/senador/i.test(String(cargo||''))
+    ?`<div class="quote info" style="margin-top:6px">🏛️ Processo ético (mandato): Conselho de Ética e Decoro Parlamentar do Senado — <a href="${CE_SENADO}" target="_blank" rel="noopener" style="color:var(--blueL)">ver Conselhos no site do Senado ↗</a></div>`
+    :`<div class="quote info" style="margin-top:6px">🏛️ Processo ético (mandato): Representações ao Conselho de Ética da Câmara — <a href="${CE_CAMARA}" target="_blank" rel="noopener" style="color:var(--blueL)">ver no site da Câmara ↗</a></div>`;
+  return `<h3 style="margin-bottom:6px">⚖️ Processos e condenações — ${esc(nome)}</h3>
+  <p class="muted" style="margin:6px 0">O que consta <b>nesta plataforma</b>: nada — aqui não há registro de processo contra este político. E não existe no Brasil consulta pública unificada de processos por pessoa: cada tribunal (Justiça Federal/Estadual, STF, STJ) exige consulta individual com CPF e captcha. O que dá para verificar oficialmente, sem inventar nada:</p>
+  ${corpo}${ce}`}
+function verProcId(id){const p=POL.find(x=>x.id===id);if(!p)return;PROCI=id;
+  abreProc(procHTML(p.nome,null,false,p.cargo));
+  tseBusca(p.nome,p.uf).then(r=>{if(PROCI===id&&document.getElementById('mProc').classList.contains('open'))abreProc(procHTML(p.nome,r.lista,r.estado==='erro',p.cargo))})}
+function reabrirProc(){if(PROCI==null)return;const p=POL.find(x=>x.id===PROCI);if(!p)return;
+  /* limpa o resultado com erro pra permitir retry real */
+  const k=normNome(p.nome)+'|'+String(p.uf||'').toUpperCase();
+  if(TSE_CAND_RES[k]&&TSE_CAND_RES[k].estado==='erro'){delete TSE_CAND[k];delete TSE_CAND_RES[k]}
+  verProcId(PROCI)}
+/* Linhas ⚖️ da ficha: Patrimônio → página oficial da candidatura no TSE
+   (seção Bens) quando há candidatura 2026; Processos → popup com o que
+   existe oficialmente (candidatura + conselho de ética). */
+function patTSE(p,id){
+  const st=(l,v)=>`<div class="stat"><small>${l}</small><b style="font-size:13px">${v}</b></div>`;
+  const r=TSE_CAND_RES[normNome(p.nome)+'|'+String(p.uf||'').toUpperCase()];
+  let pat;
+  if(!r)pat='<span class="muted">⏳ consultando candidatura no TSE…</span>';
+  else if(r.estado==='erro')pat=`<a href="javascript:void(0)" onclick="return verProcId('${esc(id)}')" style="color:var(--blueL)">TSE indisponível — verificar ↗</a>`;
+  else if(r.lista.length===1)pat=`<a href="${tseCandUrl(r.lista[0])}" target="_blank" rel="noopener" style="color:var(--blueL)">bens declarados 2026 — página oficial no TSE ↗</a>`;
+  else if(r.lista.length>1)pat=`<a href="javascript:void(0)" onclick="return verProcId('${esc(id)}')" style="color:var(--blueL)">${r.lista.length} candidaturas em 2026 — escolher no TSE ↗</a>`;
+  else pat=`<a href="javascript:void(0)" onclick="return verProcId('${esc(id)}')" style="color:var(--blueL)">sem candidatura em 2026 — verificar por quê ↗</a>`;
+  return st('Patrimônio declarado',pat)+st('Processos e condenações',`<a href="javascript:void(0)" onclick="return verProcId('${esc(id)}')" style="color:var(--blueL)">verificar processos ↗</a>`)
+}
+/* Card de fontes "Nº de urna": com SQ resolvido vira link da página
+   oficial da candidatura; sem candidatura, botão que abre o popup ⚖️. */
+function fcardTse(p){
+  const cands=candsDe(p);
+  const r=TSE_CAND_RES[normNome(p.nome)+'|'+String(p.uf||'').toUpperCase()];
+  if(cands==null)return 'carregando índice TSE…';
+  if(!cands.length)return r&&r.estado!=='erro'
+    ?'sem candidatura em 2026 — <a href="javascript:void(0)" onclick="return verProcId(\''+esc(p.id)+'\')" style="color:var(--blueL)">verificar ↗</a>'
+    :'sem candidatura em 2026';
+  const m=r&&r.estado==='ok'?(r.lista||[]).find(c=>String(c.numero)===String(cands[0].n)):null;
+  return 'Candidatura: '+esc(cands.map(e=>(CARGO_TSE[e.c]||'candidato')+' nº '+e.n).join(' · '))
+    +(m?' — <a href="'+tseCandUrl(m)+'" target="_blank" rel="noopener" style="color:var(--blueL)">abrir página oficial no TSE ↗</a>'
+       :(r?' — <a href="javascript:void(0)" onclick="return verProcId(\''+esc(p.id)+'\')" style="color:var(--blueL)">verificar ↗</a>':''));
+}
 
 /* ---------- CARREGA LISTA ---------- */
 function normaliza(d){const num=(String(d.id||'').match(/\d+/)||[0])[0];
@@ -419,6 +503,10 @@ function abrirFicha(id){
   preencheDetalhe(id);
   carregaStats(id);
   carregaRec(id);
+  /* SQ da candidatura no TSE (bens/processos): consulta e re-renderiza a
+     ficha quando chegar, se ela seguir aberta neste político. */
+  if(!TSE_CAND_RES[normNome(p.nome)+'|'+String(p.uf||'').toUpperCase()])
+    tseBusca(p.nome,p.uf).then(()=>{if(fichaAtiva(id))renderFicha(id)});
 }
 /* Clique nos contadores do card → abre a ficha na aba 📣 já rolando
    até a seção pedida (rec=reclamações, resp=respostas, apo=apoios).
@@ -441,7 +529,11 @@ function fichaHTML(id){
   const row=(l,v)=>`<div class="stat"><small>${l}</small><b style="font-size:13px">${(v==null||v==='')?pend(d.detDone):v}</b></div>`;
   const grp=(t,inner)=>inner?`<h4 style="color:var(--gold);font-size:12px;margin:14px 0 6px">${t}</h4><div class="fstats" style="grid-template-columns:1fr 1fr">${inner}</div>`:'';
   const cands=candsDe(p);
-  const candV=cands==null?'<span class="skel">carregando</span>':(cands.length?candChips(p):'—');
+  /* link oficial da candidatura quando o SQ já veio de /api/candidatos-tse */
+  const tseRes=TSE_CAND_RES[normNome(p.nome)+'|'+String(p.uf||'').toUpperCase()];
+  const tseLink=n=>{const m=tseRes&&tseRes.estado==='ok'?(tseRes.lista||[]).find(c=>String(c.numero)===String(n)):null;
+    return m?` — <a href="${tseCandUrl(m)}" target="_blank" rel="noopener" style="color:var(--blueL)">página oficial no TSE ↗</a>`:''};
+  const candV=cands==null?'<span class="skel">carregando</span>':(cands.length?candChips(p)+tseLink(cands[0].n):'—');
   const plsHref='congresso.html?autor='+encodeURIComponent(p.nome)+(autorIdQ(p)?'&autorId='+autorIdQ(p):'');
   const nProj=d.props?d.props.length:(p.propsSnap!=null?p.propsSnap:null);
   const plsV=`<a href="${plsHref}" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')" title="Ver a lista de PLs deste parlamentar na página do Congresso">${nProj!=null?nProj+' nesta legislatura — ':'ver '}PLs no Congresso →</a>`;
@@ -482,10 +574,9 @@ function fichaHTML(id){
       +row('Comissões/Órgãos',d.semAtiv?'—':(d.orgaos?String(d.orgaos.length):'…'))
       +row('Frentes',d.semAtiv?'—':(d.frentes?String(d.frentes.length):'…'))
       +row('Despesas e cotas',F_DESP(p)))
-    +grp('⚖️ Transparência externa',row('Patrimônio declarado','sem dado aberto por parlamentar (TSE)')
-      +row('Processos e condenações','sem dado aberto por parlamentar (CNJ)'))
+    +grp('⚖️ Transparência externa',patTSE(p,id))
     +`<h4 style="color:var(--gold);font-size:12px;margin:14px 0 6px">🗳️ Últimas votações nominais</h4>${votosHTML(id)}`
-    +`<p class="muted" style="margin-top:10px">ℹ️ Política de links: só existe âncora quando o destino é específico do parlamentar (ficha oficial, despesas, PLs, redes, e-mail). Onde não há dado aberto por parlamentar — patrimônio (TSE) e processos (CNJ) — não há link: texto puro, sem âncora genérica. Nada aqui é inventado.</p>`;
+    +`<p class="muted" style="margin-top:10px">ℹ️ Política de links: só existe âncora quando o destino é específico do parlamentar (localizador oficial na Câmara ou Senado, despesas, PLs, redes, e-mail, página da candidatura no TSE). Onde não há dado aberto por parlamentar — processos por pessoa (CNJ/tribunais) — o botão abre um aviso explicando o que existe oficialmente. Nada aqui é inventado.</p>`;
 }
 function fstatsHTML(id){const p=POL.find(x=>x.id===id),d=DET[id]||{};
   const st=[['Projetos',d.props?d.props.length:(p.propsSnap!=null?p.propsSnap:'…')],['Votações',d.votos?d.votos.length:'…'],['Idade',d.det.idade||'…'],['Comissões',d.semAtiv?'—':(d.orgaos?d.orgaos.length:'…')],['Frentes',d.semAtiv?'—':(d.frentes?d.frentes.length:'…')],['Escolaridade',(d.det.escolaridade||'…')]];
@@ -496,8 +587,7 @@ function renderFicha(id){
   if(FICHA_ID!==id)return; /* a ficha aberta é de outro político — render antigo não rouba a tela */
   const p=POL.find(x=>x.id===id),d=DET[id]||{};
   const tab=FTAB[id];
-  const eCam=p.fonte==='senado'?F_SENADO(p.num):F_CAMARA(p.num);
-  const candsF=candsDe(p);
+  const eCam=p.fonte==='senado'?F_SENADO(p.num):F_CAMARA(p);
   let conteudo='';
   if(tab==='ficha')conteudo=fichaHTML(id);
   else if(tab==='props')conteudo=propsHTML(id);
@@ -525,7 +615,7 @@ function renderFicha(id){
       <div class="fcard">🏛️ <b>Página oficial</b><br><span class="muted">Ficha institucional completa — ${p.fonte==='senado'?'Senado':'Câmara'}</span><br>${eCam}</div>
       <div class="fcard">💰 <b>Despesas e cotas</b><br><span class="muted">${p.fonte==='senado'?'O Senado não publica despesas por senador — busca nomeada no portal oficial':'Cota parlamentar e verba de gabinete — página do deputado na Câmara'}</span><br>${F_DESP(p)}</div>
       <div class="fcard">📚 <b>Projetos de Lei</b><br><span class="muted">PLs com autoria dele — lista completa na página do Congresso</span><br><a class="fonte" href="congresso.html?autor=${encodeURIComponent(p.nome)}${autorIdQ(p)?'&autorId='+autorIdQ(p):''}" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')">Ver PLs no Congresso →</a></div>
-      <div class="fcard">🗳️ <b>Nº de urna (TSE 2026)</b><br><span class="muted">${candsF==null?'carregando índice TSE…':(candsF.length?'Candidatura: '+esc(candsF.map(e=>(CARGO_TSE[e.c]||'candidato')+' nº '+e.n).join(' · '))+' — sem link direto (DivulgaCand não tem URL por candidato)':'sem candidatura em 2026')}</span></div>
+      <div class="fcard">🗳️ <b>Nº de urna (TSE 2026)</b><br><span class="muted">${fcardTse(p)}</span></div>
     </div>`;
   if(tab==='rec'&&RECSEC){const el=document.getElementById('recsec-'+RECSEC);
     if(el)el.scrollIntoView({block:'start'})}
@@ -626,10 +716,10 @@ function votoBadge(v){const s=(v||'').toLowerCase();if(s==='sim')return '<span c
 function propsHTML(id){const d=DET[id]||{};const p=POL.find(x=>x.id===id);
   if(!d.props)return '<p class="muted">⏳ Carregando projetos da Câmara…</p>';
   if(!d.props.length)return '<p class="muted">Nenhuma proposição autoral encontrada nesta legislatura — confira a lista completa na página oficial.</p>';
-  return `<p class="muted" style="margin-bottom:8px">Últimas ${d.props.length} proposições apresentadas pelo(a) parlamentar (dados abertos da Câmara). Clique para o inteiro teor:</p>`+
+  return `<p class="muted" style="margin-bottom:8px">Últimas ${d.props.length} proposições apresentadas pelo(a) parlamentar (dados abertos da Câmara). Clique para a ficha oficial de tramitação, de onde sai o inteiro teor:</p>`+
   d.props.map(x=>`<div class="quote info"><b style="color:var(--gold)">${esc(x.t)}</b>${x.dt?' <small class="muted">· '+esc(x.dt)+'</small>':''}<br>${esc(x.e)}<br>
-    <a href="https://www.camara.leg.br/proposicoesweb/fichadetalhamento?idProposicao=${x.id}" target="_blank" rel="noopener">📄 Inteiro teor ↗</a></div>`).join('')+
-  `<p class="muted" style="margin-top:10px">Veja todas na <a href="https://www.camara.leg.br/deputados/${p.num}" target="_blank" rel="noopener">página oficial do deputado ↗</a></p>`}
+    <a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${x.id}" target="_blank" rel="noopener">📄 Tramitação oficial ↗</a></div>`).join('')+
+  `<p class="muted" style="margin-top:10px">Veja todas na <a href="https://www.camara.leg.br/deputados/quem-sao/resultado?search=${encodeURIComponent(p.nome)}" target="_blank" rel="noopener">busca oficial da Câmara ↗</a></p>`}
 function votosHTML(id){const d=DET[id]||{},p=POL.find(x=>x.id===id);
   if(!d.votos)return '<p class="muted">⏳ Carregando votações nominais…</p>';
   if(!d.votos.length)return '<p class="muted">'+(d.votosFim?'Nenhuma votação nominal registrada nas últimas votações do Plenário.':'Indisponível agora — consulte a página oficial.')+'</p>';
