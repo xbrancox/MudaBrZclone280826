@@ -161,7 +161,6 @@ a.badge:hover{filter:brightness(1.25)}
     <span style="flex:1"></span>
     <a class="fonte" href="https://divulgacandcontas.tse.jus.br/divulga/" target="_blank" rel="noopener">🏛️ TSE · DivulgaCand</a>
     <a class="fonte pt" href="https://www.portaltransparencia.gov.br/" target="_blank" rel="noopener">💰 Portal da Transparência</a>
-    <a class="fonte cnj" href="https://www.cnj.jus.br/" target="_blank" rel="noopener">⚖️ CNJ</a>
   </div>
 </div></div>
 
@@ -230,10 +229,11 @@ a.badge:hover{filter:brightness(1.25)}
 <script>
 /* ============================================================
    RADAR POLÍTICO — dados públicos oficiais do parlamentar
-   Fontes: Câmara (API dadosabertos via proxy), Senado (dados
-   abertos), + links TSE / Portal da Transparência / CNJ.
-   Nenhum dado inventado: o que não existe aparece "—" com o
-   link oficial para consulta.
+   Fontes: Câmara (API dadosabertos via proxy) e Senado (dados
+   abertos) + índice TSE 2026 local (nº de urna).
+   Nenhum dado inventado: o que não existe aparece "—".
+   Links: âncora só com destino ESPECÍFICO por parlamentar;
+   onde não há (patrimônio TSE, processos CNJ), texto puro.
    ============================================================ */
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const MB=window.MudaBrasil||{},API=MB.API_BASE||'';
@@ -249,20 +249,21 @@ let POL=[],DET={},PINS=[],FTAB={},READY=false,VIS=60;
 let VOT_CACHE={ts:0,list:[]},VOTOS_BY_ID={};
 let REC_STATS={},FICHA_ID=null; /* contadores de reclamações/apoios (backend) e ficha aberta */
 
-/* ---------- CHIPS DE FONTE ---------- */
+/* ---------- CHIPS DE FONTE ----------
+   Regra dos links: toda âncora leva ao destino ESPECÍFICO do parlamentar
+   (ficha oficial, página de despesas, busca nomeada, PLs, redes, e-mail).
+   Onde não existe destino por parlamentar (patrimônio no TSE, processos no
+   CNJ) NÃO há link — a informação vira texto puro, sem âncora genérica. */
 const F_CAMARA=n=>`<a class="fonte" href="https://www.camara.leg.br/deputados/${n}" target="_blank" rel="noopener" title="Ficha oficial na Câmara">Câmara ↗</a>`;
 const F_SENADO=n=>`<a class="fonte" href="https://www25.senado.leg.br/web/senadores/${n}" target="_blank" rel="noopener" title="Página oficial no Senado">Senado ↗</a>`;
-const F_TSE=n=>`<a class="fonte tse" href="https://divulgacandcontas.tse.jus.br/divulga/" target="_blank" rel="noopener" title="Portal oficial DivulgaCand Contas (TSE) — escolha a eleição e busque pelo nome ou nº do candidato">TSE ↗</a>`;
-const F_PT=n=>`<a class="fonte pt" href="https://www.portaltransparencia.gov.br/busca?termo=${encodeURIComponent(n)}" target="_blank" rel="noopener" title="Buscar no Portal da Transparência">Transparência ↗</a>`;
-const F_CNJ=n=>`<a class="fonte cnj" href="https://www.cnj.jus.br/busca-atos-adm?termo=${encodeURIComponent(n)}" target="_blank" rel="noopener" title="Conselho Nacional de Justiça">CNJ ↗</a>`;
-
-/* Selo de processos: nenhum dado aberto publica contagem de processos
-   por parlamentar — o selo vermelho leva à verificação oficial (CNJ).
-   Se um dia o campo lawsuits existir nos dados, o nº aparece em vermelho. */
-function procBadge(p){
-  if(p.lawsuits!=null)return `<span style="color:var(--red);font-weight:800">${p.lawsuits} processo(s) — verificar ↗</span>`;
-  return '<span style="color:var(--red);font-weight:800">verificar ↗</span>';
-}
+const F_PT=n=>`<a class="fonte pt" href="https://www.portaltransparencia.gov.br/busca?termo=${encodeURIComponent(n)}" target="_blank" rel="noopener" title="Busca pelo nome no Portal da Transparência (remuneração e gastos)">Transparência (busca) ↗</a>`;
+/* Despesas: deputado tem página própria na Câmara (cota parlamentar,
+   verba de gabinete, passagens). Senador não tem página por parlamentar
+   no portal → busca nomeada no Portal da Transparência, com o rótulo
+   dizendo exatamente que é busca. */
+const F_DESP=p=>p.fonte==='senado'
+  ?F_PT(p.nome)
+  :`<a class="fonte" href="https://www.camara.leg.br/deputados/${p.num}/despesas" target="_blank" rel="noopener" title="Cota parlamentar e despesas do deputado — página oficial na Câmara">Despesas na Câmara ↗</a>`;
 /* Link "ver PLs no Congresso": abre a área de PLs do Congresso buscando
    direto na API da Câmara as proposições do autor (id do deputado +
    nome de exibição). Na mesma aba se possível; com Ctrl/Cmd+click o
@@ -393,7 +394,7 @@ function renderRad(){
     return `<article class="ccard">
       <button class="pin ${PINS.includes(p.id)?'on':''}" title="Fixar para comparar" onclick="togglePin('${esc(p.id)}')">📌</button>
       <div class="chead">${av(p,'av')}<div><div class="cnome">${esc(p.nome)}</div><div class="cmeta">${esc(p.partido)} · ${esc(p.uf)} · ${esc(p.cargo)}</div></div></div>
-      <div class="ctags"><span class="badge">🏛️ ${esc(p.fonte==='senado'?'Senado Federal':'Câmara dos Deputados')}</span><a class="badge red" href="https://www.cnj.jus.br/busca-atos-adm?termo=${encodeURIComponent(p.nome)}" target="_blank" rel="noopener" title="Processos: nenhum dado aberto publica a contagem — verifique no portal oficial">⚖️ Processos: verificar ↗</a>${tags.join('')}</div>
+      <div class="ctags"><span class="badge">🏛️ ${esc(p.fonte==='senado'?'Senado Federal':'Câmara dos Deputados')}</span>${tags.join('')}</div>
       ${extra}
       <div class="cactions"><button class="btn gold sm" onclick="abrirFicha('${esc(p.id)}')">📄 Dados Públicos</button>
       <button class="btn sm" onclick="abrirForm('${esc(p.id)}','rec')">🔴 Reclamar</button>
@@ -427,10 +428,67 @@ function abrirFicha(id){
 let RECSEC=null;
 function abreRecSec(id,sec){abrirFicha(id);FTAB[id]='rec';RECSEC=sec;renderFicha(id);
   const tok=sec;setTimeout(()=>{if(RECSEC===tok)RECSEC=null},4000)}
-function tabelaHTML(rows){return `<table class="tabela"><tr><th>Indicador</th><th>Valor</th><th>Fonte</th></tr>`+
-  rows.map(r=>`<tr><td class="ind">${r[0]}</td><td class="val">${r[1]}</td><td>${r[2]||''}</td></tr>`).join('')+'</table>'}
+/* Aba 📋 Ficha — estrutura completa dos "Dados públicos" (igual à da home):
+   Pessoal / Mandato / Atuação institucional (comissões, frentes, ocupações,
+   histórico listados) / Presença digital / Atuação em números /
+   Transparência externa / Últimas votações. Política de links: âncora só
+   quando o destino é ESPECÍFICO do parlamentar; sem destino específico,
+   texto puro — nunca link genérico. */
+function fichaHTML(id){
+  const p=POL.find(x=>x.id===id),d=DET[id]||{},det=d.det||{};
+  const pend=done=>done?'—':'<span class="skel">carregando</span>';
+  const val=v=>(v!=null&&v!=='')?esc(v):pend(d.detDone);
+  const row=(l,v)=>`<div class="stat"><small>${l}</small><b style="font-size:13px">${(v==null||v==='')?pend(d.detDone):v}</b></div>`;
+  const grp=(t,inner)=>inner?`<h4 style="color:var(--gold);font-size:12px;margin:14px 0 6px">${t}</h4><div class="fstats" style="grid-template-columns:1fr 1fr">${inner}</div>`:'';
+  const cands=candsDe(p);
+  const candV=cands==null?'<span class="skel">carregando</span>':(cands.length?candChips(p):'—');
+  const plsHref='congresso.html?autor='+encodeURIComponent(p.nome)+(autorIdQ(p)?'&autorId='+autorIdQ(p):'');
+  const nProj=d.props?d.props.length:(p.propsSnap!=null?p.propsSnap:null);
+  const plsV=`<a href="${plsHref}" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')" title="Ver a lista de PLs deste parlamentar na página do Congresso">${nProj!=null?nProj+' nesta legislatura — ':'ver '}PLs no Congresso →</a>`;
+  let votV='<span class="skel">carregando</span>';
+  if(d.votos)votV=d.votos.length?`${d.votos.length} nominais — detalhes na aba 🗳️`:(d.votosFim?'0 nominais nas recentes — aba 🗳️':'<span class="skel">carregando</span>');
+  const redes=det.redes&&det.redes.length
+    ?det.redes.map(r=>`<a href="${esc(r)}" target="_blank" rel="noopener">${esc(r.replace(/^https?:\/\/(www\.)?/,'').slice(0,32))}</a>`).join(' · ')
+    :(d.detDone?'não informadas pela fonte oficial':'<span class="skel">carregando</span>');
+  /* listas compactas — a lista integral fica na aba 🏛️ Atividade */
+  const maisAba=(n,aba)=>`<p class="muted" style="margin:4px 0 0">+ ${n} — lista completa na aba ${aba}</p>`;
+  const org=(d.orgaos||[]).slice(0,6).map(o=>`<div class="quote info" style="margin-top:4px"><b>${esc(o.n)}</b>${o.c?' — <b style="color:var(--gold)">'+esc(o.c)+'</b>':''}${o.t?' <small class="muted">desde '+esc(o.t)+'</small>':''}</div>`).join('');
+  const fre=(d.frentes||[]).slice(0,4).map(f=>`<div class="quote ok" style="margin-top:4px">🤝 ${esc(f)}</div>`).join('');
+  const oc=(d.ocup||[]).slice(0,3).map(o=>`<div class="quote info" style="margin-top:4px">💼 ${esc(o)}</div>`).join('');
+  const hi=(d.hist||[]).slice(0,3).map(x=>`<div class="quote info" style="margin-top:4px">${x.d?'<small class="muted">'+esc(x.d)+'</small> — ':''}${esc(x.t)}</div>`).join('');
+  const atua=d.semAtiv
+    ?`<h4 style="color:var(--gold);font-size:12px;margin:14px 0 6px">🧩 Atuação institucional</h4><p class="muted" style="margin:2px 0">A API aberta do Senado não publica listas de comissões, frentes ou ocupações por senador — consulte a página oficial do senador.</p>`
+    :((d.orgaos==null)?'':
+    `<h4 style="color:var(--gold);font-size:12px;margin:14px 0 6px">🧩 Atuação institucional</h4>`
+    +(d.orgaos.length?'<b class="muted" style="font-size:11px">🏛️ Órgãos e comissões</b>'+org+((d.orgaos.length>6)?maisAba(d.orgaos.length-6,'🏛️ Atividade'):''):'<p class="muted" style="margin:2px 0">Nenhum registro de órgão/comissão.</p>')
+    +((d.frentes&&d.frentes.length)?'<b class="muted" style="font-size:11px">🤝 Frentes parlamentares</b>'+fre+((d.frentes.length>4)?maisAba(d.frentes.length-4,'🏛️ Atividade'):''):'')
+    +((d.ocup&&d.ocup.length)?'<b class="muted" style="font-size:11px">💼 Ocupações declaradas</b>'+oc+((d.ocup.length>3)?maisAba(d.ocup.length-3,'🏛️ Atividade'):''):'')
+    +((d.hist&&d.hist.length)?'<b class="muted" style="font-size:11px">🕐 Histórico recente do mandato</b>'+hi+((d.hist.length>3)?maisAba(d.hist.length-3,'🏛️ Atividade'):''):''));
+  return grp('👤 Pessoal',row('Nome civil',val(det.nomeCivil))
+      +row('Nascimento',det.nasc?esc(det.nasc)+(det.idade?' ('+det.idade+' anos)':''):pend(d.detDone))
+      +row('Naturalidade',val(det.munic))+row('Escolaridade',val(det.escolaridade)))
+    +grp('🏛️ Mandato',row('Partido/UF',esc(p.partido)+' · '+esc(p.uf))
+      +row('Cargo',esc(p.cargo))
+      +row('Nº eleitoral (TSE 2026)',candV)
+      +row('Legislatura',p.leg?esc(p.leg)+'ª':pend(true))
+      +row('Situação',det.situacao?esc(det.situacao+(det.condicao?' · '+det.condicao:'')):pend(d.detDone))
+      +row('Gabinete',val(det.gabinete))
+      +row('Contato do gabinete',val(det.contato))
+      +row('E-mail institucional',p.email?`<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>`:pend(true)))
+    +atua
+    +grp('🌐 Presença digital',row('Redes sociais',redes))
+    +grp('📊 Atuação em números',row('Projetos apresentados',plsV)
+      +row('Votações nominais',votV)
+      +row('Comissões/Órgãos',d.semAtiv?'—':(d.orgaos?String(d.orgaos.length):'…'))
+      +row('Frentes',d.semAtiv?'—':(d.frentes?String(d.frentes.length):'…'))
+      +row('Despesas e cotas',F_DESP(p)))
+    +grp('⚖️ Transparência externa',row('Patrimônio declarado','sem dado aberto por parlamentar (TSE)')
+      +row('Processos e condenações','sem dado aberto por parlamentar (CNJ)'))
+    +`<h4 style="color:var(--gold);font-size:12px;margin:14px 0 6px">🗳️ Últimas votações nominais</h4>${votosHTML(id)}`
+    +`<p class="muted" style="margin-top:10px">ℹ️ Política de links: só existe âncora quando o destino é específico do parlamentar (ficha oficial, despesas, PLs, redes, e-mail). Onde não há dado aberto por parlamentar — patrimônio (TSE) e processos (CNJ) — não há link: texto puro, sem âncora genérica. Nada aqui é inventado.</p>`;
+}
 function fstatsHTML(id){const p=POL.find(x=>x.id===id),d=DET[id]||{};
-  const st=[['Projetos',d.props?d.props.length:(p.propsSnap!=null?p.propsSnap:'…')],['Votações',d.votos?d.votos.length:'…'],['Idade',d.det.idade||'…'],['Comissões',d.orgaos?d.orgaos.length:'…'],['Frentes',d.frentes?d.frentes.length:'…'],['Escolaridade',(d.det.escolaridade||'…')]];
+  const st=[['Projetos',d.props?d.props.length:(p.propsSnap!=null?p.propsSnap:'…')],['Votações',d.votos?d.votos.length:'…'],['Idade',d.det.idade||'…'],['Comissões',d.semAtiv?'—':(d.orgaos?d.orgaos.length:'…')],['Frentes',d.semAtiv?'—':(d.frentes?d.frentes.length:'…')],['Escolaridade',(d.det.escolaridade||'…')]];
   if(d.stats)st.push(['Reclamações',d.stats.complaints],['Respostas',d.stats.responses],['Apoios',d.stats.supports]);
   else st.push(['Reclamações','…'],['Respostas','…'],['Apoios','…']);
   return st.map(x=>`<div class="stat"><small>${x[0]}</small><b>${x[1]}</b></div>`).join('')}
@@ -439,35 +497,9 @@ function renderFicha(id){
   const p=POL.find(x=>x.id===id),d=DET[id]||{};
   const tab=FTAB[id];
   const eCam=p.fonte==='senado'?F_SENADO(p.num):F_CAMARA(p.num);
-  // ---- tabela base (disponível na hora) ----
-  const cands=candsDe(p);
-  const candTxt=cands==null?'<span class="skel">carregando</span>':(cands.length?candChips(p):'—');
-  const rows=[
-    ['Nome parlamentar',esc(p.nome),eCam],
-    ['Nº do candidato (2026)',candTxt,F_TSE(p.nome)],
-    ['Partido',esc(p.partido),eCam],
-    ['Estado (UF)',esc(p.uf),eCam],
-    ['Cargo',esc(p.cargo),eCam],
-    ['E-mail institucional',p.email?`<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>`:'—',eCam],
-    ['Legislatura',p.leg?esc(p.leg)+'ª':'—',eCam],
-    ['Nome civil',d.det.nomeCivil?esc(d.det.nomeCivil):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
-    ['Nascimento',d.det.nasc?esc(d.det.nasc)+(d.det.idade?' ('+d.det.idade+' anos)':''):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
-    ['Naturalidade',d.det.munic?esc(d.det.munic):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
-    ['Escolaridade',d.det.escolaridade?esc(d.det.escolaridade):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
-    ['Situação do mandato',d.det.situacao?esc(d.det.situacao+(d.det.condicao?' · '+d.det.condicao:'')):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
-    ['Gabinete',d.det.gabinete?esc(d.det.gabinete):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
-    ['Contato do gabinete',d.det.contato?esc(d.det.contato):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
-    ['Redes sociais',d.det.redes&&d.det.redes.length?d.det.redes.map(r=>`<a href="${esc(r)}" target="_blank" rel="noopener">${esc(r.replace(/^https?:\/\/(www\.)?/,'').slice(0,28))}</a>`).join(' · '):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
-    ['Projetos apresentados',d.props&&!String(p.id).startsWith('senado-')?`<a href="congresso.html?autor=${encodeURIComponent(p.nome)}${autorIdQ(p)?'&autorId='+autorIdQ(p):''}" title="Ver os PLs deste parlamentar na área PLs do Congresso" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')">${d.props.length} nesta legislatura → ver PLs no Congresso</a>`:`<a href="congresso.html?autor=${encodeURIComponent(p.nome)}${autorIdQ(p)?'&autorId='+autorIdQ(p):''}" title="Ver as matérias deste parlamentar na área PLs do Congresso" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')">ver PLs no Congresso →</a>`,eCam],
-    ['Como votou (nominais)',d.votos&&d.votos.length?d.votos.length+' votações recentes (aba 🗳️)':(d.votosFim?'0 votações nominais nas recentes (aba 🗳️)':'<span class="skel">carregando</span>'),eCam],
-    ['Patrimônio declarado','consultar',F_TSE(p.nome)],
-    ['Bens e rendas da campanha','consultar',F_TSE(p.nome)],
-    ['Despesas e gastos','consultar',F_PT(p.nome)],
-    ['Processos e condenações',procBadge(p),F_CNJ(p.nome)+' '+F_PT(p.nome)],
-  ];
+  const candsF=candsDe(p);
   let conteudo='';
-  if(tab==='ficha')conteudo=tabelaHTML(rows)+
-    `<p class="muted" style="margin-top:10px">ℹ️ Os dados marcados como "consultar" não são publicados em formato aberto pelas APIs — o link oficial leva direto à consulta. Nada aqui é inventado.</p>`;
+  if(tab==='ficha')conteudo=fichaHTML(id);
   else if(tab==='props')conteudo=propsHTML(id);
   else if(tab==='votos')conteudo=votosHTML(id);
   else if(tab==='atividade')conteudo=atividadeHTML(id);
@@ -476,7 +508,7 @@ function renderFicha(id){
     <div class="fhead">${av(p,'avXL')}
       <div style="flex:1;min-width:200px"><h2 style="font-size:20px">${esc(p.nome)}</h2>
       <div class="cmeta">${esc(p.partido)} · ${esc(p.uf)} · ${esc(p.cargo)}${p.leg?' · '+esc(p.leg)+'ª legislatura':''}</div>
-      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">${p.selo?'<span class="badge ok">✅ Verificado</span>':'<span class="badge">Sem selo</span>'}${p.email?'<span class="badge ok">✉️ Contato oficial</span>':''}${candChips(p)?`<span class="badge tse">🗳️ ${candChips(p)}</span>`:''}<a class="badge red" href="https://www.cnj.jus.br/busca-atos-adm?termo=${encodeURIComponent(p.nome)}" target="_blank" rel="noopener" title="Nenhum dado aberto publica a contagem de processos por parlamentar — confira no portal oficial da Justiça">⚖️ Processos: verificar ↗</a></div></div>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">${p.selo?'<span class="badge ok">✅ Verificado</span>':'<span class="badge">Sem selo</span>'}${p.email?'<span class="badge ok">✉️ Contato oficial</span>':''}${candChips(p)?`<span class="badge tse">🗳️ ${candChips(p)}</span>`:''}</div></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn sm" onclick="souPolitico('${esc(id)}')"><i class="fa-solid fa-fingerprint"></i> É você? Verificar</button>
         <button class="btn red sm" onclick="abrirForm('${esc(id)}','rec')"><i class="fa-solid fa-bullhorn"></i> Reclamar</button>
@@ -490,10 +522,10 @@ function renderFicha(id){
     </div>
     <div>${conteudo}</div>
     <div class="fontes">
-      <div class="fcard">🏛️ <b>TSE — DivulgaCand</b><br><span class="muted">Patrimônio, bens, prestação de contas</span><br>${F_TSE(p.nome)}</div>
-      <div class="fcard">💰 <b>Portal da Transparência</b><br><span class="muted">Remuneração, verbas e despesas</span><br>${F_PT(p.nome)}</div>
-      <div class="fcard">⚖️ <b>CNJ</b><br><span class="muted">Processos judiciais</span><br>${F_CNJ(p.nome)}</div>
-      <div class="fcard">${p.fonte==='senado'?'🏛️':'🏛️'} <b>Página oficial</b><br><span class="muted">Ficha institucional completa</span><br>${eCam}</div>
+      <div class="fcard">🏛️ <b>Página oficial</b><br><span class="muted">Ficha institucional completa — ${p.fonte==='senado'?'Senado':'Câmara'}</span><br>${eCam}</div>
+      <div class="fcard">💰 <b>Despesas e cotas</b><br><span class="muted">${p.fonte==='senado'?'O Senado não publica despesas por senador — busca nomeada no portal oficial':'Cota parlamentar e verba de gabinete — página do deputado na Câmara'}</span><br>${F_DESP(p)}</div>
+      <div class="fcard">📚 <b>Projetos de Lei</b><br><span class="muted">PLs com autoria dele — lista completa na página do Congresso</span><br><a class="fonte" href="congresso.html?autor=${encodeURIComponent(p.nome)}${autorIdQ(p)?'&autorId='+autorIdQ(p):''}" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')">Ver PLs no Congresso →</a></div>
+      <div class="fcard">🗳️ <b>Nº de urna (TSE 2026)</b><br><span class="muted">${candsF==null?'carregando índice TSE…':(candsF.length?'Candidatura: '+esc(candsF.map(e=>(CARGO_TSE[e.c]||'candidato')+' nº '+e.n).join(' · '))+' — sem link direto (DivulgaCand não tem URL por candidato)':'sem candidatura em 2026')}</span></div>
     </div>`;
   if(tab==='rec'&&RECSEC){const el=document.getElementById('recsec-'+RECSEC);
     if(el)el.scrollIntoView({block:'start'})}
@@ -525,6 +557,7 @@ async function preencheDetalhe(id){
       if(par.UrlPaginaParlamentar&&!p.url)p.url=par.UrlPaginaParlamentar;
     }catch(e){d.det.erroSen=true}
     d.detDone=true;
+    d.semAtiv=true; /* API aberta do Senado não publica comissões/frentes/ocupações por senador */
     try{const r=await fetch('https://legis.senado.leg.br/dadosabertos/senador/'+p.num+'/votacoes.json',{headers:{Accept:'application/json'}});
       const j=await r.json();const arr=[].concat((((j.VotacaoParlamentar||{}).Parlamentar||{}).Votacoes||{}).Votacao||[]);
       d.votosHist=arr;

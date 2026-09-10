@@ -267,7 +267,7 @@ footer{background:#08142e;border-top:1px solid var(--line);padding:44px 0 20px;m
 </div>
 <div id="radList"></div>
 <div class="doss" style="margin-top:20px">
-<div class="blk"><b>🔎 Fontes oficiais (dados públicos)</b><div class="muted">Comparecimento, patrimônio, processos e condenações nos órgãos abaixo.</div></div>
+<div class="blk"><b>🔎 Fontes oficiais (dados públicos)</b><div class="muted">Portais de onde vêm os dados desta página. Onde não existe dado aberto por parlamentar (patrimônio no TSE, processos no CNJ) não colocamos link — a ficha diz isso em texto.</div></div>
 <div class="blk"><b>🗳️ TSE</b> <a href="https://divulgacandcontas.tse.jus.br/divulga/app/" target="_blank">tse.jus.br</a></div>
 <div class="blk"><b>💰 Portal da Transparência</b> <a href="https://www.portaltransparencia.gov.br/" target="_blank">portaltransparencia.gov.br</a></div>
 <div class="blk"><b>🏛️ Câmara / Senado</b> <a href="https://www.camara.leg.br/deputados/" target="_blank">camara.leg.br</a> · <a href="https://www25.senado.leg.br/web/conselhos" target="_blank">senado.leg.br</a></div>
@@ -540,7 +540,7 @@ if(p.cargo==='Deputado Federal'){
   det.hist=(ex[3].dados||[]).map(x2=>({d:x2.dataHora?fmtData(x2.dataHora):'',t:x2.descricaoStatus||x2.situacao||x2.texto||''})).filter(x2=>x2.t).slice(0,6);
  }catch(e){det.orgaos=det.frentes=[];det.ocup=det.hist=[];}
  try{const r=await fetch(CA+'proposicoes?idDeputadoAutor='+p.num+'&itens=8&ordem=DESC&ordenarPor=id');const j=await r.json();det.props=(j.dados||[]).map(x=>({t:(x.siglaTipo||'')+' '+(x.numero||'')+'/'+(x.ano||''),e:(x.ementa||x.titulo||'').slice(0,110)}));}catch(e){}
- DET[i]=det;const rl0=document.getElementById('real-'+i);if(rl0)rl0.innerHTML=realHTML(i);
+ DET[i]=det;renderVotosBloco(i);
  try{/* votações nominais: últimas votações do Plenário + voto do deputado em cada uma (cache compartilhado entre fichas) */
   const now=Date.now();if(now-VOT_CACHE.ts>600000){const vr=await fetch(CA+'votacoes?itens=150&ordem=DESC&ordenarPor=dataHoraRegistro');VOT_CACHE.list=((await vr.json()).dados||[]).filter(v=>v.siglaOrgao==='PLEN');VOT_CACHE.ts=now;}
   let probed=0;
@@ -550,8 +550,8 @@ if(p.cargo==='Deputado Federal'){
    const mine=arr.find(y=>y.deputado_&&String(y.deputado_.id)===String(p.num));
    if(mine){const pr=v.proposicaoObjeto;const dt=v.data||v.dataHoraRegistro||'';const dfmt=dt?fmtData(String(dt).slice(0,10)):'';
     det.votos.push({t:pr&&pr.siglaTipo?((pr.siglaTipo||'')+' '+(pr.numero||'')+'/'+(pr.ano||'')):'Votação PLEN',e:(v.descricao||'').slice(0,110),v:mine.tipoVoto||'',d:dfmt,vid:v.id,desc:v.descricao||''});
-    const rl2=document.getElementById('real-'+i);if(rl2)rl2.innerHTML=realHTML(i);}}
-  det.votosFim=true;const rl3=document.getElementById('real-'+i);if(rl3)rl3.innerHTML=realHTML(i);
+    renderVotosBloco(i);}}
+  det.votosFim=true;renderVotosBloco(i);
  }catch(e){det.votosFim=true;}
 }else if(/^Senador/.test(p.cargo)){
  try{const r=await fetch('https://legis.senado.leg.br/dadosabertos/senador/'+p.num+'/votacoes.json',{headers:{Accept:'application/json'}});const j=await r.json();
@@ -559,10 +559,10 @@ if(p.cargo==='Deputado Federal'){
   det.votosHist=arr;det.votos=arr.slice(0,8).map(v=>{const s=v.SessaoPlenaria||{};const m=v.Materia||{};
    const t=m.DescricaoIdentificacao||((m.Sigla||'')+' '+(m.Numero||'')+'/'+(m.Ano||''))||((v.DescricaoVotacao||'').slice(0,60))||'Votação SF';
    return {t:t,e:((v.DescricaoVotacao||'')||(m.Ementa||'')).slice(0,110),v:v.SiglaDescricaoVoto||'',d:s.DataSessao?fmtData(s.DataSessao):''};});
-  det.votosFim=true;const rl4=document.getElementById('real-'+i);if(rl4)rl4.innerHTML=realHTML(i);
+  det.votosFim=true;renderVotosBloco(i);
  }catch(e){det.votosFim=true;}
 }
-DET[i]=det;const rl=document.getElementById('real-'+i);if(rl)rl.innerHTML=realHTML(i);const fsEl=document.getElementById('fstats-'+i);if(fsEl)fsEl.innerHTML=fstatsHTML(det,p)}
+DET[i]=det;renderVotosBloco(i);const fsEl=document.getElementById('fstats-'+i);if(fsEl)fsEl.innerHTML=fstatsHTML(det,p)}
 function realHTML(i){const p=POL[i];const d=DET[i]||{props:[],votos:[]};
 let h=`<a href="pages/congresso.html?dep=${encodeURIComponent(p.nome)}" style="text-decoration:none;display:inline-block;padding:6px 10px;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.3);border-radius:8px;margin:4px 0" data-tip="Abre a página do Congresso já filtrada nas PLs deste(a) parlamentar"><h4 style="color:var(--gold);font-size:13px;cursor:pointer;margin:0">📚 Projetos de Leis (PLs) apresentados (${d.props.length?d.props.length:'…'}) →</h4></a>`;
 h+=`<p class="muted" style="margin-top:6px">Clique pra ver as PLs e como os partidos votaram. <b>A lista completa fica na página do Congresso.</b></p>`;
@@ -645,8 +645,8 @@ function fichaHTML(p,i){const d=DET[i];
   <div id="real-${i}" style="margin-top:10px"></div>
   <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap"><button class="btn red sm" onclick="abrirForm(${i},'rec')"><i class="fa-solid fa-bullhorn"></i> Fazer reclamação</button><button class="btn green sm" onclick="abrirForm(${i},'apo')"><i class="fa-solid fa-thumbs-up"></i> Dar apoio</button><button class="btn sm" onclick="abrirDados(${i})"><i class="fa-solid fa-magnifying-glass-chart"></i> Dados públicos</button><button class="btn sm" onclick="souPolitico(${i})"><i class="fa-solid fa-fingerprint"></i> É você? Verificar</button></div>
   </div>`}
-function abrirDados(i){const p=POL[i];const d=DET[i]||{};
-const rows=[['Nome civil',d.nomeCivil],['Nascimento',d.nasc],['Idade',d.idade],['Município/UF nasc.',d.munic],['Escolaridade',d.escolaridade],['Partido/UF',p.partido+' · '+p.uf],['Cargo',p.cargo],['Nº eleitoral',p.num],['Legislatura',d.legislatura],['Gabinete',d.gabinete],['Contato gabinete',d.contato],['Projetos apresentados',(d.props||[]).length],['Últimas votações',(d.votosHist||d.votos||[]).length],['Patrimônio declarado','ver TSE (fim da pág.)'],['Processos/condenações','ver CNJ (fim da pág.)']];
+let DADOS_I=null;
+function abrirDados(i){const p=POL[i];const d=DET[i]||{};DADOS_I=i;
 $('#dadosBody').innerHTML=(function(){const esc=v=>(v!=null&&v!=='')?v:null;const row=(l,v)=>esc(v)?`<div class="stat"><small>${l}</small><b style="font-size:13px">${v}</b></div>`:'';
   const grp=(t,rowsHtml)=>rowsHtml?`<h4 style="color:var(--gold);font-size:12px;margin:14px 0 4px">${t}</h4><div class="stats" style="grid-template-columns:1fr 1fr">${rowsHtml}</div>`:'';
   const org=(d.orgaos||[]).map(o=>`<div class="quote info" style="margin-top:4px"><b>${o.n}</b>${o.c?' — <b style="color:var(--gold)">'+o.c+'</b>':''}${o.t?' <small class="muted">desde '+o.t+'</small>':''}</div>`).join('');
@@ -660,12 +660,16 @@ $('#dadosBody').innerHTML=(function(){const esc=v=>(v!=null&&v!=='')?v:null;cons
   ${grp('🏛️ Mandato',row('Partido/UF',p.partido+' · '+p.uf)+row('Cargo',p.cargo)+row('Nº eleitoral',p.num)+row('Legislatura',d.legislatura?d.legislatura+'ª':null)+row('Situação',d.situacao)+row('Gabinete',d.gabinete)+row('Contato',d.contato)+row('Descrição do status',d.descStatus))}
   ${(org||fre||hi)?grp('🧩 Atuação institucional',(org?`<div class="stat"><small>Comissões/Órgãos</small></div>${org}`:'')+(fre?`<div class="stat"><small>Frentes parlamentares (${d.frentes.length})</small></div>${fre}`:'')+(hi?`<div class="stat"><small>Histórico recente</small></div>${hi}`:'')):''}
   ${grp('🌐 Presença digital',redes?`<div class="stat"><small>Redes sociais (Câmara)</small><b style="font-size:13px">${redes}</b></div>`:row('Redes sociais','não informadas à Câmara'))}
-  ${grp('📊 Atuação em números',row('Projetos apresentados',(d.props||[]).length)+row('Votações registradas',(d.votosHist||d.votos||[]).length)+row('Despesas de cota','consultar portal da Câmara'))}
-  ${grp('⚖️ Transparência externa',row('Patrimônio declarado','ver TSE (fim da pág.)')+row('Processos/condenações','ver CNJ (fim da pág.)'))}
+  ${grp('📊 Atuação em números',row('Projetos apresentados',(d.props||[]).length)+row('Votações registradas',(d.votosHist||d.votos||[]).length)+(p.cargo==='Deputado Federal'?row('Despesas de cota',`<a href="https://www.camara.leg.br/deputados/${p.num}/despesas" target="_blank" style="color:var(--blueL)">ver despesas na Câmara ↗</a>`):row('Despesas de cota',`<a href="https://www.portaltransparencia.gov.br/busca?termo=${encodeURIComponent(p.nome)}" target="_blank" style="color:var(--blueL)">buscar no Portal da Transparência ↗</a>`)))}
+  ${grp('⚖️ Transparência externa',row('Patrimônio declarado','sem link direto — DivulgaCand (TSE) não tem URL por candidato')+row('Processos/condenações','sem dado aberto por parlamentar (CNJ)'))}
   <h4 style="color:var(--blueL);font-size:12px;margin:12px 0 4px">🗳️ Últimas votações nominais</h4>
   ${votosHTML(d,p,i)}
-  <p class="muted" style="margin-top:10px">Fontes oficiais no final da página do Radar.</p>`})();
-document.getElementById('mDados').classList.add('open');setupVotosObserver(i)}
+  <p class="muted" style="margin-top:10px">${DET[i]?'':'⏳ Complementando com a fonte oficial (Câmara/Senado)…<br>'}Fontes oficiais no final da página do Radar.</p>`})();
+document.getElementById('mDados').classList.add('open');setupVotosObserver(i);
+/* "Dados públicos" aberto direto do card: os detalhes (Pessoal, Atuação
+   institucional, votações) vêm da fonte oficial — dispara a busca e
+   re-renderiza quando chegarem, se o modal seguir aberto neste político. */
+if(!DET[i])preencheDetalhe(i).then(()=>{if(DADOS_I===i){const md=document.getElementById('mDados');if(md&&md.classList.contains('open'))abrirDados(i)}})}
 function renderRad(){if(!ready)return;const q=($('#cbusca').value||'').toLowerCase();const uf=$('#fUF').value;const pt=$('#fPartido').value;const cg=$('#fCargo').value;const ord=$('#fOrdem').value;
 	const temFiltro=q||uf||pt||cg;
 	if(!temFiltro){$('#cCount').textContent='';$('#radList').innerHTML=`<div class="card" style="grid-column:1/-1;text-align:center;padding:40px"><i class="fa-solid fa-magnifying-glass" style="font-size:30px;color:var(--gold)"></i><h3 style="margin:12px 0 6px">Pesquise um político</h3><p class="muted">Digite nome, número, estado, partido ou área pra abrir a ficha completa com dados reais.</p></div>`;return}
