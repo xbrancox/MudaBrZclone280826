@@ -355,5 +355,18 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
 </div>
 
 <script src="/app/app.js"></script>
+<script>
+/* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
+setTimeout(function () {
+  if (!window.__appReady) {
+    var b = document.querySelector('#bootFail');
+    if (b) b.hidden = false;
+  }
+}, 2500);
+</script>
+<div id="bootFail" hidden style="position:fixed;left:12px;right:12px;bottom:16px;z-index:999;background:#2b1420;border:1px solid rgba(231,76,60,.6);color:#ffb4ab;padding:12px;border-radius:12px;font-size:13px;font-weight:600;text-align:center">
+  O app não terminou de carregar neste navegador.<br>
+  <a href="javascript:location.reload()" style="color:#ffd700">Recarregar</a> · se persistir, abra no Chrome ou Safari.
+</div>
 </body>
 </html>

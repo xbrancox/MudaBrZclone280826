@@ -29,12 +29,22 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const hora = ts => new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
+/* armazenamento à prova de bloqueio: navegadores embutidos (Instagram,
+   WhatsApp, Facebook) podem lançar erro ao tocar localStorage — se isso
+   acontecesse no boot, o app inteiro morria e o botão ENTRAR ficava morto */
+const memStore = {};
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (_) { return (k in memStore) ? memStore[k] : null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (_) { memStore[k] = v; } },
+  del(k) { try { localStorage.removeItem(k); } catch (_) { delete memStore[k]; } }
+};
+
 const state = {
-  token: localStorage.getItem('mb_app_token') || '',
-  name: localStorage.getItem('mb_app_name') || '',
+  token: store.get('mb_app_token') || '',
+  name: store.get('mb_app_name') || '',
   myVotes: {},                 // cargo → { politicianId, candidato }
   cargo: 'presidente',
-  uf: localStorage.getItem('mb_app_uf') || '',
+  uf: store.get('mb_app_uf') || '',
   page: 1,
   totalPages: 1,
   apuTimer: null
@@ -148,8 +158,8 @@ async function login() {
   if (!r.ok) { mostrarErroEntrar(r.error || 'Não foi possível entrar'); toast(r.error || 'Não foi possível entrar', 'err'); return; }
   state.token = r.sessionToken;
   state.name = r.voter.name;
-  localStorage.setItem('mb_app_token', state.token);
-  localStorage.setItem('mb_app_name', state.name);
+  store.set('mb_app_token', state.token);
+  store.set('mb_app_name', state.name);
   $('#whoName').textContent = state.name;
   limparErroEntrar();
   $('#apelido').blur(); /* fecha o teclado ao entrar */
@@ -209,7 +219,7 @@ function renderUfArea() {
   const sel = $('#selUf');
   sel.addEventListener('change', () => {
     state.uf = sel.value;
-    localStorage.setItem('mb_app_uf', state.uf);
+    store.set('mb_app_uf', state.uf);
     listState.pagina = 1;
     renderVotar();
   });
@@ -396,17 +406,17 @@ async function refreshApuracao() {
   const r = await api('/api/apuracao');
   if (r.ok) {
     const payload = Object.assign({}, r, { __ts: Date.now() });
-    try { localStorage.setItem('mb_apuracao', JSON.stringify(payload)); } catch (_) { }
+    store.set('mb_apuracao', JSON.stringify(payload));
     renderApuracao(payload, false);
   } else {
-    const cache = localStorage.getItem('mb_apuracao');
+    const cache = store.get('mb_apuracao');
     if (cache) { try { renderApuracao(JSON.parse(cache), true); return; } catch (_) { } }
     $('#apuLista').innerHTML = `<div class="vazio"><div class="ico">📡</div>Sem conexão e ainda sem apuração salva.<br><span style="font-size:12px">Puxe para atualizar quando voltar.</span></div>`;
     $('#apuTs').textContent = '';
   }
 }
 $('#btnShare').addEventListener('click', async () => {
-  const cache = localStorage.getItem('mb_apuracao');
+  const cache = store.get('mb_apuracao');
   if (!cache) { toast('Apuração ainda não carregada', 'err'); return; }
   try {
     const d = JSON.parse(cache);
@@ -561,8 +571,8 @@ $('#btnSite').addEventListener('click', () => window.open(SITE_URL + '/', '_blan
 $('#btnSair').addEventListener('click', () => logout(false));
 async function logout(silencioso) {
   try { api('/api/auth/logout', { method: 'POST' }); } catch (_) { }
-  localStorage.removeItem('mb_app_token');
-  localStorage.removeItem('mb_app_name');
+  store.del('mb_app_token');
+  store.del('mb_app_name');
   state.token = ''; state.name = ''; state.myVotes = {};
   $('#whoName').textContent = '';
   location.hash = '';
@@ -611,3 +621,4 @@ if (state.token) {
 } else {
   showEntrar(true);
 }
+window.__appReady = true; /* rede de segurança no index.html confere esta flag */
