@@ -58,7 +58,7 @@ function toast(msg, tipo) {
   t.textContent = msg;
   t.className = 'on' + (tipo ? ' ' + tipo : '');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.className = ''; }, 2400);
+  toastTimer = setTimeout(() => { t.className = ''; }, tipo === 'err' ? 3400 : 2400);
 }
 function vibrate(pat) { try { if (navigator.vibrate) navigator.vibrate(pat); } catch (_) { } }
 
@@ -115,14 +115,29 @@ function showEntrar(mostrar) {
   $('#nav').style.display = mostrar ? 'none' : 'flex';
   $('#appbar').style.visibility = mostrar ? 'hidden' : 'visible';
   if (mostrar) {
+    limparErroEntrar();
     setTimeout(() => $('#apelido').focus(), 150);
   }
+}
+
+function limparErroEntrar() {
+  $('#entrarErro').hidden = true;
+  $('#apelido').classList.remove('input-err');
+}
+function mostrarErroEntrar(msg) {
+  const inp = $('#apelido'), p = $('#entrarErro');
+  p.textContent = msg; p.hidden = false;
+  inp.classList.remove('input-err');
+  void inp.offsetWidth; /* reinicia a animação de tremor */
+  inp.classList.add('input-err');
+  inp.focus();
 }
 
 /* ===== entrar ===== */
 async function login() {
   const apelido = $('#apelido').value.trim().replace(/\s+/g, ' ');
   if (apelido.length < 2 || apelido.length > 20) {
+    mostrarErroEntrar('Apelido deve ter entre 2 e 20 letras');
     toast('Apelido deve ter entre 2 e 20 caracteres', 'err');
     return;
   }
@@ -130,12 +145,14 @@ async function login() {
   btn.disabled = true; btn.textContent = 'ENTRANDO…';
   const r = await api('/api/auth/apelido', { method: 'POST', body: JSON.stringify({ apelido }) });
   btn.disabled = false; btn.textContent = 'ENTRAR';
-  if (!r.ok) { toast(r.error || 'Não foi possível entrar', 'err'); return; }
+  if (!r.ok) { mostrarErroEntrar(r.error || 'Não foi possível entrar'); toast(r.error || 'Não foi possível entrar', 'err'); return; }
   state.token = r.sessionToken;
   state.name = r.voter.name;
   localStorage.setItem('mb_app_token', state.token);
   localStorage.setItem('mb_app_name', state.name);
   $('#whoName').textContent = state.name;
+  limparErroEntrar();
+  $('#apelido').blur(); /* fecha o teclado ao entrar */
   toast('Bem-vindo, ' + state.name + '!', 'ok');
   vibrate(40);
   if (!location.hash || location.hash === '#entrar') location.hash = '#votar';
@@ -144,6 +161,7 @@ async function login() {
 }
 $('#btnEntrar').addEventListener('click', login);
 $('#apelido').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+$('#apelido').addEventListener('input', limparErroEntrar);
 
 /* ===== meus votos ===== */
 async function loadMeusVotos() {
