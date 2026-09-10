@@ -125,6 +125,7 @@ function showEntrar(mostrar) {
   $('#nav').style.display = mostrar ? 'none' : 'flex';
   $('#appbar').style.visibility = mostrar ? 'hidden' : 'visible';
   if (mostrar) {
+    TELAS.forEach(t => $('#s-' + t).classList.remove('active')); /* nada ativo por trás do ENTRAR */
     limparErroEntrar();
     setTimeout(() => $('#apelido').focus(), 150);
   }

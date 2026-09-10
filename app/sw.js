@@ -6,7 +6,7 @@
    apuração com "última atualização HH:MM" quando offline.
    Bump de versão: mude CACHE e o shell é re-baixado no activate.
    ============================================================ */
-const CACHE = 'mb-app-shell-v2';
+const CACHE = 'mb-app-shell-v3';
 const SHELL = [
   './',
   './index.html',
