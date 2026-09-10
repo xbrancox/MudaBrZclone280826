@@ -5,6 +5,9 @@
 # Urnas de voto (ANONIMATO GARANTIDO)
 server/data/votos.db
 server/data/votos.json
+data/votos.db
+data/votos.json
+*.db
 
 # Sal criptográfico (não deve ser versionado)
 server/data/.salt

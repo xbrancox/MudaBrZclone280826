@@ -87,7 +87,8 @@ const JSON_FILES = {
   voters: path.join(DATA_DIR, 'voters.json'),
   pls: path.join(DATA_DIR, 'pls.json'),
   pl_votes: path.join(DATA_DIR, 'pl_votes.json'),
-  vote_codes: path.join(DATA_DIR, 'vote_codes.json')
+  vote_codes: path.join(DATA_DIR, 'vote_codes.json'),
+  cargo_votes: path.join(DATA_DIR, 'cargo_votes.json')
 };
 
 function jsonReadFile(key) {
@@ -239,6 +240,17 @@ function openSqlite() {
       used            INTEGER NOT NULL DEFAULT 0,
       created_at      INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS cargo_votes (
+      id              TEXT PRIMARY KEY,
+      cargo           TEXT NOT NULL,
+      politician_id   TEXT NOT NULL,
+      voter_hash      TEXT NOT NULL,
+      created_at      INTEGER NOT NULL,
+      UNIQUE(voter_hash, cargo)
+    );
+    CREATE INDEX IF NOT EXISTS idx_cargo_votes_cargo ON cargo_votes(cargo, politician_id);
+    CREATE INDEX IF NOT EXISTS idx_cargo_votes_voter ON cargo_votes(voter_hash);
   `);
 }
 
@@ -909,6 +921,58 @@ function markCodeUsed(code) {
   }
 }
 
+/* ===== Voto por CARGO (app PWA) — 1 voto por cargo, duplicado bloqueado =====
+   UNIQUE(voter_hash, cargo): o mesmo hash nunca registra dois votos no
+   mesmo cargo. Sem revogação aqui (existe só no site completo, por código). */
+function castCargoVote(cargo, politicianId, voterHash) {
+  const now = Date.now();
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    const existing = db.prepare('SELECT id, politician_id, created_at FROM cargo_votes WHERE voter_hash = ? AND cargo = ?').get(voterHash, cargo);
+    if (existing) {
+      return { ok: false, duplicate: true, previous: { politicianId: existing.politician_id, createdAt: existing.created_at } };
+    }
+    const id = 'cv-' + crypto.randomBytes(8).toString('hex');
+    db.prepare('INSERT INTO cargo_votes (id, cargo, politician_id, voter_hash, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(id, cargo, politicianId, voterHash, now);
+    return { ok: true, cargo, politicianId, createdAt: now };
+  }
+  const all = jsonReadFile('cargo_votes') || {};
+  const prev = Object.values(all).find(v => v.voterHash === voterHash && v.cargo === cargo);
+  if (prev) return { ok: false, duplicate: true, previous: { politicianId: prev.politicianId, createdAt: prev.createdAt } };
+  const id = 'cv-' + crypto.randomBytes(8).toString('hex');
+  all[id] = { id, cargo, politicianId, voterHash, createdAt: now };
+  jsonWriteFile('cargo_votes', all);
+  return { ok: true, cargo, politicianId, createdAt: now };
+}
+
+function getCargoVotesForVoter(voterHash) {
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    return db.prepare('SELECT cargo, politician_id, created_at FROM cargo_votes WHERE voter_hash = ? ORDER BY created_at').all(voterHash)
+      .map(r => ({ cargo: r.cargo, politicianId: r.politician_id, createdAt: r.created_at }));
+  }
+  return Object.values(jsonReadFile('cargo_votes') || {})
+    .filter(v => v.voterHash === voterHash)
+    .sort((a, b) => a.createdAt - b.createdAt)
+    .map(v => ({ cargo: v.cargo, politicianId: v.politicianId, createdAt: v.createdAt }));
+}
+
+function cargoVotesAgg() {
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    return db.prepare('SELECT cargo, politician_id, COUNT(*) AS votos FROM cargo_votes GROUP BY cargo, politician_id').all()
+      .map(r => ({ cargo: r.cargo, politicianId: r.politician_id, votos: Number(r.votos) || 0 }));
+  }
+  const out = {};
+  for (const v of Object.values(jsonReadFile('cargo_votes') || {})) {
+    const k = v.cargo + '|' + v.politicianId;
+    out[k] = out[k] || { cargo: v.cargo, politicianId: v.politicianId, votos: 0 };
+    out[k].votos++;
+  }
+  return Object.values(out);
+}
+
 function getRevokedStats() {
   if (BACKEND === 'sqlite') {
     openSqlite();
@@ -991,7 +1055,7 @@ function plVotesAgg() {
 
 /* ===== Backup: dump completo de todas as tabelas ===== */
 const DUMP_TABLES = ['ballots', 'politicians', 'verifications', 'complaints',
-  'supports', 'responses', 'voters', 'pls', 'pl_votes', 'vote_codes'];
+  'supports', 'responses', 'voters', 'pls', 'pl_votes', 'vote_codes', 'cargo_votes'];
 function dumpAll() {
   const out = {};
   if (BACKEND === 'sqlite') {
@@ -1017,6 +1081,7 @@ module.exports = {
   hashVoter, upsertVoter, getVoterById, getVoterByGoogleId, getVoterByPhone, getVoterByHash, getVoterByEmail,
   upsertPl, getPl, readAllPls, getPlsByFilters, castPlVote, getPlVoteForVoter,
   castVotoPl, plVotesAgg,
+  castCargoVote, getCargoVotesForVoter, cargoVotesAgg,
   generateVoteCode, getVoteCodesForVoter, verifyVoteCode, markCodeUsed,
   getRevokedStats, dumpAll,
   VOTOS_DB, VOTOS_FILE

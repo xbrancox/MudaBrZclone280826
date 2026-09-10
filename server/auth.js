@@ -167,6 +167,35 @@ async function register(email, name, phone) {
   return { ok: true, voter: { id: voter.id, method: voter.method, name: voter.name, email: voter.email, phone: voter.phone, voterHash: voter.voterHash }, sessionToken: sessionToken };
 }
 
+/* Login por apelido (modo testes do app PWA): sem senha, 2-20 caracteres.
+   O voterHash deriva do apelido normalizado — o mesmo apelido volta a ser
+   o MESMO eleitor (votos por cargo persistem e duplicados são bloqueados). */
+function loginWithNickname(apelido) {
+  const nome = String(apelido || '').trim().replace(/\s+/g, ' ');
+  if (nome.length < 2 || nome.length > 20) {
+    throw new Error('Apelido deve ter entre 2 e 20 caracteres');
+  }
+  const voterHash = db.hashVoter('apelido', nome.toLowerCase());
+  let voter = db.getVoterByHash(voterHash);
+  if (!voter) {
+    const id = 'voter-' + crypto.randomBytes(8).toString('hex');
+    voter = {
+      id: id, method: 'apelido', googleId: null, phone: null, email: null,
+      name: nome, photo: null, voterHash: voterHash,
+      verifiedAt: Date.now(), createdAt: Date.now()
+    };
+    db.upsertVoter(voter);
+  } else {
+    db.upsertVoter(voter);
+  }
+  const sessionToken = generateSessionToken(voter);
+  return {
+    ok: true,
+    voter: { id: voter.id, method: voter.method, name: voter.name, voterHash: voter.voterHash },
+    sessionToken: sessionToken
+  };
+}
+
 function generateSessionToken(voter) {
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
@@ -188,7 +217,7 @@ module.exports = {
   verifyGoogleToken, loginWithGoogle,
   sendOtp, verifyOtp,
   sendEmailOtp, verifyEmailOtp,
-  register,
+  register, loginWithNickname,
   generateSessionToken, getVoterFromToken, logout,
   AUTH_MODE
 };

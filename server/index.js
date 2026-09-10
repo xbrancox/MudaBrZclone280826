@@ -175,6 +175,108 @@ function resolvePoliticianId(id) {
   return raw;
 }
 
+/* ===== APP PWA — candidatos do snapshot TSE (voto por cargo) =====
+   Id estável do candidato: 'tse-' + sq (sequencial do TSE, presente em
+   100% do snapshot). Índice em memória para validar voto e nomear apuração. */
+const CARGO_APP = {
+  presidente: { nome: 'Presidente', tse: [1] },
+  governador: { nome: 'Governador', tse: [3] },
+  senador: { nome: 'Senador', tse: [5] },
+  'dep-federal': { nome: 'Deputado Federal', tse: [6] },
+  'dep-estadual': { nome: 'Deputado Estadual', tse: [7, 8] }
+};
+const TSE_CARGO_TO_APP = {};
+Object.entries(CARGO_APP).forEach(([app, cfg]) => cfg.tse.forEach(c => { TSE_CARGO_TO_APP[c] = app; }));
+
+let tseIndexCache = null;
+function getTseIndex() {
+  if (tseIndexCache) return tseIndexCache;
+  const map = new Map();
+  try {
+    (tse.getCandidatos().candidatos || []).forEach(c => {
+      if (!c.sq) return;
+      map.set('tse-' + c.sq, {
+        id: 'tse-' + c.sq,
+        nome: c.nomeUrna || c.nomeCivil || 'Candidato',
+        partido: c.partido || '',
+        uf: c.uf || '',
+        numero: String(c.numero || ''),
+        cargo: c.cargo,
+        cargoApp: TSE_CARGO_TO_APP[c.cargo] || null,
+        foto: c.foto || null
+      });
+    });
+  } catch (_) { }
+  tseIndexCache = map;
+  return map;
+}
+
+/* Rate-limit simples em memória para o voto por cargo (padrão votes.js) */
+const CARGO_LIMIT = { max: 30, windowMs: 60 * 1000 };
+const cargoBuckets = new Map();
+function checkCargoLimit(ip) {
+  const now = Date.now();
+  let b = cargoBuckets.get(ip);
+  if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + CARGO_LIMIT.windowMs }; cargoBuckets.set(ip, b); }
+  b.count++;
+  return b.count <= CARGO_LIMIT.max;
+}
+
+/* Apuração por cargo: top 3 + "outros" (padrão getAcompanhamento em votes.js) */
+function buildApuracao() {
+  const agg = db.cargoVotesAgg() || [];
+  const idx = getTseIndex();
+  const byCargo = {};
+  agg.forEach(r => {
+    if (!byCargo[r.cargo]) byCargo[r.cargo] = [];
+    byCargo[r.cargo].push({ politicianId: r.politicianId, votos: r.votos });
+  });
+  const cargos = Object.entries(CARGO_APP).map(([id, cfg]) => {
+    const rows = (byCargo[id] || []).sort((a, b) => b.votos - a.votos);
+    const total = rows.reduce((s, r) => s + r.votos, 0);
+    const top = rows.slice(0, 3).map(r => {
+      const c = idx.get(r.politicianId);
+      return {
+        politicianId: r.politicianId,
+        nome: c ? c.nome : 'Candidato',
+        partido: c ? c.partido : '',
+        uf: c ? c.uf : '',
+        numero: c ? c.numero : '',
+        votos: r.votos,
+        pct: total ? Math.round((r.votos / total) * 1000) / 10 : 0
+      };
+    });
+    const outrosVotos = rows.slice(3).reduce((s, r) => s + r.votos, 0);
+    return {
+      id,
+      nome: cfg.nome,
+      totalVotos: total,
+      lider: top[0] || null,
+      top3: top,
+      outros: {
+        votos: outrosVotos,
+        pct: total ? Math.round((outrosVotos / total) * 1000) / 10 : 0,
+        quantidade: Math.max(0, rows.length - 3)
+      }
+    };
+  });
+  return {
+    ok: true,
+    geradoEm: new Date().toISOString(),
+    totalVotos: cargos.reduce((s, c) => s + c.totalVotos, 0),
+    cargos
+  };
+}
+
+function broadcastApuracao() {
+  try {
+    const frame = 'event: apuracao\ndata: ' + JSON.stringify(buildApuracao()) + '\n\n';
+    for (const client of streamClients) {
+      try { client.write(frame); } catch (_) { streamClients.delete(client); }
+    }
+  } catch (_) { }
+}
+
 /* ===== Notícias: RSS de fontes confiáveis (Agência Brasil, G1 Política, Senado) ===== */
 const NEWS_FEEDS = [
   { fonte: 'Agência Brasil', url: 'https://agenciabrasil.ebc.com.br/rss/politica/feed.xml', politicas: true },
@@ -642,6 +744,67 @@ async function handleApi(req, res, url) {
     return sendJson(res, r.ok ? 200 : (r.status || 400), r);
   }
 
+  /* ===== APP PWA — voto por cargo (Presidente, Governador, Senador, Deputados) ===== */
+  if (p === '/api/voto/cargo' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const token = body.sessionToken || (req.headers.authorization || '').replace('Bearer ', '');
+    const voter = auth.getVoterFromToken(token);
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Entre para votar' });
+    if (!checkCargoLimit(ip)) return sendJson(res, 429, { ok: false, error: 'Muitas requisições. Aguarde um instante.' });
+
+    const cargoApp = String(body.cargo || '').trim();
+    const cfg = CARGO_APP[cargoApp];
+    if (!cfg) return sendJson(res, 400, { ok: false, error: 'Cargo inválido' });
+
+    const idx = getTseIndex();
+    const cand = idx.get(String(body.politicianId || '').trim());
+    if (!cand) return sendJson(res, 404, { ok: false, error: 'Candidato não encontrado' });
+    if (cand.cargoApp !== cargoApp) return sendJson(res, 400, { ok: false, error: 'Candidato não concorre a este cargo' });
+
+    const r = db.castCargoVote(cargoApp, cand.id, voter.voterHash);
+    if (!r.ok && r.duplicate) {
+      const prev = idx.get(r.previous.politicianId);
+      return sendJson(res, 409, {
+        ok: false,
+        duplicate: true,
+        error: 'Você já votou para ' + cfg.nome,
+        previous: prev
+          ? { id: prev.id, nome: prev.nome, partido: prev.partido, uf: prev.uf, numero: prev.numero, cargo: cargoApp }
+          : { id: r.previous.politicianId, cargo: cargoApp },
+        votedAt: r.previous.createdAt
+      });
+    }
+    if (!r.ok) return sendJson(res, 500, { ok: false, error: 'Não foi possível registrar o voto' });
+    broadcastApuracao();
+    return sendJson(res, 201, {
+      ok: true,
+      voto: { cargo: cargoApp, politicianId: cand.id, createdAt: r.createdAt },
+      candidato: { id: cand.id, nome: cand.nome, partido: cand.partido, uf: cand.uf, numero: cand.numero }
+    });
+  }
+
+  if (p === '/api/voto/cargo/meus' && req.method === 'GET') {
+    const token = q.sessionToken || (req.headers.authorization || '').replace('Bearer ', '');
+    const voter = auth.getVoterFromToken(token);
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Não autenticado' });
+    const idx = getTseIndex();
+    const votos = (db.getCargoVotesForVoter(voter.voterHash) || []).map(v => {
+      const c = idx.get(v.politicianId);
+      return {
+        cargo: v.cargo,
+        politicianId: v.politicianId,
+        createdAt: v.createdAt,
+        candidato: c ? { id: c.id, nome: c.nome, partido: c.partido, uf: c.uf, numero: c.numero } : null
+      };
+    });
+    return sendJson(res, 200, { ok: true, votos });
+  }
+
+  if (p === '/api/apuracao' && req.method === 'GET') {
+    return sendJson(res, 200, buildApuracao());
+  }
+
   if (p === '/api/auth/google' && req.method === 'POST') {
     let body;
     try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
@@ -667,6 +830,16 @@ async function handleApi(req, res, url) {
       const r = await auth.verifyOtp(body.phone || '', body.code || '');
       return sendJson(res, 200, r);
     } catch (e) { return sendJson(res, 401, { ok: false, error: e.message }); }
+  }
+
+  /* APP PWA: login aberto por apelido (modo testes, sem senha) */
+  if (p === '/api/auth/apelido' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    try {
+      const r = auth.loginWithNickname(body.apelido || body.nickname || '');
+      return sendJson(res, 200, r);
+    } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
   }
 
   if (p === '/api/auth/me' && req.method === 'GET') {
