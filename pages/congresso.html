@@ -60,6 +60,7 @@ main{max-width:1150px;margin:0 auto;padding:24px 16px 100px}
 .plhead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
 .plhead h3{color:var(--gold)} .link{font-size:13px}
 .desc{color:#b9c7dd;font-size:14px;margin:6px 0 12px;line-height:1.5}
+.vot-tit{color:#e8eefb;font-size:15px;margin:8px 0 2px;line-height:1.4}
 .bloco{margin:12px 0} .bloco h4{font-size:12px;letter-spacing:.4px;color:#d7e3f5;margin-bottom:8px;text-transform:uppercase}
 .bar{height:26px;border-radius:999px;background:#22406b;overflow:hidden;display:flex;font-size:12px;font-weight:800}
 .bar>span{display:flex;align-items:center;justify-content:center}
@@ -376,7 +377,7 @@ function renderPlsMini(){
  if(!vis.length){box.innerHTML='<div class="vazio">Todas as PLs estão na caixa <b>SERÃO VOTADAS</b> — confira lá.</div>';return}
  box.innerHTML=vis.slice(0,3).map(p=>{
   const i=infoPL(p),v=MAPVOT[i.n+'/'+i.ano],pc=v?placar(VOTOS[v.id]):null;
-  const chip=pc?(pc.favor>pc.contra?'<span class="chip green">APROVADA</span>':pc.contra>pc.favor?'<span class="chip red">REJEITADA</span>':'<span class="chip grey">SEM MAIORIA</span>'):'<span class="chip blue" data-tip="Em tramitação — ainda sem votação nominal">EM ANÁLISE</span>';
+  const chip=pc&&pc.total?(pc.favor>pc.contra?'<span class="chip green">APROVADA</span>':pc.contra>pc.favor?'<span class="chip red">REJEITADA</span>':'<span class="chip grey">SEM MAIORIA</span>'):v&&(v.aprovacao===1||v.aprovacao===0)?'<span class="chip grey" data-tip="Votação simbólica: o plenário registrou só o resultado, sem voto individual dos deputados">SIMBÓLICA</span>':'<span class="chip blue" data-tip="Em tramitação — ainda sem votação nominal">EM ANÁLISE</span>';
   return `<div class="item">${chip}<h3 style="margin:6px 0">${i.key}</h3><p class="mini">${corte(i.desc,110)}</p>
   ${botoesVoto(i.key,meusVotos()[i.key])}</div>`}).join('')
   +(PLS.length>3?`<button class="vermais" data-acao="plexpbox">Ver todos os ${PLS.length} PLs ▾</button>`:'')}
@@ -389,7 +390,7 @@ function miniVots(){
   const pc=v.placar?`<p class="mini"><b style="color:var(--green)">${v.placar.sim}</b> sim · <b style="color:var(--red)">${v.placar.nao}</b> não · 🪑 ${v.placar.abs} abs</p>`:'';
   return `<div class="item">${resBadge(v)}${dataFmt?`<span class="mini"> · 📅 ${dataFmt}</span>`:''}
   <h3 style="margin:6px 0">${plI?plI.key:corte(iv.desc,50)}</h3><p class="mini">${corte(iv.desc,110)}</p>${pc}
-  <a class="link" href="#" data-acao="vervot" data-id="${v.id}">👥 ver como votaram ↓</a></div>`}).join('')
+  ${((v.aprovacao===1||v.aprovacao===0)&&!v.placar)?`<p class="mini" data-tip="Nesta votação simbólica a Câmara não registrou o voto individual dos deputados">⚖️ votação simbólica — sem voto a voto</p>`:`<a class="link" href="#" data-acao="vervot" data-id="${v.id}">👥 ver como votaram ↓</a>`}</div>`}).join('')
   +(VOT.length>3?`<button class="vermais" data-acao="votexpbox">Ver todas as ${VOT.length} votações ▾</button>`:'')}
 function renderVots(){
  miniVots();
@@ -417,14 +418,17 @@ function renderVots(){
   const dataFmt=v.data?new Date(v.data+'T00:00:00').toLocaleDateString('pt-BR'):'';
   const plKey=VOT2PLKEY[v.id];const plObj=plKey?PLS.find(p=>infoPL(p).key===plKey):null;const plI=plObj?infoPL(plObj):null;
   const plac=v.placar?`<div class="placv"><div class="blv sim"><b>${v.placar.sim}</b><small>Sim</small></div><div class="blv nao"><b>${v.placar.nao}</b><small>Não</small></div><div class="blv abs"><b>${v.placar.abs}</b><small>Abs/Obst</small></div></div>`:'';
+  const simb=(v.aprovacao===1||v.aprovacao===0)&&!v.placar;
   const exp=VOTRAW[v.id];
+  const tit=plI?plI.key:corte(v.descricao,80);
   return `<div class="card" id="vot-${cssk(v.id)}">
-   <div class="plhead"><h3>${resBadge(v)}${v.siglaOrgao?` <span class="chip grey">${esc(v.siglaOrgao)}</span>`:''}${dataFmt?` <span class="mini">📅 ${dataFmt}</span>`:''}</h3>
+   <div class="plhead"><h3>${resBadge(v)}${simb?` <span class="chip grey" data-tip="Votação simbólica: o plenário registrou só o resultado (${v.aprovacao===1?'aprovada':'rejeitada'}), sem voto individual dos deputados">SIMBÓLICA</span>`:''}${v.siglaOrgao?` <span class="chip grey">${esc(v.siglaOrgao)}</span>`:''}${dataFmt?` <span class="mini">📅 ${dataFmt}</span>`:''}</h3>
    ${plI?`<a class="link" href="#" data-acao="irpl" data-key="${cssk(plI.key)}">📜 ${esc(plI.key)} na lista de PLs →</a>`:''}</div>
+   <h3 class="vot-tit">${tit}</h3>
    <p class="desc">${corte(v.descricao,220)}</p>
    ${plac}
    <div class="pills" style="margin-bottom:0">
-    <button class="pill" data-acao="votexp" data-id="${v.id}" id="vbtn-${cssk(v.id)}" data-on="${exp?1:0}">${exp?'👥 Ocultar votos ▴':'👥 Ver como votaram ▾'}</button>
+    ${simb?`<span class="mini" data-tip="Nesta votação simbólica a Câmara não registrou o voto individual dos deputados — os votos do Povo continuam valendo">⚖️ votação simbólica — sem voto a voto</span>`:`<button class="pill" data-acao="votexp" data-id="${v.id}" id="vbtn-${cssk(v.id)}" data-on="${exp?1:0}">${exp?'👥 Ocultar votos ▴':'👥 Ver como votaram ▾'}</button>`}
     ${v.uriProposicaoObjeto?`<a class="pill ghost" target="_blank" rel="noopener" href="${v.uriProposicaoObjeto}">📄 proposição →</a>`:''}
     ${v.uri?`<a class="pill ghost" target="_blank" rel="noopener" href="${v.uri}">🔗 fonte oficial</a>`:''}
    </div>
@@ -548,7 +552,7 @@ function buildFila(){
  VOT2PLKEY={};
  PLS.forEach(p=>{const i=infoPL(p);const v=MAPVOT[i.n+'/'+i.ano];if(v&&v.id)VOT2PLKEY[v.id]=i.key;
   fila.push({tipo:'pl',key:i.key,i,desc:i.desc,url:i.url,tema:temaDe(i.desc)||'Geral',extra:`${autorLabel(i)} · ${i.party} · ${i.chamber}`})});
- VOT.slice(0,10).forEach(v=>{const i=infoVot(v);fila.push({tipo:'vot',key:'VOT:'+i.id,i,desc:i.desc,url:'#votacoes',tema:temaDe(i.desc)||'Geral',extra:'✅ JÁ VOTADA NO CONGRESSO'+(i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):'')})});
+ VOT.slice(0,10).forEach(v=>{const i=infoVot(v);const sb=(v.aprovacao===1||v.aprovacao===0)&&!v.placar;fila.push({tipo:'vot',key:'VOT:'+i.id,i,simb:sb,desc:i.desc,url:'#votacoes',tema:temaDe(i.desc)||'Geral',extra:'✅ JÁ VOTADA NO CONGRESSO'+(sb?' · votação simbólica (sem voto individual)':'')+(i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):'')})});
  popularFiltrosUrna();
 }
 function popularFiltrosUrna(){
@@ -583,7 +587,7 @@ function renderUrna(){
  ultimaKey=atual.key;
  const vk=mv[atual.key];
  $('#urna-corpo').innerHTML=`<div class="uline"><h3 style="color:var(--gold)" data-tip="${esc(atual.extra)}">Nº da PL: ${atual.i.key}</h3>
- <span class="chip blue" data-tip="Tema principal da matéria">${atual.tema}</span></div>
+ <span class="chip ${atual.simb?'grey':'blue'}" data-tip="Tema principal da matéria${atual.simb?' · votação simbólica: o plenário registrou só o resultado, sem voto individual dos deputados':''}">${atual.tema}</span></div>
  <div class="udesc"><span class="desc" data-tip="${esc(atual.desc)}">${esc(atual.desc)}</span>${atual.tipo==='pl'?`<a class="link" target="_blank" href="${atual.url}">📄 inteiro teor →</a>`:`<a class="link" href="#" data-acao="vervot" data-id="${atual.i.id}">👥 ver o voto a voto ↓</a>`}</div>
  <div class="botoes"><button id="bAprovo" class="${vk==='aprovo'?'on':''}" aria-pressed="${vk==='aprovo'}" data-acao="votar" data-v="aprovo" data-key="${atual.key}" data-tip="Registra que você aprova (soma no Placar do Povo)">${vk==='aprovo'?'✓ ':''}👍 APROVO</button><button id="bNao" class="${vk==='nao'?'on':''}" aria-pressed="${vk==='nao'}" data-acao="votar" data-v="nao" data-key="${atual.key}" data-tip="Registra que você não aprova (soma no Placar do Povo)">${vk==='nao'?'✓ ':''}👎 NÃO APROVO</button></div>
  <button class="pill ghost pprox" data-acao="pula" data-tip="Avança sem registrar voto">próxima →</button>`}
@@ -600,7 +604,8 @@ function renderAgenda(){
  const votadas=VOT.map(v=>({v,i:infoVot(v)})).filter(x=>{if(!x.i.data)return true;return (agora-new Date(x.i.data))/864e5<=perAtivo}).sort((a,b)=>new Date(b.i.data||0)-new Date(a.i.data||0)).slice(0,agExpDir?undefined:10);
  $('#ag-dir').innerHTML=votadas.slice(0,agExpDir?votadas.length:3).map(({v,i})=>{
   const pc=placar(VOTOS[v.id]||[]);const tot=pc.favor+pc.contra;const cong=tot?Math.round(pc.favor/tot*100):0;
-  const res=pc.favor>pc.contra?`<span class="chip green" data-tip="Aprovada no plenário">APROVADA</span>`:pc.contra>pc.favor?`<span class="chip red" data-tip="Rejeitada no plenário">REJEITADA</span>`:(pc.total?`<span class="chip grey">SEM MAIORIA</span>`:`<span class="chip grey" data-tip="Requerimento ou votação sem registro nominal de voto">SEM REGISTRO NOMINAL</span>`);
+  const simb=(v.aprovacao===1||v.aprovacao===0)&&!pc.total;
+  const res=pc.favor>pc.contra?`<span class="chip green" data-tip="Aprovada no plenário">APROVADA</span>`:pc.contra>pc.favor?`<span class="chip red" data-tip="Rejeitada no plenário">REJEITADA</span>`:simb?`<span class="chip grey" data-tip="Votação simbólica: o plenário registrou só o resultado (${v.aprovacao===1?'aprovada':'rejeitada'}), sem voto individual dos deputados">SIMBÓLICA · ${v.aprovacao===1?'APROVADA':'REJEITADA'}</span>`:pc.total?`<span class="chip grey">SEM MAIORIA</span>`:`<span class="chip grey" data-tip="Requerimento ou votação sem registro nominal de voto">SEM REGISTRO NOMINAL</span>`;
   /* Povo × Congresso (conceito dos mockups): placar real dos usuários × votação nominal */
   const plKey=VOT2PLKEY[v.id];const plObj=plKey?PLS.find(p=>infoPL(p).key===plKey):null;const plI=plObj?infoPL(plObj):null;
   const pp=plKey?(POVO[plKey]||{aprovo:0,nao:0}):{aprovo:0,nao:0};const totP=pp.aprovo+pp.nao;
@@ -613,11 +618,11 @@ function renderAgenda(){
    <span class="mini">Congresso <b style="color:${cong>=50?'var(--green)':'var(--red)'}">${cong}%</b></span></div>
    <p class="mini" data-tip="Distância em pontos entre a vontade popular e o plenário">${totP} voto${totP>1?'s':''} real${totP>1?'is':''} · <b style="color:${contra?'var(--red)':'var(--green)'}">GAP ${g} pts ${contra?'contra o povo':'a favor do povo'}</b> · 🪑 não votaram: ${pc.cinza}${i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):''}</p>`;
   }else{
-   vs=`<p class="mini">${pc.total?`Congresso: ${cong}% a favor · 🪑 não votaram: ${pc.cinza}`:'Sem registro nominal de voto a voto.'}${i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):''} · <span data-tip="Ninguém opinou nesta matéria ainda — vote na Urna Expressa!">Povo: sem votos ainda</span></p>`;
+   vs=`<p class="mini">${pc.total?`Congresso: ${cong}% a favor · 🪑 não votaram: ${pc.cinza}`:`Votação simbólica — plenário registrou só o resultado, sem voto a voto.`}${i.data?' · '+new Date(i.data).toLocaleDateString('pt-BR'):''} · <span data-tip="Ninguém opinou nesta matéria ainda — vote na Urna Expressa!">Povo: sem votos ainda</span></p>`;
   }
   const teor=plI&&plI.url?` · <a class="link" target="_blank" rel="noopener" href="${plI.url}">📄 inteiro teor →</a>`:'';
-  const ver=` · <a class="link" href="#" data-acao="vervot" data-id="${v.id}">👥 ver como votaram ↓</a>`;
-  return `<div class="item">${res}<h3 style="margin:6px 0">${plI?plI.key:corte(i.desc,60)}</h3><p class="mini">${plI?corte(i.desc,90):''}</p>${vs}${teor}${ver}</div>`}).join('')
+  const ver=simb?` · <span class="mini" data-tip="Nesta votação simbólica a Câmara não registrou o voto individual dos deputados">⚖️ simbólica — sem voto a voto</span>`:` · <a class="link" href="#" data-acao="vervot" data-id="${v.id}">👥 ver como votaram ↓</a>`;
+  return `<div class="item">${res}<h3 style="margin:6px 0">${plI?plI.key:corte(i.desc,60)}</h3>${plI?`<p class="mini">${corte(i.desc,90)}</p>`:''}${vs}${teor}${ver}</div>`}).join('')
   +(votadas.length>3?`<button class="vermais" data-acao="agexp-dir">${agExpDir?'Mostrar menos ▴':'Ver as '+votadas.length+' votadas ▾'}</button>`:'')
   ||`<div class="vazio">Nenhuma votação nominal neste período.</div>`;
  const pd=document.getElementById('ag-dir-pills');if(pd)pd.hidden=!agExpDir}
