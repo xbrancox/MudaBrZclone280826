@@ -339,7 +339,7 @@ async function carregaStats(id){
     if(j&&j.ok&&j.stats)d.stats=j.stats;}
   catch(e){/* backend ausente → ficha mostra "—" honesto */}
   d.statsFim=true;
-  if(document.getElementById('mFicha').classList.contains('open')&&FTAB[id])renderFicha(id);
+  if(fichaAtiva(id)&&FTAB[id])renderFicha(id);
 }
 
 /* ---------- CONTADORES EM LOTE (cards do Radar Político) ----------
@@ -408,6 +408,7 @@ function abrirFicha(id){
   if(!DET[id].stats&&STATS_ALL&&STATS_ALL[id])DET[id].stats={complaints:STATS_ALL[id].complaints,responses:STATS_ALL[id].responses,supports:STATS_ALL[id].supports};
   FTAB[id]=FTAB[id]||'ficha';
   FICHA_ID=id;
+  document.getElementById('mFicha').classList.add('open');
   renderFicha(id);
   preencheDetalhe(id);
   carregaStats(id);
@@ -429,6 +430,7 @@ function fstatsHTML(id){const p=POL.find(x=>x.id===id),d=DET[id]||{};
   else st.push(['Reclamações','…'],['Respostas','…'],['Apoios','…']);
   return st.map(x=>`<div class="stat"><small>${x[0]}</small><b>${x[1]}</b></div>`).join('')}
 function renderFicha(id){
+  if(FICHA_ID!==id)return; /* a ficha aberta é de outro político — render antigo não rouba a tela */
   const p=POL.find(x=>x.id===id),d=DET[id]||{};
   const tab=FTAB[id];
   const eCam=p.fonte==='senado'?F_SENADO(p.num):F_CAMARA(p.num);
@@ -488,11 +490,15 @@ function renderFicha(id){
       <div class="fcard">⚖️ <b>CNJ</b><br><span class="muted">Processos judiciais</span><br>${F_CNJ(p.nome)}</div>
       <div class="fcard">${p.fonte==='senado'?'🏛️':'🏛️'} <b>Página oficial</b><br><span class="muted">Ficha institucional completa</span><br>${eCam}</div>
     </div>`;
-  document.getElementById('mFicha').classList.add('open');
   if(tab==='rec'&&RECSEC){const el=document.getElementById('recsec-'+RECSEC);
     if(el)el.scrollIntoView({block:'start'})}
 }
-function fechar(id){document.getElementById(id).classList.remove('open');RECSEC=null}
+/* A ficha só "existe" para o político da abertura mais recente: callbacks
+   antigos (stats/props/votos chegando depois do usuário trocar de político)
+   não podem reabrir o modal nem trocar o conteúdo por outro político. */
+const fichaAtiva=id=>FICHA_ID===id&&document.getElementById('mFicha').classList.contains('open');
+function fechar(id){document.getElementById(id).classList.remove('open');
+  if(id==='mFicha'){FICHA_ID=null;RECSEC=null}}
 
 /* ---------- ENRIQUECIMENTO (Câmara / Senado) ---------- */
 function camaraBase(){return API} // proxy /api/camara no backend (localhost, Railway ou Railway remoto via Pages)
@@ -522,7 +528,7 @@ async function preencheDetalhe(id){
         return{t:t,e:((v.DescricaoVotacao||'')||(m.Ementa||'')).slice(0,140),v:v.SiglaDescricaoVoto||'',d:s.DataSessao?fmtData(s.DataSessao):''}});
       d.votosFim=true;
     }catch(e){d.votosFim=true}
-    if(document.getElementById('mFicha').classList.contains('open'))renderFicha(id);
+    if(fichaAtiva(id))renderFicha(id);
     return;
   }
   // ---- Deputado Federal (Câmara) ----
@@ -541,7 +547,7 @@ async function preencheDetalhe(id){
     if(gab)d.det.contato=[gab.telefone,gab.email].filter(Boolean).join(' · ');
   }catch(e){}
   d.detDone=true;
-  if(document.getElementById('mFicha').classList.contains('open'))renderFicha(id);
+  if(fichaAtiva(id))renderFicha(id);
   try{const ex=await Promise.all([
     fetch(CA+'deputados/'+p.num+'/orgaos?itens=30').then(y=>y.json()).catch(()=>({dados:[]})),
     fetch(CA+'deputados/'+p.num+'/frentes').then(y=>y.json()).catch(()=>({dados:[]})),
@@ -552,10 +558,10 @@ async function preencheDetalhe(id){
     d.ocup=(ex[2].dados||[]).filter(o=>o.titulo).map(o=>o.titulo+(o.entidade?' — '+o.entidade:'')+(o.anoInicio?' ('+o.anoInicio+')':''));
     d.hist=(ex[3].dados||[]).map(x2=>({d:x2.dataHora?fmtData(x2.dataHora):'',t:x2.descricaoStatus||x2.situacao||''})).filter(x2=>x2.t).slice(0,8);
   }catch(e){d.orgaos=[];d.frentes=[];d.ocup=[];d.hist=[]}
-  if(document.getElementById('mFicha').classList.contains('open'))renderFicha(id);
+  if(fichaAtiva(id))renderFicha(id);
   try{const r=await fetch(CA+'proposicoes?idDeputadoAutor='+p.num+'&itens=12&ordem=DESC&ordenarPor=id');
     const j=await r.json();d.props=(j.dados||[]).map(x=>({t:(x.siglaTipo||'')+' '+(x.numero||'')+'/'+(x.ano||''),e:(x.ementa||x.titulo||'').slice(0,160),dt:x.dataApresentacao?fmtData(x.dataApresentacao):'',id:x.id}));}catch(e){d.props=[]}
-  if(document.getElementById('mFicha').classList.contains('open'))renderFicha(id);
+  if(fichaAtiva(id))renderFicha(id);
   // votações nominais do Plenário (3 páginas × 100 = janela maior)
   try{const now=Date.now();
     if(now-VOT_CACHE.ts>600000){
@@ -567,17 +573,18 @@ async function preencheDetalhe(id){
       if(!Object.prototype.hasOwnProperty.call(VOTOS_BY_ID,v.id)){probed++;
         try{const r2=await fetch(CA+'votacoes/'+v.id+'/votos');VOTOS_BY_ID[v.id]=(await r2.json()).dados||[]}catch(e2){}}
       const arr=VOTOS_BY_ID[v.id]||[];
-      const mine=arr.find(y=>y.deputado_&&String(y.deputado_.id)===String(p.num));
+      // tipoVoto null = constou na lista mas sem voto registrado — não vale "como votou"
+      const mine=arr.find(y=>y.deputado_&&y.tipoVoto&&String(y.deputado_.id)===String(p.num));
       if(mine){const pr=v.proposicaoObjeto;const dt=v.data||v.dataHoraRegistro||'';
         d.votos.push({t:pr&&pr.siglaTipo?((pr.siglaTipo||'')+' '+(pr.numero||'')+'/'+(pr.ano||'')):'Votação PLEN',e:(v.descricao||'').slice(0,140),v:mine.tipoVoto||'',d:dt?fmtData(String(dt).slice(0,10)):'',vid:v.id})}
-      if(document.getElementById('mFicha').classList.contains('open')&&FTAB[id]==='votos')renderFicha(id)}
+      if(fichaAtiva(id)&&FTAB[id]==='votos')renderFicha(id)}
     d.votosFim=true;
   }catch(e){d.votosFim=true}
-  if(document.getElementById('mFicha').classList.contains('open'))renderFicha(id);
+  if(fichaAtiva(id))renderFicha(id);
 }
 
 /* ---------- ABAS DA FICHA ---------- */
-function votoBadge(v){const s=(v||'').toLowerCase();if(s==='sim')return '<span class="badge ok">Sim</span>';if(s==='não'||s==='nao')return '<span class="badge red">Não</span>';return '<span class="badge">'+esc(v||'—')+'</span>'}
+function votoBadge(v){const s=(v||'').toLowerCase();if(s==='sim')return '<span class="badge ok">Sim</span>';if(s==='não'||s==='nao')return '<span class="badge red">Não</span>';return '<span class="badge">'+esc(v||'Sem registro')+'</span>'}
 function propsHTML(id){const d=DET[id]||{};const p=POL.find(x=>x.id===id);
   if(!d.props)return '<p class="muted">⏳ Carregando projetos da Câmara…</p>';
   if(!d.props.length)return '<p class="muted">Nenhuma proposição autoral encontrada nesta legislatura — confira a lista completa na página oficial.</p>';
@@ -629,7 +636,7 @@ async function abrirVotacao(vid){
 function renderVotosLista(){const w=window._VOT;if(!w)return;
   const q=(($('#vq')&&$('#vq').value)||'').toLowerCase();const pt=$('#vp')?$('#vp').value:'';
   const rows=w.votos.filter(v=>{const d=v.deputado_||{};return(!q||(d.nome||'').toLowerCase().includes(q))&&(!pt||(d.siglaPartido||'—')===pt)})
-    .sort((a,b)=>(a.deputado_.nome||'').localeCompare(b.deputado_.nome||''));
+    .sort((a,b)=>((a.deputado_||{}).nome||'').localeCompare((b.deputado_||{}).nome||''));
   document.getElementById('vlista').innerHTML=(rows.length?rows.map(v=>{const d=v.deputado_||{};
     return `<div class="quote info"><span style="display:flex;justify-content:space-between;gap:8px;align-items:center">${votoBadge(v.tipoVoto)}<b>${esc(d.nome||'—')}</b> <small class="muted">${esc(d.siglaPartido||'')}·${esc(d.siglaUf||'')}</small></span></div>`}).join(''):'<p class="muted">Nenhum parlamentar encontrado com esse filtro.</p>')}
 
@@ -675,7 +682,7 @@ async function carregaRec(id){
     if(!rc||rc.ok!==true||!rs||rs.ok!==true)throw new Error('resposta inválida');
     d.rec={recs:rc.complaints||[],sups:rs.supports||[],recAll:false,respAll:false,supAll:false,erro:false};
   }catch(e){d.rec={recs:[],sups:[],erro:true}}
-  if(document.getElementById('mFicha').classList.contains('open')&&FTAB[id]==='rec')renderFicha(id);
+  if(fichaAtiva(id)&&FTAB[id]==='rec')renderFicha(id);
 }
 function abrirForm(id,tipo){const p=POL.find(x=>x.id===id);if(!p)return;
   FORM_ID=id;FORM_T=tipo;
@@ -760,9 +767,12 @@ function abrirCmp(){
 /* ---------- INIT ---------- */
 carregaPol();
 carregaTseIdx();
-// deep-link: parlamentares.html?id=camara-204379 abre a ficha direto
-(function(){const id=new URLSearchParams(location.search).get('id');
-  if(id)setTimeout(()=>abrirFicha(id),1200)})();
+// deep-link: parlamentares.html?id=camara-204379 abre a ficha direto —
+// com retry, porque a lista de parlamentares pode ainda estar carregando
+(function(){const id=new URLSearchParams(location.search).get('id');if(!id)return;
+  const t0=Date.now();const tenta=()=>{if(POL.find(x=>x.id===id))abrirFicha(id);
+    else if(Date.now()-t0<8000)setTimeout(tenta,300)};
+  setTimeout(tenta,400)})();
 </script>
 </body>
 </html>

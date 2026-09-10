@@ -294,8 +294,10 @@ async function handleApi(req, res, url) {
   /* ===== Votações nominais da Câmara (rota específica com cache 1h) ===== */
   if (p === '/api/camara/votacoes' && req.method === 'GET') {
     const now = Date.now();
-    if (CAMARA_CACHE.votacoes.data && (now - CAMARA_CACHE.votacoes.ts) < CAMARA_TTL) {
-      return sendJson(res, 200, CAMARA_CACHE.votacoes.data);
+    // chave por query string: pagina=2 NÃO pode receber a resposta em cache da pagina=1
+    const ck = 'votacoes' + (url.search || '');
+    if (CAMARA_CACHE[ck] && (now - CAMARA_CACHE[ck].ts) < CAMARA_TTL) {
+      return sendJson(res, 200, CAMARA_CACHE[ck].data);
     }
     try {
       const itens = parseInt(q.itens || '30', 10);
@@ -307,7 +309,7 @@ async function handleApi(req, res, url) {
       const r = await fetch(`https://dadosabertos.camara.leg.br/api/v2/votacoes?itens=${itens}&pagina=${pagina}&ordem=${ordem}&ordenarPor=${ordenarPor}`, { headers: { Accept: 'application/json' } });
       if (!r.ok) return sendJson(res, r.status === 404 ? 404 : 502, { ok: false, error: 'Câmara respondeu ' + r.status });
       const j = await r.json();
-      CAMARA_CACHE.votacoes = { ts: now, data: j };
+      CAMARA_CACHE[ck] = { ts: now, data: j };
       return sendJson(res, 200, j);
     } catch (e) {
       return sendJson(res, 502, { ok: false, error: 'Falha ao buscar votações: ' + e.message });

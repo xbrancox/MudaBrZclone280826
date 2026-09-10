@@ -105,6 +105,9 @@ main{max-width:1150px;margin:0 auto;padding:24px 16px 100px}
 .prog{height:8px;background:#22406b;border-radius:999px;margin:8px 0}.prog>div{height:8px;background:var(--gold);border-radius:999px;transition:width .3s}
 .quad{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch;margin-top:8px}
 .quad>.qbox{min-width:0;margin-bottom:0;transition:transform .15s,box-shadow .15s,border-color .15s}
+/* display no CSS (não inline): style inline anulava o atributo hidden e a barra nunca sumia */
+#filtro-ativo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+#filtro-ativo[hidden]{display:none}
 .quad>.qbox:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 10px 26px #0007}
 @media(max-width:900px){.quad{grid-template-columns:1fr}}
 .item{background:var(--c2);border-radius:12px;padding:12px;margin:8px 0}
@@ -215,7 +218,7 @@ h2{margin:26px 0 10px}
       <div id="qb-pls-full" hidden>
         <input id="busca" class="busca" placeholder="Busque político, partido, PL nº, autor ou tema…">
         <div class="pills" id="pills-tema"></div>
-        <div id="filtro-ativo" class="vazio" hidden style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div id="filtro-ativo" class="vazio" hidden></div>
         <div id="lista"></div>
         <button id="pl-vermais" class="vermais" data-acao="plexpall" hidden>Ver todos os PLs ▾</button>
         <div id="lista-vazio" class="vazio" hidden></div>
