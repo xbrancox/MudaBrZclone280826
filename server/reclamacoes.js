@@ -243,6 +243,30 @@ function getPoliticianStats(politicianId) {
   };
 }
 
+/* Contadores em lote para TODOS os políticos de uma vez (usado no Radar
+   Político: cada card mostra Reclamações/Respostas/Apoios sem N requests).
+   Traz também até 2 reclamações/apoios mais recentes de cada um como prévia. */
+function getAllPoliticianStats() {
+  const complaints = db.getAllComplaints({ limit: 10000 });
+  const supports = db.getAllSupports({ limit: 10000 });
+  const responses = db.getAllResponses({ limit: 10000 });
+  const out = {};
+  const slot = id => (out[id] || (out[id] = { complaints: 0, responses: 0, supports: 0, recs: [], sups: [] }));
+  // getAllComplaints já vem ordenado por createdAt DESC → primeiros 2 = mais recentes
+  complaints.forEach(c => {
+    const s = slot(c.politicianId);
+    s.complaints++;
+    if (s.recs.length < 2) s.recs.push({ content: c.content, createdAt: c.createdAt, responded: c.status === 'responded' });
+  });
+  supports.forEach(sp => {
+    const s = slot(sp.politicianId);
+    s.supports++;
+    if (s.sups.length < 2) s.sups.push({ content: sp.content, createdAt: sp.createdAt });
+  });
+  responses.forEach(r => { slot(r.politicianId).responses++; });
+  return out;
+}
+
 function getRankings() {
   const politicians = db.getAllPoliticians();
   const verifications = db.getAllVerifications();
@@ -306,7 +330,7 @@ module.exports = {
   createComplaint, listComplaints, listAllComplaints,
   createSupport, listSupports, listAllSupports, listAllFeed,
   createResponse, listResponses,
-  getPoliticianStats, getRankings, getGlobalStats,
+  getPoliticianStats, getAllPoliticianStats, getRankings, getGlobalStats,
   sanitize, timeAgo, ipFromReq,
   onReclamacaoChange
 };

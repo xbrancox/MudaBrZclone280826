@@ -823,6 +823,10 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, rankings: reclamacoes.getRankings(), stats: reclamacoes.getGlobalStats() });
   }
 
+  if (p === '/api/estatisticas/politicos' && req.method === 'GET') {
+    return sendJson(res, 200, { ok: true, stats: reclamacoes.getAllPoliticianStats() });
+  }
+
   if (p.startsWith('/api/estatisticas/politico/') && req.method === 'GET') {
     const pid = decodeURIComponent(p.replace('/api/estatisticas/politico/', ''));
     return sendJson(res, 200, { ok: true, stats: reclamacoes.getPoliticianStats(pid) });

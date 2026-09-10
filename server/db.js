@@ -647,6 +647,15 @@ function getResponsesByPolitician(politicianId, { limit = 50, offset = 0 } = {})
   return list.slice(offset, offset + limit);
 }
 
+function getAllResponses({ limit = 1000, offset = 0 } = {}) {
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    return db.prepare('SELECT * FROM responses ORDER BY created_at DESC LIMIT ? OFFSET ?').all(limit, offset).map(r => ({ id: r.id, complaintId: r.complaint_id, politicianId: r.politician_id, content: r.content, createdAt: r.created_at }));
+  }
+  const list = Object.values(jsonReadFile('responses')).sort((a, b) => b.createdAt - a.createdAt);
+  return list.slice(offset, offset + limit);
+}
+
 function hashVoter(method, identifier) {
   return require('crypto').createHash('sha256').update(method + ':' + identifier + ':MUDABRASIL_VOTER_SALT_2026').digest('hex');
 }
@@ -1004,7 +1013,7 @@ module.exports = {
   setVerification, getVerification, getAllVerifications, getVerifiedPoliticians,
   createComplaint, getComplaint, getComplaintsByPolitician, countComplaintsByPolitician, getAllComplaints,
   createSupport, getSupportsByPolitician, countSupportsByPolitician, getAllSupports,
-  createResponse, getResponseByComplaint, getResponsesByPolitician,
+  createResponse, getResponseByComplaint, getResponsesByPolitician, getAllResponses,
   hashVoter, upsertVoter, getVoterById, getVoterByGoogleId, getVoterByPhone, getVoterByHash, getVoterByEmail,
   upsertPl, getPl, readAllPls, getPlsByFilters, castPlVote, getPlVoteForVoter,
   castVotoPl, plVotesAgg,

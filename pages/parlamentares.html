@@ -108,6 +108,11 @@ a.badge:hover{filter:brightness(1.25)}
 .quote{border-left:3px solid var(--red);background:rgba(231,76,60,.08);border-radius:6px;padding:6px 10px;margin-top:8px;font-size:12.5px}
 .quote.ok{border-color:var(--green);background:rgba(46,204,113,.08)}
 .quote.info{border-color:var(--blueL);background:rgba(74,144,240,.08)}
+/* Linha de PLs + contadores da plataforma nos cards do Radar (print do usuário) */
+.plrow{display:block;margin-top:10px;font:700 12.5px Manrope;color:#cfe0ff;text-decoration:none;cursor:pointer}
+.plrow:hover{text-decoration:underline;color:#fff}
+.crow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.crow a.badge{cursor:pointer}
 .skel{background:linear-gradient(90deg,var(--card2) 25%,#1a3a6b 50%,var(--card2) 75%);background-size:200% 100%;animation:sk 1.2s infinite;border-radius:8px;color:transparent!important;user-select:none}
 @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
 #toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--line);color:var(--ink);padding:12px 18px;border-radius:12px;z-index:300;display:none;max-width:90%}
@@ -316,6 +321,7 @@ async function carregaPol(){
   const b=$('#dbanner');
   b.innerHTML='<span>📡</span><span><b>'+(POL.length||'—')+' parlamentares reais</b> — Câmara dos Deputados e Senado Federal (57ª legislatura). Clique em <b>Ficha completa</b> para ver todos os dados públicos.</span>';
   popula();renderRad();
+  carregaStatsGlobais();
 }
 function popula(){
   const ufs=[...new Set(POL.map(p=>p.uf))].filter(Boolean).sort();
@@ -334,6 +340,16 @@ async function carregaStats(id){
   catch(e){/* backend ausente → ficha mostra "—" honesto */}
   d.statsFim=true;
   if(document.getElementById('mFicha').classList.contains('open')&&FTAB[id])renderFicha(id);
+}
+
+/* ---------- CONTADORES EM LOTE (cards do Radar Político) ----------
+   1 request para todos os políticos: Reclamações/Respostas/Apoios +
+   prévia das 2 reclamações mais recentes de cada um (print do usuário). */
+let STATS_ALL=null;
+async function carregaStatsGlobais(){
+  try{const r=await fetch(API+'/api/estatisticas/politicos');const j=await r.json();
+    if(j&&j.ok&&j.stats){STATS_ALL=j.stats;if(READY)renderRad()}}
+  catch(e){/* backend ausente → cards ficam sem contadores (estado honesto) */}
 }
 
 /* ---------- LISTA / FILTROS ---------- */
@@ -356,15 +372,24 @@ function renderRad(){
     const tags=[];
     const cd=candsDe(p);
     if(cd&&cd.length)tags.push(`<span class="badge tse" title="Candidatura(s) 2026 — TSE: ${esc(cd.map(e=>CARGO_TSE[e.c]+' nº '+e.n+' · '+e.s).join('; '))}">🗳️ ${cd.map(e=>'Nº '+esc(e.n)).join(' · ')}</span>`);
-    if(p.propsSnap!=null)tags.push(`<span class="badge blue" title="Proposições autorais — snapshot das APIs da Câmara/Senado">📜 ${p.propsSnap} projetos</span>`);
-    if(det.props)tags.push(`<span class="badge blue">📜 ${det.props.length}+ projetos</span>`);
     if(det.votos&&det.votos.length)tags.push(`<span class="badge blue">🗳️ ${det.votos.length} votações</span>`);
     if(p.email)tags.push('<span class="badge ok">✉️ Contato oficial</span>');
     if(p.selo)tags.push('<span class="badge ok">✅ Verificado</span>');
+    // ---- PLs clicáveis + contadores da plataforma (print do usuário) ----
+    const isCam=String(p.id).startsWith('camara-');
+    const nProj=det.props?det.props.length:(p.propsSnap!=null?p.propsSnap:null);
+    let extra=`<a class="plrow" href="congresso.html?autor=${encodeURIComponent(p.nome)}${isCam&&p.num?'&autorId='+p.num:''}" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${isCam?esc(p.num):''}')" title="Clique pra ver os PLs deste parlamentar e como os partidos votaram — a lista completa fica na página do Congresso">📜 Projetos de Leis (PLs) apresentados${nProj!=null?' ('+nProj+')':''} — ver PLs no Congresso →</a>`;
+    const st=STATS_ALL&&STATS_ALL[p.id];
+    if(st){
+      extra+=`<div class="crow"><a class="badge red" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','rec')" title="Ver todas as reclamações (com as respostas, se houver)">📣 Reclamações (${st.complaints})</a><a class="badge ok" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','resp')" title="Ver as respostas oficiais do parlamentar">💬 Respostas (${st.responses})</a><a class="badge ok" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','apo')" title="Ver todos os apoios">👍 Apoios (${st.supports})</a></div>`;
+      (st.recs||[]).forEach(c=>{extra+=`<div class="quote" title="Reclamação recente da plataforma">📣 ${esc(c.content)}<br><small class="muted">${fmtTs(c.createdAt)}${c.responded?' · respondida ✓':''}</small></div>`});
+      if(st.sups&&st.sups.length)extra+=`<div class="quote ok" title="Apoio recente da plataforma">👍 ${esc(st.sups[0].content)}<br><small class="muted">${fmtTs(st.sups[0].createdAt)}</small></div>`;
+    }
     return `<article class="ccard">
       <button class="pin ${PINS.includes(p.id)?'on':''}" title="Fixar para comparar" onclick="togglePin('${esc(p.id)}')">📌</button>
       <div class="chead">${av(p,'av')}<div><div class="cnome">${esc(p.nome)}</div><div class="cmeta">${esc(p.partido)} · ${esc(p.uf)} · ${esc(p.cargo)}</div></div></div>
       <div class="ctags"><span class="badge">🏛️ ${esc(p.fonte==='senado'?'Senado Federal':'Câmara dos Deputados')}</span><a class="badge red" href="https://www.cnj.jus.br/busca-atos-adm?termo=${encodeURIComponent(p.nome)}" target="_blank" rel="noopener" title="Processos: nenhum dado aberto publica a contagem — verifique no portal oficial">⚖️ Processos: verificar ↗</a>${tags.join('')}</div>
+      ${extra}
       <div class="cactions"><button class="btn gold sm" onclick="abrirFicha('${esc(p.id)}')">📄 Ficha completa</button>
       <button class="btn sm" onclick="abrirForm('${esc(p.id)}','rec')">🔴 Reclamar</button>
       <button class="btn green sm" onclick="abrirForm('${esc(p.id)}','apo')">👍 Apoiar</button></div>
@@ -379,6 +404,8 @@ function mais(){VIS+=60;renderRad()}
 function abrirFicha(id){
   const p=POL.find(x=>x.id===id);if(!p)return;
   if(!DET[id])DET[id]={props:[],votos:[],orgaos:null,frentes:null,ocup:null,hist:null,det:{},votosFim:false};
+  // contadores em lote já carregados? semeia a ficha na hora (o detalhado vem da API individual)
+  if(!DET[id].stats&&STATS_ALL&&STATS_ALL[id])DET[id].stats={complaints:STATS_ALL[id].complaints,responses:STATS_ALL[id].responses,supports:STATS_ALL[id].supports};
   FTAB[id]=FTAB[id]||'ficha';
   FICHA_ID=id;
   renderFicha(id);
@@ -386,6 +413,14 @@ function abrirFicha(id){
   carregaStats(id);
   carregaRec(id);
 }
+/* Clique nos contadores do card → abre a ficha na aba 📣 já rolando
+   até a seção pedida (rec=reclamações, resp=respostas, apo=apoios).
+   O scroll (instantâneo) se repete a cada re-render do enriquecimento
+   (props/votos chegam depois e trocam o innerHTML, resetando a rolagem);
+   encerra ao clicar numa âncora, fechar a ficha ou passar a janela. */
+let RECSEC=null;
+function abreRecSec(id,sec){abrirFicha(id);FTAB[id]='rec';RECSEC=sec;renderFicha(id);
+  const tok=sec;setTimeout(()=>{if(RECSEC===tok)RECSEC=null},4000)}
 function tabelaHTML(rows){return `<table class="tabela"><tr><th>Indicador</th><th>Valor</th><th>Fonte</th></tr>`+
   rows.map(r=>`<tr><td class="ind">${r[0]}</td><td class="val">${r[1]}</td><td>${r[2]||''}</td></tr>`).join('')+'</table>'}
 function fstatsHTML(id){const p=POL.find(x=>x.id===id),d=DET[id]||{};
@@ -454,8 +489,10 @@ function renderFicha(id){
       <div class="fcard">${p.fonte==='senado'?'🏛️':'🏛️'} <b>Página oficial</b><br><span class="muted">Ficha institucional completa</span><br>${eCam}</div>
     </div>`;
   document.getElementById('mFicha').classList.add('open');
+  if(tab==='rec'&&RECSEC){const el=document.getElementById('recsec-'+RECSEC);
+    if(el)el.scrollIntoView({block:'start'})}
 }
-function fechar(id){document.getElementById(id).classList.remove('open')}
+function fechar(id){document.getElementById(id).classList.remove('open');RECSEC=null}
 
 /* ---------- ENRIQUECIMENTO (Câmara / Senado) ---------- */
 function camaraBase(){return API} // proxy /api/camara no backend (localhost, Railway ou Railway remoto via Pages)
@@ -601,24 +638,31 @@ let FORM_ID=null,FORM_T='rec';
 function recItemHTML(x,cls){return `<div class="quote ${cls}">${esc(x.content)}<br><small class="muted">${fmtTs(x.createdAt)}</small></div>`}
 function recHTML(id){
   const d=DET[id]||{};
-  if(!d.rec)return '<p class="muted">⏳ Carregando reclamações e apoios…</p>';
+  // recs só vira array quando a API responde; placeholder {recs:null} = ainda carregando
+  if(!d.rec||!Array.isArray(d.rec.recs))return '<p class="muted">⏳ Carregando reclamações e apoios…</p>';
   const R=d.rec;
   if(R.erro)return `<p class="muted">⚠️ A plataforma de reclamações/apoios está indisponível agora (precisa do backend ativo). Tente recarregar.</p>`;
-  const respN=R.recs.filter(c=>c.responded).length;
+  const resps=R.recs.filter(c=>c.response);
   const recVis=R.recAll?R.recs:R.recs.slice(0,5);
+  const respVis=R.respAll?resps:resps.slice(0,5);
   const supVis=R.supAll?R.sups:R.sups.slice(0,5);
-  let h=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-    <span class="badge red">📣 ${R.recs.length} reclamação(ões)</span>
-    <span class="badge ok">💬 ${respN} resposta(s) do parlamentar</span>
-    <span class="badge ok">👍 ${R.sups.length} apoio(s)</span></div>`;
-  h+='<h4 style="margin:10px 0 6px">📣 Reclamações (com resposta quando houver)</h4>';
+  const anc=(s,label)=>`<a class="badge ${s==='rec'?'red':'ok'}" href="javascript:void(0)" onclick="rolaRecSec('${s}')" title="Rolar até a seção">${label}</a>`;
+  let h=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+    ${anc('rec',`📣 ${R.recs.length} reclamação(ões)`)}
+    ${anc('resp',`💬 ${resps.length} resposta(s) do parlamentar`)}
+    ${anc('apo',`👍 ${R.sups.length} apoio(s)`)}</div>`;
+  h+=`<h4 id="recsec-rec" style="margin:10px 0 6px;scroll-margin-top:12px">📣 Reclamações (${R.recs.length}) — com resposta quando houver</h4>`;
   h+=recVis.length?recVis.map(c=>`<div class="quote">${esc(c.content)}<br><small class="muted">${fmtTs(c.createdAt)}${c.responded?' · respondida ✓':''}</small>${c.response?`<div class="quote ok" style="margin-top:6px"><b>Resposta do parlamentar:</b> ${esc(c.response.content)}<br><small class="muted">${fmtTs(c.response.createdAt)}</small></div>`:''}</div>`).join(''):'<p class="muted">Nenhuma reclamação registrada para este parlamentar ainda. Seja a primeira pessoa: use o botão 🔴 Reclamar.</p>';
-  if(R.recs.length>5)h+=`<p style="margin-top:6px"><a href="javascript:void(0)" onclick="toggleRec('${esc(id)}','recAll')">${R.recAll?'▲ mostrar menos':'▼ ver todas as '+R.recs.length+' reclamações (com respostas)'}</a></p>`;
-  h+='<h4 style="margin:14px 0 6px">👍 Apoios</h4>';
+  if(R.recs.length>5)h+=`<p style="margin-top:6px"><a href="javascript:void(0)" onclick="toggleRec('${esc(id)}','recAll')">${R.recAll?'▲ mostrar menos':'▼ ver todas as reclamações ('+R.recs.length+') com suas respostas'}</a></p>`;
+  h+=`<h4 id="recsec-resp" style="margin:16px 0 6px;scroll-margin-top:12px">💬 Respostas do parlamentar (${resps.length})</h4>`;
+  h+=resps.length?respVis.map(c=>`<div class="quote"><b>Reclamação:</b> ${esc(c.content)}<br><small class="muted">${fmtTs(c.createdAt)}</small><div class="quote ok" style="margin-top:6px"><b>Resposta do parlamentar:</b> ${esc(c.response.content)}<br><small class="muted">${fmtTs(c.response.createdAt)}</small></div></div>`).join(''):'<p class="muted">Nenhuma resposta do parlamentar ainda. Políticos verificados podem responder às reclamações recebidas.</p>';
+  if(resps.length>5)h+=`<p style="margin-top:6px"><a href="javascript:void(0)" onclick="toggleRec('${esc(id)}','respAll')">${R.respAll?'▲ mostrar menos':'▼ ver todas as respostas ('+resps.length+')'}</a></p>`;
+  h+=`<h4 id="recsec-apo" style="margin:16px 0 6px;scroll-margin-top:12px">👍 Apoios (${R.sups.length})</h4>`;
   h+=supVis.length?supVis.map(s=>recItemHTML(s,'ok')).join(''):'<p class="muted">Nenhum apoio registrado para este parlamentar ainda. Use o botão 👍 Apoiar.</p>';
-  if(R.sups.length>5)h+=`<p style="margin-top:6px"><a href="javascript:void(0)" onclick="toggleRec('${esc(id)}','supAll')">${R.supAll?'▲ mostrar menos':'▼ ver todos os '+R.sups.length+' apoios'}</a></p>`;
+  if(R.sups.length>5)h+=`<p style="margin-top:6px"><a href="javascript:void(0)" onclick="toggleRec('${esc(id)}','supAll')">${R.supAll?'▲ mostrar menos':'▼ ver todos os apoios ('+R.sups.length+')'}</a></p>`;
   return h;
 }
+function rolaRecSec(sec){RECSEC=null;const el=document.getElementById('recsec-'+sec);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
 function toggleRec(id,campo){const d=DET[id]||{};if(d.rec){d.rec[campo]=!d.rec[campo];renderFicha(id)}}
 async function carregaRec(id){
   const d=DET[id];if(!d||d.rec)return;
@@ -629,7 +673,7 @@ async function carregaRec(id){
       fetch(API+'/api/apoios?politicianId='+encodeURIComponent(id)+'&limit=200').then(r=>r.json())
     ]);
     if(!rc||rc.ok!==true||!rs||rs.ok!==true)throw new Error('resposta inválida');
-    d.rec={recs:rc.complaints||[],sups:rs.supports||[],recAll:false,supAll:false,erro:false};
+    d.rec={recs:rc.complaints||[],sups:rs.supports||[],recAll:false,respAll:false,supAll:false,erro:false};
   }catch(e){d.rec={recs:[],sups:[],erro:true}}
   if(document.getElementById('mFicha').classList.contains('open')&&FTAB[id]==='rec')renderFicha(id);
 }
@@ -644,7 +688,12 @@ async function enviaForm(){
   if(ti.length<5||de.length<10)return toast('Preencha título (5+) e descrição (10+).');
   try{const r=await fetch(API+'/api/reclamacoes/public',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({politicianId:FORM_ID,tipo:FORM_T,titulo:ti,descricao:de})});
-    if(r.ok){toast(FORM_T==='apo'?'Apoio registrado! 👍':'Reclamação registrada! 📣');fechar('mForm');return}
+    if(r.ok){toast(FORM_T==='apo'?'Apoio registrado! 👍':'Reclamação registrada! 📣');fechar('mForm');
+      // contadores do card/ficha ficam certos na hora
+      STATS_ALL=null;carregaStatsGlobais();
+      if(DET[FORM_ID]){DET[FORM_ID].rec=null;DET[FORM_ID].statsFim=null;
+        if(document.getElementById('mFicha').classList.contains('open')&&FICHA_ID===FORM_ID){carregaStats(FORM_ID);carregaRec(FORM_ID)}}
+      return}
     if(r.status===404)toast('Servidor em atualização — registro salvo localmente.');
     else{const e=await r.json().catch(()=>({}));toast('Erro ao enviar: '+(e.error||r.status))}}
   catch(e){toast('Erro de conexão — tentando salvar localmente.')}
