@@ -4,10 +4,10 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Radar Político · MudaBrasil</title>
-<meta name="description" content="Radar Político: ficha completa com dados públicos reais de deputados federais e senadores — projetos apresentados, como votou, comissões, contatos e links oficiais (Câmara, Senado, TSE, Portal da Transparência, CNJ).">
+<meta name="description" content="Radar Político: dados públicos reais de deputados federais e senadores — projetos apresentados, como votou, comissões, contatos e links oficiais (Câmara, Senado, TSE, Portal da Transparência, CNJ).">
 <link rel="canonical" href="https://xbrancox.github.io/MudaBrZclone280826/pages/parlamentares.html">
 <meta property="og:title" content="Radar Político · MudaBrasil">
-<meta property="og:description" content="Ficha completa com dados públicos reais de deputados e senadores: projetos, votações, comissões e links oficiais.">
+<meta property="og:description" content="Dados públicos reais de deputados e senadores: projetos, votações, comissões, contatos e links oficiais.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://xbrancox.github.io/MudaBrZclone280826/pages/parlamentares.html">
 <meta property="og:image" content="https://xbrancox.github.io/MudaBrZclone280826/og-image.png">
@@ -136,7 +136,7 @@ a.badge:hover{filter:brightness(1.25)}
 <main>
 <section class="hero">
   <h1>📡 Radar Político</h1>
-  <p>Ficha completa de cada deputado federal e senador com <b style="color:var(--ink)">dados públicos oficiais</b>: projetos apresentados, como votou no Plenário, comissões, contatos e atuação. Compare lado a lado e cobre.</p>
+  <p><b style="color:var(--ink)">Dados públicos completos</b> de cada deputado federal e senador: projetos apresentados, como votou no Plenário, comissões, contatos e atuação. Compare lado a lado e cobre.</p>
   <div class="databanner" id="dbanner"><span>⏳</span><span>Carregando lista de parlamentares…</span></div>
 </section>
 
@@ -148,7 +148,7 @@ a.badge:hover{filter:brightness(1.25)}
     <select id="fCargo" onchange="renderRad()">
       <option value="">Todos os cargos</option>
       <option>Deputado Federal</option>
-      <option>Senador</option>
+      <option>Senador Federal</option>
     </select>
     <select id="fOrdem" onchange="renderRad()">
       <option value="nome">Nome (A-Z)</option>
@@ -229,7 +229,7 @@ a.badge:hover{filter:brightness(1.25)}
 
 <script>
 /* ============================================================
-   RADAR POLÍTICO — ficha completa com dados públicos oficiais
+   RADAR POLÍTICO — dados públicos oficiais do parlamentar
    Fontes: Câmara (API dadosabertos via proxy), Senado (dados
    abertos), + links TSE / Portal da Transparência / CNJ.
    Nenhum dado inventado: o que não existe aparece "—" com o
@@ -252,7 +252,7 @@ let REC_STATS={},FICHA_ID=null; /* contadores de reclamações/apoios (backend) 
 /* ---------- CHIPS DE FONTE ---------- */
 const F_CAMARA=n=>`<a class="fonte" href="https://www.camara.leg.br/deputados/${n}" target="_blank" rel="noopener" title="Ficha oficial na Câmara">Câmara ↗</a>`;
 const F_SENADO=n=>`<a class="fonte" href="https://www25.senado.leg.br/web/senadores/${n}" target="_blank" rel="noopener" title="Página oficial no Senado">Senado ↗</a>`;
-const F_TSE=n=>`<a class="fonte tse" href="https://divulgacandcontas.tse.jus.br/divulga/" target="_blank" rel="noopener" title="DivulgaCand Contas — TSE">TSE ↗</a>`;
+const F_TSE=n=>`<a class="fonte tse" href="https://divulgacandcontas.tse.jus.br/divulga/" target="_blank" rel="noopener" title="Portal oficial DivulgaCand Contas (TSE) — escolha a eleição e busque pelo nome ou nº do candidato">TSE ↗</a>`;
 const F_PT=n=>`<a class="fonte pt" href="https://www.portaltransparencia.gov.br/busca?termo=${encodeURIComponent(n)}" target="_blank" rel="noopener" title="Buscar no Portal da Transparência">Transparência ↗</a>`;
 const F_CNJ=n=>`<a class="fonte cnj" href="https://www.cnj.jus.br/busca-atos-adm?termo=${encodeURIComponent(n)}" target="_blank" rel="noopener" title="Conselho Nacional de Justiça">CNJ ↗</a>`;
 
@@ -322,7 +322,7 @@ async function carregaPol(){
   }
   READY=true;
   const b=$('#dbanner');
-  b.innerHTML='<span>📡</span><span><b>'+(POL.length||'—')+' parlamentares reais</b> — Câmara dos Deputados e Senado Federal (57ª legislatura). Clique em <b>Ficha completa</b> para ver todos os dados públicos.</span>';
+  b.innerHTML='<span>📡</span><span><b>'+(POL.length||'—')+' parlamentares reais</b> — Câmara dos Deputados e Senado Federal (57ª legislatura). Clique em <b>Dados Públicos</b> para ver todos os dados.</span>';
   popula();renderRad();
   carregaStatsGlobais();
 }
@@ -382,18 +382,20 @@ function renderRad(){
     const isCam=String(p.id).startsWith('camara-');
     const nProj=det.props?det.props.length:(p.propsSnap!=null?p.propsSnap:null);
     let extra=`<a class="plrow" href="congresso.html?autor=${encodeURIComponent(p.nome)}${autorIdQ(p)?'&autorId='+autorIdQ(p):''}" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')" title="Clique pra ver os PLs deste parlamentar e como os partidos votaram — a lista completa fica na página do Congresso">📜 Projetos de Leis (PLs) apresentados${nProj!=null?' ('+nProj+')':''} — ver PLs no Congresso →</a>`;
-    const st=STATS_ALL&&STATS_ALL[p.id];
-    if(st){
-      extra+=`<div class="crow"><a class="badge red" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','rec')" title="Ver todas as reclamações (com as respostas, se houver)">📣 Reclamações (${st.complaints})</a><a class="badge ok" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','resp')" title="Ver as respostas oficiais do parlamentar">💬 Respostas (${st.responses})</a><a class="badge ok" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','apo')" title="Ver todos os apoios">👍 Apoios (${st.supports})</a></div>`;
-      (st.recs||[]).forEach(c=>{extra+=`<div class="quote" title="Reclamação recente da plataforma">📣 ${esc(c.content)}<br><small class="muted">${fmtTs(c.createdAt)}${c.responded?' · respondida ✓':''}</small></div>`});
-      if(st.sups&&st.sups.length)extra+=`<div class="quote ok" title="Apoio recente da plataforma">👍 ${esc(st.sups[0].content)}<br><small class="muted">${fmtTs(st.sups[0].createdAt)}</small></div>`;
-    }
+    /* Layout uniforme: TODOS os cards trazem a fileira de contadores da
+       plataforma — 0 quando não há atividade, "…" enquanto o lote global
+       não chegou. As citações só aparecem para quem tem registros. */
+    const st=STATS_ALL?(STATS_ALL[p.id]||{complaints:0,responses:0,supports:0,recs:[],sups:[]}):null;
+    const ns=v=>st&&v!=null?v:'…';
+    extra+=`<div class="crow"><a class="badge red" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','rec')" title="Ver todas as reclamações (com as respostas, se houver)">📣 Reclamações (${ns(st&&st.complaints)})</a><a class="badge ok" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','resp')" title="Ver as respostas oficiais do parlamentar">💬 Respostas (${ns(st&&st.responses)})</a><a class="badge ok" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','apo')" title="Ver todos os apoios">👍 Apoios (${ns(st&&st.supports)})</a></div>`;
+    ((st&&st.recs)||[]).forEach(c=>{extra+=`<div class="quote" title="Reclamação recente da plataforma">📣 ${esc(c.content)}<br><small class="muted">${fmtTs(c.createdAt)}${c.responded?' · respondida ✓':''}</small></div>`});
+    if(st&&st.sups&&st.sups.length)extra+=`<div class="quote ok" title="Apoio recente da plataforma">👍 ${esc(st.sups[0].content)}<br><small class="muted">${fmtTs(st.sups[0].createdAt)}</small></div>`;
     return `<article class="ccard">
       <button class="pin ${PINS.includes(p.id)?'on':''}" title="Fixar para comparar" onclick="togglePin('${esc(p.id)}')">📌</button>
       <div class="chead">${av(p,'av')}<div><div class="cnome">${esc(p.nome)}</div><div class="cmeta">${esc(p.partido)} · ${esc(p.uf)} · ${esc(p.cargo)}</div></div></div>
       <div class="ctags"><span class="badge">🏛️ ${esc(p.fonte==='senado'?'Senado Federal':'Câmara dos Deputados')}</span><a class="badge red" href="https://www.cnj.jus.br/busca-atos-adm?termo=${encodeURIComponent(p.nome)}" target="_blank" rel="noopener" title="Processos: nenhum dado aberto publica a contagem — verifique no portal oficial">⚖️ Processos: verificar ↗</a>${tags.join('')}</div>
       ${extra}
-      <div class="cactions"><button class="btn gold sm" onclick="abrirFicha('${esc(p.id)}')">📄 Ficha completa</button>
+      <div class="cactions"><button class="btn gold sm" onclick="abrirFicha('${esc(p.id)}')">📄 Dados Públicos</button>
       <button class="btn sm" onclick="abrirForm('${esc(p.id)}','rec')">🔴 Reclamar</button>
       <button class="btn green sm" onclick="abrirForm('${esc(p.id)}','apo')">👍 Apoiar</button></div>
     </article>`}).join('')
@@ -403,7 +405,7 @@ function renderRad(){
 }
 function mais(){VIS+=60;renderRad()}
 
-/* ---------- FICHA COMPLETA ---------- */
+/* ---------- DADOS PÚBLICOS (ficha do parlamentar) ---------- */
 function abrirFicha(id){
   const p=POL.find(x=>x.id===id);if(!p)return;
   if(!DET[id])DET[id]={props:[],votos:[],orgaos:null,frentes:null,ocup:null,hist:null,det:{},votosFim:false};
@@ -488,7 +490,7 @@ function renderFicha(id){
     </div>
     <div>${conteudo}</div>
     <div class="fontes">
-      <div class="fcard">🏛️ <b>TSE — DivulgaCand</b><br><span class="muted">Patrimônio, bens, prestação de contas</span><br>${F_TSE(p.num)}</div>
+      <div class="fcard">🏛️ <b>TSE — DivulgaCand</b><br><span class="muted">Patrimônio, bens, prestação de contas</span><br>${F_TSE(p.nome)}</div>
       <div class="fcard">💰 <b>Portal da Transparência</b><br><span class="muted">Remuneração, verbas e despesas</span><br>${F_PT(p.nome)}</div>
       <div class="fcard">⚖️ <b>CNJ</b><br><span class="muted">Processos judiciais</span><br>${F_CNJ(p.nome)}</div>
       <div class="fcard">${p.fonte==='senado'?'🏛️':'🏛️'} <b>Página oficial</b><br><span class="muted">Ficha institucional completa</span><br>${eCam}</div>
