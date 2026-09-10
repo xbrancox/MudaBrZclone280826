@@ -576,6 +576,7 @@ async function logout(silencioso) {
   state.token = ''; state.name = ''; state.myVotes = {};
   $('#whoName').textContent = '';
   location.hash = '';
+  TELAS.forEach(t => $('#s-' + t).classList.remove('active')); /* nenhuma tela fica ativa por trás do ENTRAR */
   showEntrar(true);
   if (!silencioso) toast('Sessão encerrada', 'ok');
 }
@@ -614,11 +615,23 @@ function instalar() {
 
 /* ===== boot ===== */
 $('#whoName').textContent = state.name;
-if (state.token) {
-  showEntrar(false);
-  route();
-  loadMeusVotos();
-} else {
-  showEntrar(true);
-}
-window.__appReady = true; /* rede de segurança no index.html confere esta flag */
+(async () => {
+  if (state.token) {
+    /* valida a sessão ANTES de mostrar o app — token velho (deploy que
+       recriou o banco) não pode deixá-lo num estado quebrado */
+    const me = await api('/api/auth/me');
+    if (me.__status === 401) {
+      state.token = ''; state.name = ''; state.myVotes = {};
+      store.del('mb_app_token'); store.del('mb_app_name');
+      $('#whoName').textContent = '';
+      showEntrar(true);
+    } else {
+      showEntrar(false);
+      route();
+      loadMeusVotos();
+    }
+  } else {
+    showEntrar(true);
+  }
+  window.__appReady = true; /* rede de segurança no index.html confere esta flag */
+})();
