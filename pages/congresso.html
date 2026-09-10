@@ -279,7 +279,7 @@ h2{margin:26px 0 10px}
 const API=(window.MudaBrasil&&window.MudaBrasil.API_BASE)||'';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const LS={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},set(k,v){localStorage.setItem(k,JSON.stringify(v))}};
-let PLS=[],VOT=[],VOTOS={},MAPVOT={},VOT2PLKEY={},POVO={},temaAtivo='',perAtivo=30,pular=[],fila=[],ultimaKey='',AUTOR=null,PLS_TODOS=null,VOTRAW={},VOTMODO={},filtroRes='all',VOTLOADED=false,vexpAll=false,plExpAll=false,agExpEsq=false,agExpDir=false;
+let PLS=[],VOT=[],VOTOS={},MAPVOT={},VOT2PLKEY={},POVO={},temaAtivo='',perAtivo=30,pular=[],fila=[],ultimaKey='',AUTOR=null,AUTOR_FONTE='',PLS_TODOS=null,VOTRAW={},VOTMODO={},filtroRes='all',VOTLOADED=false,vexpAll=false,plExpAll=false,agExpEsq=false,agExpDir=false;
 /* caixas da grade 2×2: expandidas mostram filtros + lista completa (a caixa Votações é a fonte de verdade) */
 let qboxPls=false,qboxVot=false;
 const meuUid=()=>{let u=LS.get('mb_uid',null);if(!u){u='u'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);LS.set('mb_uid',u)}return u};
@@ -638,7 +638,7 @@ function renderPills(){
 function renderTudo(){
  const lista=$('#lista');lista.innerHTML='';
  PLS.forEach(p=>lista.appendChild(cardPL(p)));
- if(!PLS.length)lista.innerHTML=`<div class="vazio">Nenhuma PL carregada. Confira o backend ou recarregue.</div>`;
+ if(!PLS.length&&!AUTOR)lista.innerHTML=`<div class="vazio">Nenhuma PL carregada. Confira o backend ou recarregue.</div>`;
  syncBoxes();renderPills();aplicaFiltro();renderAgenda();renderUrna()}
 function aplicaFiltro(){
  const q=($('#busca').value||'').toLowerCase();let vis=0,midx=0;
@@ -649,10 +649,10 @@ function aplicaFiltro(){
  const vb=$('#pl-vermais');
  if(vb){vb.hidden=vis<=3||qboxPls;vb.textContent=plExpAll?'Mostrar só as 3 mais recentes ▴':'Ver todas as '+vis+' PLs ▾'}
  const vz=$('#lista-vazio');vz.hidden=vis>0;
- vz.textContent=vis>0?'':(temaAtivo?'Nenhuma PL de '+temaAtivo+' em análise agora. Quando entrar, aparece aqui. 🔍':'Nenhuma PL encontrada pra esse filtro. Aqui quem escolhe é você — use a busca. 🔍');
+ vz.textContent=vis>0?'':(AUTOR?'Nenhuma proposição apresentada por '+esc(AUTOR)+' nos dados abertos '+(AUTOR_FONTE==='Senado'?'do Senado':'da Câmara')+' agora. 🔍':(temaAtivo?'Nenhuma PL de '+temaAtivo+' em análise agora. Quando entrar, aparece aqui. 🔍':'Nenhuma PL encontrada pra esse filtro. Aqui quem escolhe é você — use a busca. 🔍'));
  const fb=$('#filtro-ativo');
  if(fb){if(temaAtivo){fb.hidden=false;fb.innerHTML='<b style="color:var(--gold)">Assunto: '+temaAtivo+'</b><span class="mini">'+vis+' projeto(s) com esse tema</span><button class="pill ghost" data-acao="tema-limpar" style="margin-left:auto">✕ limpar filtro</button>'}
- else if(AUTOR){fb.hidden=false;fb.innerHTML='<b style="color:var(--gold)">📜 Proposições apresentadas por '+esc(AUTOR)+'</b> <span class="mini">'+vis+' projeto(s) recentes — dados abertos da Câmara</span><button class="pill ghost" data-acao="autor-limpar" style="margin-left:auto">✕ ver todos os PLs</button>'}
+ else if(AUTOR){fb.hidden=false;fb.innerHTML='<b style="color:var(--gold)">📜 Proposições apresentadas por '+esc(AUTOR)+'</b> <span class="mini">'+vis+' projeto(s) recentes — dados abertos '+(AUTOR_FONTE==='Senado'?'do Senado':'da Câmara')+'</span><button class="pill ghost" data-acao="autor-limpar" style="margin-left:auto">✕ ver todos os PLs</button>'}
  else{fb.hidden=true}}}
 async function dna(btn){
  const mv=meusVotos();
@@ -693,7 +693,7 @@ document.addEventListener('click',e=>{
  else if(a==='per'){$$('[data-acao="per"]').forEach(x=>x.classList.remove('on'));b.classList.add('on');perAtivo=+b.dataset.per;renderAgenda()}
  else if(a==='tema'){$$('[data-acao="tema"]').forEach(x=>x.classList.remove('on'));b.classList.add('on');temaAtivo=b.dataset.t;plExpAll=false;aplicaFiltro();document.getElementById('anc-lista').scrollIntoView({behavior:'smooth'})}
  else if(a==='tema-limpar'){temaAtivo='';plExpAll=false;$$('#pills-tema [data-acao="tema"]').forEach(x=>x.classList.toggle('on',x.dataset.t===''));aplicaFiltro()}
- else if(a==='autor-limpar'){AUTOR=null;if(PLS_TODOS){PLS=PLS_TODOS;PLS_TODOS=null}$('#busca').value='';plExpAll=false;renderTudo();document.getElementById('anc-lista').scrollIntoView({behavior:'smooth'})}
+ else if(a==='autor-limpar'){AUTOR=null;AUTOR_FONTE='';if(PLS_TODOS){PLS=PLS_TODOS;PLS_TODOS=null}$('#busca').value='';plExpAll=false;renderTudo();document.getElementById('anc-lista').scrollIntoView({behavior:'smooth'})}
  else if(a==='dna'){dna(b)}
  else if(a==='ir-urna'){document.getElementById('urna').scrollIntoView({behavior:'smooth'})}
  else if(a==='uf-limpar'){const n=$('#u-num'),t=$('#u-tema'),p=$('#u-parl');if(n)n.value='';if(t)t.value='';if(p)p.value='';pular=[];renderUrna()}
@@ -787,26 +787,43 @@ $('#popup-ok').onclick=()=>{LS.set('mb_popup_congresso',1);$('#popup').style.dis
    if(!card){vexpAll=true;renderVots();card=document.getElementById('vot-'+cssk(dVot))}
    if(card){card.scrollIntoView({behavior:'smooth',block:'center'});toggleVotos(dVot)}}
  },700);
- // Deep-link de autoria: ?autor=Nome (e ?autorId=ID do deputado na Câmara,
- // vindo do link "Projetos apresentados" da ficha no Radar Político) abre a
- // área de PLs mostrando as proposições daquele autor — buscadas direto na
- // API da Câmara quando temos o id; sem id, cai na busca por nome nos cards.
+ // Deep-link de autoria: ?autor=Nome + ?autorId= (idDeputado na Câmara ou
+ // senado-<código>, vindos do link "Projetos apresentados" da ficha no Radar
+ // Político) abre a área de PLs mostrando as proposições daquele autor,
+ // buscadas na API da casa correspondente. Lista vazia = estado vazio honesto.
+ // Sem autorId, cai na busca por nome nos cards — e sem barra de autor, porque
+ // a lista do site não é do parlamentar (a barra mentiria o total).
  const QP=new URLSearchParams(location.search);
  const autor=QP.get('autor')||QP.get('dep');
  const autorId=QP.get('autorId');
+ const mSen=autorId&&autorId.match(/^senado-(\d+)$/);
  if(autor){
-  AUTOR=autor;
-  // a ficha do autor pede a lista COMPLETA das proposições — ignora o corte de 3
   plExpAll=true;
-  if(autorId&&/^\d+$/.test(autorId)){
+  if(/^\d+$/.test(autorId||'')){
+   AUTOR=autor;AUTOR_FONTE='Câmara';
    $('#lista').innerHTML='<div class="vazio">⏳ Buscando as proposições de '+esc(autor)+' na Câmara…</div>';
    try{
     const r=await fetch(API+'/api/camara/proposicoes?idDeputadoAutor='+encodeURIComponent(autorId)+'&itens=30&ordem=DESC&ordenarPor=id');
     const j=await r.json();
-    const props=(j.dados||[]).map(x=>({sigla:x.siglaTipo||'',number:(x.numero||'')+'/'+(x.ano||''),ementa:x.ementa||x.titulo||'',chamber:'Câmara',author:autor,party:'',id:x.id,ano:x.ano}));
-    if(props.length){PLS_TODOS=PLS;PLS=props;$('#busca').value=''}
-    else $('#lista').innerHTML='<div class="vazio">Nenhuma proposição autoral encontrada para '+esc(autor)+' na Câmara nesta legislatura. 🔍</div>';
-   }catch(e){$('#lista').innerHTML='<div class="vazio">Não deu pra buscar as proposições agora — confira o inteiro teor na página oficial. 🔍</div>'}
+    PLS_TODOS=PLS;
+    PLS=(j.dados||[]).map(x=>({sigla:x.siglaTipo||'',number:(x.numero||'')+'/'+(x.ano||''),ementa:x.ementa||x.titulo||'',chamber:'Câmara',author:autor,party:'',id:x.id,ano:x.ano}));
+    $('#busca').value='';
+   }catch(e){PLS_TODOS=PLS;PLS=[]}
+  }else if(mSen){
+   AUTOR=autor;AUTOR_FONTE='Senado';
+   $('#lista').innerHTML='<div class="vazio">⏳ Buscando as matérias de autoria de '+esc(autor)+' no Senado…</div>';
+   try{
+    const r=await fetch('https://legis.senado.leg.br/dadosabertos/senador/'+mSen[1]+'/autorias.json');
+    const j=await r.json();
+    const par=(j.MateriasAutoriaParlamentar||{}).Parlamentar||{};
+    const aut=(par.Autorias&&par.Autorias.Autoria)||[];
+    PLS_TODOS=PLS;
+    PLS=aut.map(a=>{const mt=a.Materia||{};return{sigla:mt.Sigla||'PLS',number:(mt.Numero||'')+'/'+(mt.Ano||''),ementa:mt.Ementa||'',chamber:'Senado',author:autor,party:'',id:mt.Codigo,ano:mt.Ano,url:'https://www25.senado.leg.br/web/atividade/materias/-/materia/'+mt.Codigo}})
+     .filter(p=>p.number!=='/')
+     .sort((a,b)=>(+b.ano||0)-(+a.ano||0))
+     .slice(0,40);
+    $('#busca').value='';
+   }catch(e){PLS_TODOS=PLS;PLS=[]}
   }else{
    $('#busca').value=autor;
   }

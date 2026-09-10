@@ -959,7 +959,7 @@ async function handleApi(req, res, url) {
   return sendJson(res, 404, { error: 'Rota de API não encontrada' });
 }
 
-function serveStatic(res, url) {
+function serveStatic(res, url, req) {
   let u = decodeURIComponent(url.pathname);
   if (u === '/') u = '/index.html';
   const safe = path.normalize(u).replace(/^(\.\.[/\\])+/, '');
@@ -974,8 +974,23 @@ function serveStatic(res, url) {
     return res.end('404 - Não encontrado: ' + u);
   }
   const ext = path.extname(fp).toLowerCase();
+  const mtime = fs.statSync(fp).mtime;
+  // no-cache: guarda, mas revalida a cada load (com Last-Modified vira 304).
+  // Sem isso o navegador segura HTML velho e o site "vira dois" entre janelas.
+  // If-Modified-Since → 304: revalidação sem baixar o arquivo de novo.
+  if (req && req.headers['if-modified-since']) {
+    const since = new Date(req.headers['if-modified-since']);
+    // datas HTTP têm precisão de segundo — trunca o mtime antes de comparar
+    const mtimeSec = new Date(Math.floor(mtime.getTime() / 1000) * 1000);
+    if (!isNaN(since) && mtimeSec <= since) {
+      res.writeHead(304, { 'Last-Modified': mtime.toUTCString() });
+      return res.end();
+    }
+  }
   res.writeHead(200, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Cache-Control': 'no-cache',
+    'Last-Modified': mtime.toUTCString(),
     'X-Content-Type-Options': SEC_HEADERS['X-Content-Type-Options'],
     'Referrer-Policy': SEC_HEADERS['Referrer-Policy']
   });
@@ -994,7 +1009,7 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
     if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
-    return serveStatic(res, url);
+    return serveStatic(res, url, req);
   } catch (e) {
     return sendJson(res, 500, { error: 'Erro interno: ' + e.message });
   }

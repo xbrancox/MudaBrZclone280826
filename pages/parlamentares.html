@@ -272,6 +272,9 @@ function abrePlsCongresso(ev,nome,num){
   location.href='congresso.html?autor='+encodeURIComponent(nome)+(num?'&autorId='+encodeURIComponent(num):'');
   return false;
 }
+/* id para o deep-link de autoria: deputado = número da Câmara; senador =
+   'senado-<código>' — a página do Congresso distingue os dois casos. */
+const autorIdQ=p=>p.num?(String(p.id).startsWith('camara-')?String(p.num):'senado-'+p.num):'';
 
 /* ---------- ÍNDICE TSE 2026 (nº do candidato na urna) ----------
    data/tse-index.json = nome de urna + UF → candidaturas 2026
@@ -378,7 +381,7 @@ function renderRad(){
     // ---- PLs clicáveis + contadores da plataforma (print do usuário) ----
     const isCam=String(p.id).startsWith('camara-');
     const nProj=det.props?det.props.length:(p.propsSnap!=null?p.propsSnap:null);
-    let extra=`<a class="plrow" href="congresso.html?autor=${encodeURIComponent(p.nome)}${isCam&&p.num?'&autorId='+p.num:''}" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${isCam?esc(p.num):''}')" title="Clique pra ver os PLs deste parlamentar e como os partidos votaram — a lista completa fica na página do Congresso">📜 Projetos de Leis (PLs) apresentados${nProj!=null?' ('+nProj+')':''} — ver PLs no Congresso →</a>`;
+    let extra=`<a class="plrow" href="congresso.html?autor=${encodeURIComponent(p.nome)}${autorIdQ(p)?'&autorId='+autorIdQ(p):''}" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')" title="Clique pra ver os PLs deste parlamentar e como os partidos votaram — a lista completa fica na página do Congresso">📜 Projetos de Leis (PLs) apresentados${nProj!=null?' ('+nProj+')':''} — ver PLs no Congresso →</a>`;
     const st=STATS_ALL&&STATS_ALL[p.id];
     if(st){
       extra+=`<div class="crow"><a class="badge red" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','rec')" title="Ver todas as reclamações (com as respostas, se houver)">📣 Reclamações (${st.complaints})</a><a class="badge ok" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','resp')" title="Ver as respostas oficiais do parlamentar">💬 Respostas (${st.responses})</a><a class="badge ok" href="javascript:void(0)" onclick="abreRecSec('${esc(p.id)}','apo')" title="Ver todos os apoios">👍 Apoios (${st.supports})</a></div>`;
@@ -453,7 +456,7 @@ function renderFicha(id){
     ['Gabinete',d.det.gabinete?esc(d.det.gabinete):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
     ['Contato do gabinete',d.det.contato?esc(d.det.contato):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
     ['Redes sociais',d.det.redes&&d.det.redes.length?d.det.redes.map(r=>`<a href="${esc(r)}" target="_blank" rel="noopener">${esc(r.replace(/^https?:\/\/(www\.)?/,'').slice(0,28))}</a>`).join(' · '):(d.detDone?'—':'<span class="skel">carregando</span>'),eCam],
-    ['Projetos apresentados',d.props?`<a href="congresso.html?autor=${encodeURIComponent(p.nome)}${p.num&&String(p.id).startsWith('camara-')?'&autorId='+p.num:''}" title="Ver os PLs deste parlamentar na área PLs do Congresso" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${String(p.id).startsWith('camara-')?esc(p.num):''}')">${d.props.length} nesta legislatura → ver PLs no Congresso</a>`:`<a href="congresso.html?autor=${encodeURIComponent(p.nome)}${p.num&&String(p.id).startsWith('camara-')?'&autorId='+p.num:''}" title="Ver os PLs deste parlamentar na área PLs do Congresso" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${String(p.id).startsWith('camara-')?esc(p.num):''}')">ver PLs no Congresso →</a>`,eCam],
+    ['Projetos apresentados',d.props&&!String(p.id).startsWith('senado-')?`<a href="congresso.html?autor=${encodeURIComponent(p.nome)}${autorIdQ(p)?'&autorId='+autorIdQ(p):''}" title="Ver os PLs deste parlamentar na área PLs do Congresso" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')">${d.props.length} nesta legislatura → ver PLs no Congresso</a>`:`<a href="congresso.html?autor=${encodeURIComponent(p.nome)}${autorIdQ(p)?'&autorId='+autorIdQ(p):''}" title="Ver as matérias deste parlamentar na área PLs do Congresso" onclick="return abrePlsCongresso(event,'${esc(p.nome)}','${autorIdQ(p)}')">ver PLs no Congresso →</a>`,eCam],
     ['Como votou (nominais)',d.votos&&d.votos.length?d.votos.length+' votações recentes (aba 🗳️)':(d.votosFim?'0 votações nominais nas recentes (aba 🗳️)':'<span class="skel">carregando</span>'),eCam],
     ['Patrimônio declarado','consultar',F_TSE(p.nome)],
     ['Bens e rendas da campanha','consultar',F_TSE(p.nome)],
