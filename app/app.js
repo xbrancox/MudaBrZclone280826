@@ -324,6 +324,12 @@ $('#s-votar').addEventListener('scroll', () => {
     if (entradas.some(e => e.isIntersecting)) carregarProximaPagina();
   }, { root: scr, rootMargin: '400px' }).observe(sent);
 })();
+/* rede extra: alguns webviews não disparam scroll/IntersectionObserver — checa posição periodicamente */
+setInterval(() => {
+  const scr = $('#s-votar');
+  if (!scr.classList.contains('active')) return;
+  if (scr.scrollTop + scr.clientHeight >= scr.scrollHeight - 350) carregarProximaPagina();
+}, 700);
 function renderVotar() {
   renderChips();
   renderUfArea();
