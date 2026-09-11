@@ -266,6 +266,7 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
         <h2 class="titles" style="margin:0">Apuração</h2>
         <button class="btn btn-ghost" id="btnShare" style="min-height:38px;padding:6px 14px;font-size:13px">Compartilhar ↗</button>
       </div>
+      <div id="apuPrazo" class="aviso-site" style="padding:10px 13px;margin:0 0 10px"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div class="atualizado" id="apuTs" style="flex:1"></div>
         <button class="btn btn-ghost" id="btnApuRefresh" style="min-height:34px;padding:4px 12px;font-size:12px;flex:0 0 auto">Atualizar ⟳</button>
@@ -275,6 +276,7 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
         <a href="/#conferir-voto" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600">Conferir voto no site ↗</a>
       </div>
       <div id="bannerEleicaoApu" hidden class="aviso-site" style="margin:8px 0"></div>
+      <p class="muted" style="font-size:12px;margin:10px 2px 2px"><b style="color:var(--ink)">Votos aqui no MudaBrasil</b> — simulação cívica com os candidatos oficiais do TSE. Não é o resultado oficial da eleição.</p>
       <div id="apuLista"></div>
     </section>
 
@@ -431,7 +433,7 @@ if (location.search.indexOf('reset=1') !== -1) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 </script>
-<script src="/app/app.js?v=17"></script>
+<script src="/app/app.js?v=18"></script>
 <script>
 /* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
 setTimeout(function () {

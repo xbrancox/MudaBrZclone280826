@@ -113,7 +113,7 @@ function route() {
   const navTela = (tela === 'ajuda' || tela === 'sobre') ? 'menu' : tela;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.go === navTela));
   if (tela === 'votar') renderVotar();
-  if (tela === 'apuracao') refreshApuracao();
+  if (tela === 'apuracao') { refreshApuracao(); atualizarApuPrazo(); }
   if (tela === 'radar') carregarRadar();
   if (tela === 'meuvoto') renderMeuVoto();
   if (tela === 'menu') renderMenu();
@@ -472,7 +472,7 @@ $('#btnShare').addEventListener('click', async () => {
   try {
     const d = JSON.parse(cache);
     const lideres = d.cargos.filter(c => c.lider).map(c => `${c.nome}: ${c.lider.nome} (${c.lider.pct}%)`).join('\n');
-    const txt = 'Apuração MudaBrasil 🇧🇷\n' + lideres + '\n\nVote também: ' + SITE_URL + '/app/';
+    const txt = 'Votação no MudaBrasil (simulação cívica, não é resultado oficial) 🇧🇷\n' + lideres + '\n\nVote também: ' + SITE_URL + '/app/';
     await compartilharTexto(txt);
   } catch (e) { if (!e || e.name !== 'AbortError') toast('Não foi possível compartilhar', 'err'); }
 });
@@ -709,6 +709,27 @@ function atualizarBannerEleicao() {
   });
 }
 
+/* contagem regressiva da eleição real — a Apuração do app é a simulação,
+   os resultados oficiais são do TSE e só existem no dia da votação */
+function diasAte(iso) {
+  return Math.round((new Date(iso + 'T00:00:00-03:00') - new Date(hojeBR() + 'T00:00:00-03:00')) / 86400000);
+}
+function atualizarApuPrazo() {
+  const el = document.getElementById('apuPrazo');
+  if (!el) return;
+  const d1 = diasAte('2026-10-04'), d2 = diasAte('2026-10-25');
+  const link = '<a href="https://resultados.tse.jus.br/" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600">resultados oficiais no TSE ↗</a>';
+  const sim = 'Abaixo, os votos da <b>simulação do MudaBrasil</b>.';
+  let txt;
+  if (d1 > 1) txt = `⏳ A eleição real começa em <b>${d1} dias</b> — 1º turno em 04/10, 2º turno em 25/10. ${sim} ${link} saem no dia da votação.`;
+  else if (d1 === 1) txt = `⏳ A eleição real é <b>amanhã</b> (1º turno, 04/10). ${sim} ${link} saem no dia da votação.`;
+  else if (d1 === 0) txt = `🗳️ Hoje é o 1º turno da eleição real! Acompanhe os ${link} ${sim}`;
+  else if (d2 > 0) txt = `⏳ 2º turno da eleição real em <b>${d2} dias</b> (25/10). ${link} ${sim}`;
+  else if (d2 === 0) txt = `🗳️ Hoje é o 2º turno da eleição real! Acompanhe os ${link} ${sim}`;
+  else txt = `✅ Eleição encerrada — veja os ${link} ${sim}`;
+  el.innerHTML = txt;
+}
+
 /* ===== MENU ===== */
 function renderMenu() {
   $('#menuNome').textContent = state.name || '—';
@@ -768,6 +789,7 @@ $('#whoName').textContent = state.name;
   await garantirSessao();
   route();
   atualizarBannerEleicao();
+  atualizarApuPrazo();
   loadMeusVotos();
   window.__appReady = true; /* rede de segurança no index.html confere esta flag */
 })();
