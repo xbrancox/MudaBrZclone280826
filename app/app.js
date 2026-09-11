@@ -584,7 +584,7 @@ async function logout(silencioso) {
 
 /* ===== PWA: service worker + instalar ===== */
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  navigator.serviceWorker.register('/app/sw.js').catch(() => { });
+  navigator.serviceWorker.register('/app/sw.js', { updateViaCache: 'none' }).catch(() => { });
 }
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
