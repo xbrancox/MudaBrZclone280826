@@ -454,8 +454,7 @@ $('#btnShare').addEventListener('click', async () => {
     const d = JSON.parse(cache);
     const lideres = d.cargos.filter(c => c.lider).map(c => `${c.nome}: ${c.lider.nome} (${c.lider.pct}%)`).join('\n');
     const txt = 'Apuração MudaBrasil 🇧🇷\n' + lideres + '\n\nVote também: ' + SITE_URL + '/app/';
-    if (navigator.share) { await navigator.share({ title: 'Apuração MudaBrasil', text: txt }); }
-    else { await navigator.clipboard.writeText(txt); toast('Resumo copiado!', 'ok'); }
+    await compartilharTexto(txt);
   } catch (e) { if (!e || e.name !== 'AbortError') toast('Não foi possível compartilhar', 'err'); }
 });
 /* auto-refresh 30s enquanto a tela está visível */
@@ -604,20 +603,26 @@ function renderMeuVoto() {
   $('#btnCompartilharApp')?.addEventListener('click', compartilharApp);
 }
 
+/* compartilhar: no celular usa o menu nativo; no desktop copia para a área
+   de transferência — o diálogo nativo do sistema em webview embutida
+   (navegador dentro de outro app) pode congelar a página */
+async function compartilharTexto(txt) {
+  const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (touch && typeof navigator.share === 'function') {
+    try { await navigator.share({ title: 'MudaBrasil', text: txt, url: SITE_URL + '/app/' }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  try {
+    await navigator.clipboard.writeText(txt);
+    toast('Copiado! Cole para compartilhar 📋', 'ok');
+  } catch (_) {
+    toast('Não foi possível compartilhar', 'err');
+  }
+}
+
 /* convite ao app — aparece quando o usuário completa os 5 cargos */
 async function compartilharApp() {
-  const url = SITE_URL + '/app/';
-  const txt = 'Estou pesando a mão no MudaBrasil 🇧🇷 — voto contínuo e revogável nos candidatos. "Seu voto coloca, seu voto tira." Vote também: ';
-  try {
-    if (navigator.share) {
-      await navigator.share({ title: 'MudaBrasil', text: txt, url });
-    } else {
-      await navigator.clipboard.writeText(txt + url);
-      toast('Convite copiado! Cole para seus amigos 📋', 'ok');
-    }
-  } catch (e) {
-    if (!e || e.name !== 'AbortError') toast('Não foi possível compartilhar', 'err');
-  }
+  await compartilharTexto('Estou pesando a mão no MudaBrasil 🇧🇷 — voto contínuo e revogável nos candidatos. "Seu voto coloca, seu voto tira." Vote também: ' + SITE_URL + '/app/');
 }
 $('#btnAbrirSite').addEventListener('click', () => window.open(SITE_URL + '/', '_blank'));
 

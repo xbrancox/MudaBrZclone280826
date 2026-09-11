@@ -154,6 +154,16 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
 .meu-item .cg b{display:block;font-size:13px}
 .meu-item .cg span{font-size:12px;color:var(--muted)}
 .meu-item .st{font-size:18px;flex:0 0 auto}
+/* seta que indica que a linha é clicável (leva à lista do cargo) */
+.meu-item::after{content:'›';color:var(--muted);font-size:20px;flex:0 0 auto;opacity:.75;margin-left:2px}
+/* no desktop (mouse) a rolagem tem que aparecer — no celular o dedo rola */
+@media (pointer:fine){
+  .screen{scrollbar-width:thin;scrollbar-color:rgba(255,215,0,.35) transparent}
+  .screen::-webkit-scrollbar{width:9px}
+  .screen::-webkit-scrollbar-thumb{background:rgba(255,215,0,.3);border-radius:99px}
+  .screen::-webkit-scrollbar-track{background:transparent}
+  .meu-item:hover,.menu-item:hover{border-color:var(--gold)}
+}
 .aviso-site{background:linear-gradient(135deg,rgba(255,215,0,.1),rgba(255,215,0,.04));border:1px solid rgba(255,215,0,.35);border-radius:var(--r);padding:14px;margin-bottom:14px}
 .aviso-site b{color:var(--gold)}
 
@@ -414,7 +424,7 @@ if (location.search.indexOf('reset=1') !== -1) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 </script>
-<script src="/app/app.js?v=12"></script>
+<script src="/app/app.js?v=13"></script>
 <script>
 /* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
 setTimeout(function () {
