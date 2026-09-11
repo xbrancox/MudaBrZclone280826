@@ -12,7 +12,7 @@
      com "atualizado às HH:MM" quando offline.
    Bump de versão: mude CACHE e os caches antigos são apagados.
    ============================================================ */
-const CACHE = 'mb-app-shell-v8';
+const CACHE = 'mb-app-shell-v9';
 const SHELL = [
   './',
   './index.html',

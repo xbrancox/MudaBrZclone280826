@@ -639,7 +639,17 @@ async function compartilharTexto(txt) {
     catch (e) { if (e && e.name === 'AbortError') return; }
   }
   const ok = await copiarTexto(txt);
-  toast(ok ? 'Copiado! Cole para compartilhar 📋' : 'Não foi possível compartilhar', ok ? 'ok' : 'err');
+  if (ok) { toast('Copiado! Cole para compartilhar 📋', 'ok'); return; }
+  /* nem clipboard nem execCommand: mostra o texto na tela para copiar à mão */
+  openSheet(`
+    <h3 class="titles" style="text-align:center">Compartilhar</h3>
+    <p class="muted" style="font-size:12.5px;text-align:center">Seu navegador bloqueou a cópia automática. Toque no texto, selecione e copie:</p>
+    <textarea readonly id="shTxt" style="width:100%;min-height:110px;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:#e8f0fe;padding:10px;font-size:13px;resize:none;line-height:1.5">${esc(txt)}</textarea>
+    <div class="sheet-actions"><button class="btn btn-ghost" id="shFechar">FECHAR</button></div>`);
+  const ta = $('#shTxt');
+  ta.focus();
+  ta.select();
+  $('#shFechar').addEventListener('click', closeSheet);
 }
 
 /* convite ao app — aparece quando o usuário completa os 5 cargos */
