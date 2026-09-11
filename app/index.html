@@ -91,6 +91,8 @@ h2.titles{font-size:18px;margin:2px 0 12px}
 
 /* chips de cargo */
 #votarTopo{position:sticky;top:0;z-index:5;background:var(--bg);margin:-14px -14px 0;padding:12px 14px 8px;box-shadow:0 8px 14px -10px rgba(0,0,0,.65)}
+/* listas grandes (1.092 candidatos): o navegador pula a pintura dos cards fora da tela */
+#listaCand>*{content-visibility:auto;contain-intrinsic-size:auto 78px}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{
@@ -240,6 +242,7 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
           <input id="buscaCand" type="search" placeholder="Buscar candidato pelo nome" autocomplete="off">
         </div>
       </div>
+      <div id="bannerEleicao" hidden class="aviso-site"></div>
       <div class="muted" id="candInfo" style="font-size:11.5px;margin:8px 2px 6px"></div>
       <div id="votadoBanner"></div>
       <div id="listaCand"></div>
@@ -254,6 +257,7 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
         <button class="btn btn-ghost" id="btnShare" style="min-height:38px;padding:6px 14px;font-size:13px">Compartilhar ↗</button>
       </div>
       <div class="atualizado" id="apuTs"></div>
+      <div id="bannerEleicaoApu" hidden class="aviso-site" style="margin:8px 0"></div>
       <div id="apuLista"></div>
     </section>
 
@@ -410,7 +414,7 @@ if (location.search.indexOf('reset=1') !== -1) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 </script>
-<script src="/app/app.js?v=11"></script>
+<script src="/app/app.js?v=12"></script>
 <script>
 /* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
 setTimeout(function () {

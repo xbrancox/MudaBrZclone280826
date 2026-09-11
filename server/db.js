@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const DATA_DIR = path.join(__dirname, 'data');
+const { dir: DATA_DIR } = require('./storage-dir');
 const VOTOS_DB = path.join(DATA_DIR, 'votos.db');
 const VOTOS_FILE = path.join(DATA_DIR, 'votos.json');
 

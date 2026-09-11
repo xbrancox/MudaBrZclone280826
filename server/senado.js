@@ -12,7 +12,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, 'data');
+const { dir: DATA_DIR, seedIfMissing } = require('./storage-dir');
+seedIfMissing('senadores.json');
 const SENADO_FILE = path.join(DATA_DIR, 'senadores.json');
 const SNAPSHOT_FILE = path.join(__dirname, 'senadores_snapshot.json');
 const API_BASE = 'https://legis.senado.leg.br/dadosabertos';

@@ -33,7 +33,7 @@ const { fetchDeputados } = require('./ingest');
 const { fetchSenadores } = require('./senado');
 const db = require('./db');
 
-const DATA_DIR = path.join(__dirname, 'data');
+const { dir: DATA_DIR } = require('./storage-dir');
 const VOTOS_FILE = db.VOTOS_FILE;
 const VOTOS_DB = db.VOTOS_DB;
 const SALT_FILE = path.join(DATA_DIR, '.salt');

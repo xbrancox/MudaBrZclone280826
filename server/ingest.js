@@ -18,7 +18,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, 'data');
+const { dir: DATA_DIR, seedIfMissing } = require('./storage-dir');
+seedIfMissing('deputados.json');
 const DEP_FILE = path.join(DATA_DIR, 'deputados.json');
 const ENRICH_DIR = path.join(DATA_DIR, 'enrich');
 const API_BASE = 'https://dadosabertos.camara.leg.br/api/v2';

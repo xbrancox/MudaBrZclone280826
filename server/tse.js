@@ -15,7 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, 'data');
+const { dir: DATA_DIR } = require('./storage-dir');
 const CACHE_FILE = path.join(DATA_DIR, 'tse-2026.json');
 /* Snapshot commitado (scripts/baixar-candidatos-tse.js via espelho dos CSVs
    oficiais do TSE). Vai dentro da imagem do Docker, então funciona no

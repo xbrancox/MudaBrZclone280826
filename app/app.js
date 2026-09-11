@@ -573,7 +573,20 @@ async function abrirMiniPerfil(p) {
 
 /* ===== MEU VOTO ===== */
 function renderMeuVoto() {
-  $('#meusLista').innerHTML = CARGOS.map(cfg => {
+  const feitos = CARGOS.filter(c => state.myVotes[c.id]).length;
+  const faltam = CARGOS.length - feitos;
+  let resumo = '';
+  if (feitos === CARGOS.length) {
+    resumo = `<div class="aviso-site" style="border-color:var(--gold)">
+      <b>🏆 Você votou em todos os ${CARGOS.length} cargos!</b>
+      <p class="muted" style="font-size:12.5px;margin:6px 0 10px">Sua opinião está registrada — e pode ser revogada a qualquer momento no site. Chame mais gente para pesar a mão:</p>
+      <button class="btn btn-gold" id="btnCompartilharApp" style="width:100%">Compartilhar o MudaBrasil ↗</button>
+    </div>`;
+  } else if (feitos > 0) {
+    resumo = `<div class="aviso-site"><b>Faltam ${faltam} cargo${faltam > 1 ? 's' : ''} para completar sua votação</b>
+      <p class="muted" style="font-size:12.5px;margin:6px 0 0">Toque num cargo abaixo para votar.</p></div>`;
+  }
+  $('#meusLista').innerHTML = resumo + CARGOS.map(cfg => {
     const v = state.myVotes[cfg.id];
     const cand = v && v.candidato;
     return `<div class="meu-item" data-cargo="${cfg.id}" style="cursor:pointer">
@@ -585,9 +598,26 @@ function renderMeuVoto() {
       </div>
       <span class="st" style="color:${v ? 'var(--green)' : 'var(--muted)'}">${v ? '✓' : '—'}</span>
     </div>`;
-  }).join('') + `<p class="muted" style="text-align:center;font-size:11.5px;margin-top:6px">Toque num cargo para votar</p>`;
+  }).join('') + (feitos < CARGOS.length ? `<p class="muted" style="text-align:center;font-size:11.5px;margin-top:6px">Toque num cargo para votar</p>` : '');
   document.querySelectorAll('#meusLista [data-cargo]').forEach(el =>
     el.addEventListener('click', () => { state.cargo = el.dataset.cargo; listState.pagina = 1; go('votar'); }));
+  $('#btnCompartilharApp')?.addEventListener('click', compartilharApp);
+}
+
+/* convite ao app — aparece quando o usuário completa os 5 cargos */
+async function compartilharApp() {
+  const url = SITE_URL + '/app/';
+  const txt = 'Estou pesando a mão no MudaBrasil 🇧🇷 — voto contínuo e revogável nos candidatos. "Seu voto coloca, seu voto tira." Vote também: ';
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'MudaBrasil', text: txt, url });
+    } else {
+      await navigator.clipboard.writeText(txt + url);
+      toast('Convite copiado! Cole para seus amigos 📋', 'ok');
+    }
+  } catch (e) {
+    if (!e || e.name !== 'AbortError') toast('Não foi possível compartilhar', 'err');
+  }
 }
 $('#btnAbrirSite').addEventListener('click', () => window.open(SITE_URL + '/', '_blank'));
 
@@ -611,6 +641,29 @@ $('#btnSobre').addEventListener('click', () => go('sobre'));
 $('#btnSobreSite').addEventListener('click', () => window.open(SITE_URL + '/', '_blank'));
 $('#lnkTermos').addEventListener('click', e => { e.preventDefault(); window.open(SITE_URL + '/termos.html', '_blank'); });
 $('#lnkPriv').addEventListener('click', e => { e.preventDefault(); window.open(SITE_URL + '/privacidade.html', '_blank'); });
+
+/* ===== MODO DIA DA ELEIÇÃO (1º turno 04/10, 2º turno 25/10/2026) =====
+   Honestidade em dia de eleição: o voto de verdade é na urna; o app é
+   simulação de opinião e a apuração oficial fica no TSE. */
+const DIAS_ELEICAO = { '2026-10-04': '1º turno', '2026-10-25': '2º turno' };
+function hojeBR() {
+  try { return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }); }
+  catch (_) { return new Date().toISOString().slice(0, 10); }
+}
+function atualizarBannerEleicao() {
+  const turno = DIAS_ELEICAO[hojeBR()];
+  const html = turno
+    ? `🗳️ <b>Hoje é dia de votar na urna (${turno})!</b>
+      <p class="muted" style="font-size:12.5px;margin:6px 0 8px">O voto de verdade é na urna oficial. Aqui no MudaBrasil é simulação de opinião pública — a apuração oficial fica com o TSE.</p>
+      <a href="https://resultados.tse.jus.br/" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">Acompanhar apuração oficial no TSE ↗</a>`
+    : '';
+  ['bannerEleicao', 'bannerEleicaoApu'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.hidden = !turno;
+    el.innerHTML = html;
+  });
+}
 
 /* ===== MENU ===== */
 function renderMenu() {
@@ -670,6 +723,7 @@ $('#whoName').textContent = state.name;
   }
   await garantirSessao();
   route();
+  atualizarBannerEleicao();
   loadMeusVotos();
   window.__appReady = true; /* rede de segurança no index.html confere esta flag */
 })();
