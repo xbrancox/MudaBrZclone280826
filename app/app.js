@@ -207,6 +207,16 @@ function renderUfArea() {
     renderVotar();
   });
 }
+/* bloco de links "conferir em várias fontes" — o app registra opinião;
+   a conferência de verdade fica no site completo e no TSE */
+function linksConferir() {
+  const a = (h, t) => `<a href="${h}" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600;white-space:nowrap">${t}</a>`;
+  return `<div style="display:flex;flex-wrap:wrap;gap:5px 16px;font-size:12.5px;margin-top:9px">
+    ${a(SITE_URL + '/#conferir-voto', 'Conferir voto no site ↗')}
+    ${a(SITE_URL + '/#revogar-voto', 'Revogar no site ↗')}
+    ${a('https://divulgacandcontas.tse.jus.br/', 'Candidaturas no TSE ↗')}
+  </div>`;
+}
 function renderVotadoBanner() {
   const box = $('#votadoBanner');
   const v = state.myVotes[state.cargo];
@@ -216,6 +226,7 @@ function renderVotadoBanner() {
   box.innerHTML = `<div class="aviso-site" style="padding:10px 13px;margin-bottom:10px">
     <span style="font-size:12.5px">✅ Você já votou para <b>${esc(cfg.nome)}</b>: <b>${esc(nome)}</b>.<br>
     <span class="muted">Alteração e revogação apenas no site completo.</span></span>
+    ${linksConferir()}
   </div>`;
 }
 function skRows(n) {
@@ -357,6 +368,7 @@ function abrirConfirmacao(c) {
       </div>
     </div>
     <p class="muted" style="font-size:12.5px;text-align:center">Um voto por cargo. Depois de confirmar, alterar apenas no site completo.</p>
+    <div style="text-align:center;font-size:12px;margin-top:-4px"><a href="https://divulgacandcontas.tse.jus.br/" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600">Conferir candidatura no TSE ↗</a></div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="shCancel">CANCELAR</button>
       <button class="btn btn-green" id="shConfirm">CONFIRMAR</button>
@@ -597,7 +609,7 @@ function renderMeuVoto() {
       </div>
       <span class="st" style="color:${v ? 'var(--green)' : 'var(--muted)'}">${v ? '✓' : '—'}</span>
     </div>`;
-  }).join('') + (feitos < CARGOS.length ? `<p class="muted" style="text-align:center;font-size:11.5px;margin-top:6px">Toque num cargo para votar</p>` : '');
+  }).join('') + (feitos < CARGOS.length ? `<p class="muted" style="text-align:center;font-size:11.5px;margin-top:6px">Toque num cargo para votar</p>` : '') + linksConferir();
   document.querySelectorAll('#meusLista [data-cargo]').forEach(el =>
     el.addEventListener('click', () => { state.cargo = el.dataset.cargo; listState.pagina = 1; go('votar'); }));
   $('#btnCompartilharApp')?.addEventListener('click', compartilharApp);

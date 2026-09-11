@@ -267,6 +267,10 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
         <button class="btn btn-ghost" id="btnShare" style="min-height:38px;padding:6px 14px;font-size:13px">Compartilhar ↗</button>
       </div>
       <div class="atualizado" id="apuTs"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px 16px;font-size:12.5px;margin:6px 2px 10px">
+        <a href="https://resultados.tse.jus.br/" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600">Apuração oficial no TSE ↗</a>
+        <a href="/#conferir-voto" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600">Conferir voto no site ↗</a>
+      </div>
       <div id="bannerEleicaoApu" hidden class="aviso-site" style="margin:8px 0"></div>
       <div id="apuLista"></div>
     </section>
@@ -274,7 +278,7 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
     <!-- ================= RADAR ================= -->
     <section class="screen" id="s-radar">
       <h2 class="titles">Radar político</h2>
-      <p class="muted" style="font-size:12.5px;margin:-6px 0 12px">Resumo de deputados federais e senadores em mandato. Detalhes completos só no site.</p>
+      <p class="muted" style="font-size:12.5px;margin:-6px 0 12px">Resumo de deputados federais e senadores em mandato. <a href="/#radar" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600">Detalhes completos no site ↗</a></p>
       <div class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="buscaRadar" type="search" placeholder="Nome ou UF (ex.: SP)" autocomplete="off">
@@ -424,7 +428,7 @@ if (location.search.indexOf('reset=1') !== -1) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 </script>
-<script src="/app/app.js?v=14"></script>
+<script src="/app/app.js?v=15"></script>
 <script>
 /* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
 setTimeout(function () {
