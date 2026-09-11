@@ -78,6 +78,9 @@ const SEC_HEADERS = {
   'Referrer-Policy': 'no-referrer'
 };
 
+/* Buffer em memória do log de diagnóstico do app /app/ (ver rota /api/app-log) */
+const appLogStore = [];
+
 function sendJson(res, status, obj, methods = 'GET, POST, OPTIONS') {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -853,6 +856,26 @@ async function handleApi(req, res, url) {
     const token = q.sessionToken || (req.headers.authorization || '').replace('Bearer ', '');
     auth.logout(token);
     return sendJson(res, 200, { ok: true });
+  }
+
+  /* Log de diagnóstico do app (modo testes): cliente envia eventos, dono inspeciona com key */
+  if (p === '/api/app-log' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false }); }
+    try {
+      const cid = String(body.cid || 'anon').slice(0, 40);
+      const evs = Array.isArray(body.ev) ? body.ev.slice(-100) : [];
+      for (const e of evs) {
+        appLogStore.push({ ts: Date.now(), cid, ev: String(e).slice(0, 500) });
+      }
+      if (evs.length) appLogStore.push({ ts: Date.now(), cid, ev: '[ctx] ' + String(body.href || '').slice(0, 140) + ' | ' + String(body.ua || '').slice(0, 100) });
+      while (appLogStore.length > 1000) appLogStore.shift();
+      return sendJson(res, 200, { ok: true });
+    } catch (_) { return sendJson(res, 200, { ok: false }); }
+  }
+  if (p === '/api/app-log' && req.method === 'GET') {
+    if (q.key !== 'mbdiag2026') return sendJson(res, 403, { ok: false, error: 'key inválida' });
+    return sendJson(res, 200, { ok: true, n: appLogStore.length, logs: appLogStore.slice(-500) });
   }
 
   if (p === '/api/auth/email/send' && req.method === 'POST') {

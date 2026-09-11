@@ -50,6 +50,7 @@ const state = {
   apuTimer: null
 };
 const listState = { q: '', pagina: 1, totalPaginas: 1, items: [] };
+if (window.__mblog) window.__mblog('app.js v4 carregado | token=' + (state.token ? 'sim' : 'não'));
 
 /* ===== util ===== */
 function initials(nome) {
@@ -147,7 +148,9 @@ function mostrarErroEntrar(msg) {
 /* ===== entrar ===== */
 async function login() {
   const apelido = $('#apelido').value.trim().replace(/\s+/g, ' ');
+  if (window.__mblog) window.__mblog('clique ENTRAR: apelido="' + apelido + '"');
   if (apelido.length < 2 || apelido.length > 20) {
+    if (window.__mblog) window.__mblog('login abortado: apelido fora do tamanho');
     mostrarErroEntrar('Apelido deve ter entre 2 e 20 letras');
     toast('Apelido deve ter entre 2 e 20 caracteres', 'err');
     return;
@@ -156,6 +159,7 @@ async function login() {
   btn.disabled = true; btn.textContent = 'ENTRANDO…';
   const r = await api('/api/auth/apelido', { method: 'POST', body: JSON.stringify({ apelido }) });
   btn.disabled = false; btn.textContent = 'ENTRAR';
+  if (window.__mblog) window.__mblog('login resp: status=' + r.__status + ' ok=' + !!r.ok + (r.error ? ' err=' + r.error : '') + (r.voter ? ' nome=' + r.voter.name : ''));
   if (!r.ok) { mostrarErroEntrar(r.error || 'Não foi possível entrar'); toast(r.error || 'Não foi possível entrar', 'err'); return; }
   state.token = r.sessionToken;
   state.name = r.voter.name;
@@ -178,7 +182,7 @@ $('#apelido').addEventListener('input', limparErroEntrar);
 async function loadMeusVotos() {
   if (!state.token) return;
   const r = await api('/api/voto/cargo/meus');
-  if (r.__status === 401) { logout(true); return; }
+  if (r.__status === 401) { if (window.__mblog) window.__mblog('/meus → 401, logout silencioso'); logout(true); return; }
   if (!r.ok) return;
   state.myVotes = {};
   (r.votos || []).forEach(v => { state.myVotes[v.cargo] = v; });
@@ -620,7 +624,9 @@ $('#whoName').textContent = state.name;
   if (state.token) {
     /* valida a sessão ANTES de mostrar o app — token velho (deploy que
        recriou o banco) não pode deixá-lo num estado quebrado */
+    if (window.__mblog) window.__mblog('boot: validando sessão /me…');
     const me = await api('/api/auth/me');
+    if (window.__mblog) window.__mblog('boot: /me status=' + me.__status);
     if (me.__status === 401) {
       state.token = ''; state.name = ''; state.myVotes = {};
       store.del('mb_app_token'); store.del('mb_app_name');

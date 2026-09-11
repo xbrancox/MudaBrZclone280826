@@ -355,8 +355,51 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
 </div>
 
 <script>
+/* Log de diagnóstico — roda antes de todo o resto; captura erros e envia ao servidor */
+(function () {
+  var L = [];
+  window.__MBLOG = L;
+  function log(m) { try { L.push(new Date().toTimeString().slice(0, 8) + ' ' + String(m).slice(0, 400)); } catch (_) { } }
+  window.__mblog = log;
+  log('html build v4-dbg carregado' + (location.search || '') + (location.hash || ''));
+  window.addEventListener('error', function (e) {
+    log('ERRO JS: ' + (e.message || '?') + ' @' + String(e.filename || '').split('/').pop() + ':' + e.lineno);
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    log('PROMISE REJ: ' + ((e.reason && e.reason.message) || e.reason || '?'));
+  });
+  var oe = console.error;
+  console.error = function () {
+    try { log('console.error: ' + Array.prototype.join.call(arguments, ' ').slice(0, 300)); } catch (_) { }
+    return oe.apply(console, arguments);
+  };
+  var cid = '';
+  try {
+    cid = localStorage.getItem('mb_cid') || ('c' + Math.random().toString(36).slice(2, 10));
+    localStorage.setItem('mb_cid', cid);
+  } catch (_) { cid = 'c?'; }
+  var swc = (navigator.serviceWorker && navigator.serviceWorker.controller) ? navigator.serviceWorker.controller.scriptURL.split('/').pop() : 'nenhum';
+  log('cid=' + cid + ' | sw=' + swc);
+  var enviado = 0;
+  function envia() {
+    if (L.length <= enviado) return;
+    var delta = L.slice(enviado); enviado = L.length;
+    try {
+      fetch('/api/app-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cid: cid, ev: delta, href: location.href.slice(0, 140), ua: navigator.userAgent.slice(0, 110) })
+      }).catch(function () { });
+    } catch (_) { }
+  }
+  setInterval(envia, 4000);
+  window.addEventListener('pagehide', envia);
+})();
+</script>
+<script>
 /* ?reset=1 — recuperação: limpa sessão corrompida, caches e service worker */
 if (location.search.indexOf('reset=1') !== -1) {
+  window.__mblog && window.__mblog('reset=1: limpando storage/caches/SW agora');
   try { localStorage.clear(); sessionStorage.clear(); } catch (_) { }
   if (window.caches && caches.keys) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }).catch(function () { });
   if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () { });
@@ -377,5 +420,29 @@ setTimeout(function () {
   O app não terminou de carregar neste navegador.<br>
   <a href="javascript:location.reload()" style="color:#ffd700">Recarregar</a> · se persistir, abra no Chrome ou Safari.
 </div>
+
+<button id="dbgBtn" title="Log de diagnóstico" style="position:fixed;left:6px;bottom:6px;z-index:70;width:28px;height:28px;border-radius:9px;background:rgba(0,0,0,.5);color:#ffd700;border:1px solid rgba(255,255,255,.15);font-size:14px;line-height:1;opacity:.6">🐞</button>
+<div id="dbgPanel" hidden style="position:fixed;inset:0;z-index:998;background:rgba(0,0,0,.88);padding:16px;display:flex;flex-direction:column;gap:8px">
+  <div style="color:#ffd700;font-weight:800;font-size:14px">LOG DE DIAGNÓSTICO</div>
+  <textarea id="dbgTxt" readonly style="flex:1;background:#111;color:#9fe8a2;border:1px solid #333;border-radius:10px;padding:10px;font:11px/1.5 monospace;white-space:pre-wrap"></textarea>
+  <div style="display:flex;gap:8px">
+    <button id="dbgCopy" style="flex:1;padding:12px;border-radius:10px;border:0;background:#ffd700;color:#141414;font-weight:800">COPIAR</button>
+    <button id="dbgClose" style="flex:1;padding:12px;border-radius:10px;border:1px solid #444;background:transparent;color:#eee;font-weight:700">Fechar</button>
+  </div>
+</div>
+<script>
+document.getElementById('dbgBtn').addEventListener('click', function () {
+  var t = document.getElementById('dbgTxt');
+  t.value = (window.__MBLOG || []).join('\n');
+  document.getElementById('dbgPanel').hidden = false;
+});
+document.getElementById('dbgClose').addEventListener('click', function () { document.getElementById('dbgPanel').hidden = true; });
+document.getElementById('dbgCopy').addEventListener('click', function () {
+  var t = document.getElementById('dbgTxt');
+  t.select();
+  try { navigator.clipboard.writeText(t.value); } catch (_) { }
+  try { document.execCommand('copy'); } catch (_) { }
+});
+</script>
 </body>
 </html>
