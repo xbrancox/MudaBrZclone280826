@@ -112,6 +112,7 @@ function route() {
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.go === tela));
   if (tela === 'votar') renderVotar();
   if (tela === 'apuracao') refreshApuracao();
+  if (tela === 'radar') carregarRadar();
   if (tela === 'meuvoto') renderMeuVoto();
   if (tela === 'menu') renderMenu();
 }
