@@ -1,13 +1,13 @@
 /* ============================================================
    MudaBrasil APP — lógica (vanilla, sem build)
-   Telas: entrar · votar · apuração · radar · meu voto · menu
+   Telas: votar · apuração · radar · meu voto · menu (sem login — sessão anônima automática)
    Regras fixas: sem PLs no app; conferir/revogar só no site;
    radar resumido; dados ausentes = vazio honesto.
    ============================================================ */
 'use strict';
 
 const API = (window.MudaBrasil && window.MudaBrasil.API_BASE) || '';
-const APP_V = '1.0.0';
+const APP_V = '2.0.0';
 const SITE_URL = (window.MudaBrasil && window.MudaBrasil.SERVIDO_PELO_BACKEND)
   ? location.origin
   : 'https://mudabrasil-redesign-production.up.railway.app';
@@ -107,8 +107,6 @@ async function api(path, opts) {
 const TELAS = ['votar', 'apuracao', 'radar', 'meuvoto', 'menu'];
 function route() {
   const h = (location.hash || '#votar').replace('#', '');
-  if (!state.token) { showEntrar(true); return; }
-  showEntrar(false);
   const tela = TELAS.includes(h) ? h : 'votar';
   TELAS.forEach(t => $('#s-' + t).classList.toggle('active', t === tela));
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.go === tela));
@@ -121,68 +119,44 @@ function go(tela) { location.hash = '#' + tela; }
 window.addEventListener('hashchange', route);
 document.querySelectorAll('#nav button').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
 
-function showEntrar(mostrar) {
-  $('#entrar').hidden = !mostrar;
-  $('#nav').style.display = mostrar ? 'none' : 'flex';
-  $('#appbar').style.visibility = mostrar ? 'hidden' : 'visible';
-  if (mostrar) {
-    TELAS.forEach(t => $('#s-' + t).classList.remove('active')); /* nada ativo por trás do ENTRAR */
-    limparErroEntrar();
-    setTimeout(() => $('#apelido').focus(), 150);
+/* ===== sessão anônima automática (sem tela de login) ===== */
+let sessaoPromise = null;
+function garantirSessao() {
+  if (state.token) return Promise.resolve(true);
+  if (!sessaoPromise) {
+    sessaoPromise = (async () => {
+      /* apelido salvo = mesmo histórico de votos; senão nasce um convidado novo */
+      const apelido = store.get('mb_app_name') || ('Convidado-' + Math.floor(1000 + Math.random() * 9000));
+      const r = await api('/api/auth/apelido', { method: 'POST', body: JSON.stringify({ apelido }) });
+      if (r.ok) {
+        state.token = r.sessionToken;
+        state.name = r.voter.name;
+        store.set('mb_app_token', state.token);
+        store.set('mb_app_name', state.name);
+        $('#whoName').textContent = state.name;
+        if (window.__mblog) window.__mblog('sessão anônima ativa: ' + state.name);
+        return true;
+      }
+      if (window.__mblog) window.__mblog('sessão automática falhou: status=' + r.__status + ' ' + (r.error || 'sem conexão'));
+      return false;
+    })();
+    sessaoPromise.catch(() => { }).finally(() => { sessaoPromise = null; });
   }
+  return sessaoPromise;
 }
-
-function limparErroEntrar() {
-  $('#entrarErro').hidden = true;
-  $('#apelido').classList.remove('input-err');
-}
-function mostrarErroEntrar(msg) {
-  const inp = $('#apelido'), p = $('#entrarErro');
-  p.textContent = msg; p.hidden = false;
-  inp.classList.remove('input-err');
-  void inp.offsetWidth; /* reinicia a animação de tremor */
-  inp.classList.add('input-err');
-  inp.focus();
-}
-
-/* ===== entrar ===== */
-async function login() {
-  const apelido = $('#apelido').value.trim().replace(/\s+/g, ' ');
-  if (window.__mblog) window.__mblog('clique ENTRAR: apelido="' + apelido + '"');
-  if (apelido.length < 2 || apelido.length > 20) {
-    if (window.__mblog) window.__mblog('login abortado: apelido fora do tamanho');
-    mostrarErroEntrar('Apelido deve ter entre 2 e 20 letras');
-    toast('Apelido deve ter entre 2 e 20 caracteres', 'err');
-    return;
-  }
-  const btn = $('#btnEntrar');
-  btn.disabled = true; btn.textContent = 'ENTRANDO…';
-  const r = await api('/api/auth/apelido', { method: 'POST', body: JSON.stringify({ apelido }) });
-  btn.disabled = false; btn.textContent = 'ENTRAR';
-  if (window.__mblog) window.__mblog('login resp: status=' + r.__status + ' ok=' + !!r.ok + (r.error ? ' err=' + r.error : '') + (r.voter ? ' nome=' + r.voter.name : ''));
-  if (!r.ok) { mostrarErroEntrar(r.error || 'Não foi possível entrar'); toast(r.error || 'Não foi possível entrar', 'err'); return; }
-  state.token = r.sessionToken;
-  state.name = r.voter.name;
-  store.set('mb_app_token', state.token);
-  store.set('mb_app_name', state.name);
-  $('#whoName').textContent = state.name;
-  limparErroEntrar();
-  $('#apelido').blur(); /* fecha o teclado ao entrar */
-  toast('Bem-vindo, ' + state.name + '!', 'ok');
-  vibrate(40);
-  if (!location.hash || location.hash === '#entrar') location.hash = '#votar';
-  route();
-  loadMeusVotos();
-}
-$('#btnEntrar').addEventListener('click', login);
-$('#apelido').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-$('#apelido').addEventListener('input', limparErroEntrar);
 
 /* ===== meus votos ===== */
-async function loadMeusVotos() {
-  if (!state.token) return;
+async function loadMeusVotos(tentouReautenticar) {
+  if (!state.token) {
+    if (!(await garantirSessao())) return;
+  }
   const r = await api('/api/voto/cargo/meus');
-  if (r.__status === 401) { if (window.__mblog) window.__mblog('/meus → 401, logout silencioso'); logout(true); return; }
+  if (r.__status === 401) {
+    /* sessão caiu (deploy recriou o banco): reautentica em silêncio e tenta de novo */
+    state.token = ''; store.del('mb_app_token');
+    if (!tentouReautenticar && await garantirSessao()) return loadMeusVotos(true);
+    return;
+  }
   if (!r.ok) return;
   state.myVotes = {};
   (r.votos || []).forEach(v => { state.myVotes[v.cargo] = v; });
@@ -341,10 +315,13 @@ function abrirConfirmacao(c) {
   $('#shConfirm').addEventListener('click', async () => {
     const btn = $('#shConfirm');
     btn.disabled = true; btn.textContent = 'REGISTRANDO…';
-    const r = await api('/api/voto/cargo', {
-      method: 'POST',
-      body: JSON.stringify({ cargo: state.cargo, politicianId: 'tse-' + c.sq })
-    });
+    const corpo = JSON.stringify({ cargo: state.cargo, politicianId: 'tse-' + c.sq });
+    let r = await api('/api/voto/cargo', { method: 'POST', body: corpo });
+    if (!r.ok && r.__status === 401) {
+      /* sessão caiu: reautentica em silêncio e repete o voto */
+      state.token = ''; store.del('mb_app_token');
+      if (await garantirSessao()) r = await api('/api/voto/cargo', { method: 'POST', body: corpo });
+    }
     if (r.ok) {
       vibrate([50, 30, 50]);
       closeSheet();
@@ -573,18 +550,6 @@ function renderMenu() {
   $('#btnInstalar').style.display = standalone ? 'none' : 'flex';
 }
 $('#btnSite').addEventListener('click', () => window.open(SITE_URL + '/', '_blank'));
-$('#btnSair').addEventListener('click', () => logout(false));
-async function logout(silencioso) {
-  try { api('/api/auth/logout', { method: 'POST' }); } catch (_) { }
-  store.del('mb_app_token');
-  store.del('mb_app_name');
-  state.token = ''; state.name = ''; state.myVotes = {};
-  $('#whoName').textContent = '';
-  location.hash = '';
-  TELAS.forEach(t => $('#s-' + t).classList.remove('active')); /* nenhuma tela fica ativa por trás do ENTRAR */
-  showEntrar(true);
-  if (!silencioso) toast('Sessão encerrada', 'ok');
-}
 
 /* ===== PWA: service worker + instalar ===== */
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
@@ -594,7 +559,7 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
-  if (!state.token || $('#s-menu').classList.contains('active')) $('#installBanner').hidden = false;
+  if ($('#s-menu').classList.contains('active')) $('#installBanner').hidden = false;
 });
 window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
@@ -618,12 +583,11 @@ function instalar() {
   }
 }
 
-/* ===== boot ===== */
+/* ===== boot: sem login — abre direto no app; sessão anônima nasce sozinha ===== */
 $('#whoName').textContent = state.name;
 (async () => {
   if (state.token) {
-    /* valida a sessão ANTES de mostrar o app — token velho (deploy que
-       recriou o banco) não pode deixá-lo num estado quebrado */
+    /* valida a sessão salva — token velho (deploy que recriou o banco) é descartado */
     if (window.__mblog) window.__mblog('boot: validando sessão /me…');
     const me = await api('/api/auth/me');
     if (window.__mblog) window.__mblog('boot: /me status=' + me.__status);
@@ -631,14 +595,10 @@ $('#whoName').textContent = state.name;
       state.token = ''; state.name = ''; state.myVotes = {};
       store.del('mb_app_token'); store.del('mb_app_name');
       $('#whoName').textContent = '';
-      showEntrar(true);
-    } else {
-      showEntrar(false);
-      route();
-      loadMeusVotos();
     }
-  } else {
-    showEntrar(true);
   }
+  await garantirSessao();
+  route();
+  loadMeusVotos();
   window.__appReady = true; /* rede de segurança no index.html confere esta flag */
 })();
