@@ -223,10 +223,12 @@ function skRows(n) {
   for (let i = 0; i < n; i++) h += `<div class="cand"><span class="sk" style="width:44px;height:44px;border-radius:50%"></span><div style="flex:1"><span class="sk" style="display:block;width:60%;height:14px;margin-bottom:6px"></span><span class="sk" style="display:block;width:40%;height:11px"></span></div></div>`;
   return h;
 }
-function renderCandList(append) {
+function renderCandList(append, novos) {
   const box = $('#listaCand');
   const cfg = cargoCfg(state.cargo);
   const items = listState.items;
+  /* no append, insere só a página nova — senão duplica tudo */
+  const paraRender = (append && novos && novos.length) ? novos : items;
   if (!items.length) {
     const cfgUf = cfg.uf;
     box.innerHTML = `<div class="vazio"><div class="ico">🗳️</div>${
@@ -238,7 +240,7 @@ function renderCandList(append) {
     }</div>`;
     return;
   }
-  const html = items.map(c => {
+  const html = paraRender.map(c => {
     const votado = state.myVotes[state.cargo];
     const ehMeu = votado && votado.politicianId === ('tse-' + c.sq);
     const btn = votado
@@ -286,7 +288,7 @@ async function carregarCandidatos(append) {
     listState.totalPages = r.totalPaginas || 1;
     listState.total = r.total || 0;
     listState.items = append ? listState.items.concat(r.candidatos || []) : (r.candidatos || []);
-    renderCandList(append);
+    renderCandList(append, r.candidatos || []);
     $('#btnMais').style.display = (listState.pagina < listState.totalPages) ? 'flex' : 'none';
     atualizarCandInfo();
   } finally {
