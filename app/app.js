@@ -104,17 +104,20 @@ async function api(path, opts) {
 }
 
 /* ===== roteador ===== */
-const TELAS = ['votar', 'apuracao', 'radar', 'meuvoto', 'menu'];
+const TELAS = ['votar', 'apuracao', 'radar', 'meuvoto', 'menu', 'ajuda', 'sobre'];
 function route() {
   const h = (location.hash || '#votar').replace('#', '');
   const tela = TELAS.includes(h) ? h : 'votar';
   TELAS.forEach(t => $('#s-' + t).classList.toggle('active', t === tela));
-  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.go === tela));
+  /* ajuda/sobre abrem a partir do menu — mantém a aba Menu acesa na navegação */
+  const navTela = (tela === 'ajuda' || tela === 'sobre') ? 'menu' : tela;
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.go === navTela));
   if (tela === 'votar') renderVotar();
   if (tela === 'apuracao') refreshApuracao();
   if (tela === 'radar') carregarRadar();
   if (tela === 'meuvoto') renderMeuVoto();
   if (tela === 'menu') renderMenu();
+  if (tela === 'ajuda') renderAjuda();
 }
 function go(tela) { location.hash = '#' + tela; }
 window.addEventListener('hashchange', route);
@@ -262,25 +265,48 @@ function renderCandList(append) {
     b.addEventListener('click', () => toast('Você já votou neste cargo — altere no site completo', 'err')));
 }
 let buscaTimer = null;
+let carregandoPagina = false;
 async function carregarCandidatos(append) {
-  const cfg = cargoCfg(state.cargo);
-  const cargoPedido = state.cargo;
-  if (cfg.uf && !state.uf) { listState.items = []; renderCandList(false); $('#btnMais').style.display = 'none'; return; }
-  if (!append) $('#listaCand').innerHTML = skRows(5);
-  const params = new URLSearchParams({ cargo: String(tseCodeAtual()), pagina: String(listState.pagina), porPagina: '100' });
-  if (cfg.uf && state.uf) params.set('uf', state.uf);
-  if (listState.q) params.set('busca', listState.q);
-  const r = await api('/api/candidatos-tse?' + params.toString());
-  if (cargoPedido !== state.cargo) return;
-  if (!r.ok) {
-    $('#listaCand').innerHTML = `<div class="vazio"><div class="ico">📡</div>${esc(r.error || 'Não foi possível carregar.')}</div>`;
-    return;
+  if (carregandoPagina) return;
+  carregandoPagina = true;
+  try {
+    const cfg = cargoCfg(state.cargo);
+    const cargoPedido = state.cargo;
+    if (cfg.uf && !state.uf) { listState.items = []; listState.total = 0; renderCandList(false); $('#btnMais').style.display = 'none'; atualizarCandInfo(); return; }
+    if (!append) $('#listaCand').innerHTML = skRows(5);
+    const params = new URLSearchParams({ cargo: String(tseCodeAtual()), pagina: String(listState.pagina), porPagina: '100' });
+    if (cfg.uf && state.uf) params.set('uf', state.uf);
+    if (listState.q) params.set('busca', listState.q);
+    const r = await api('/api/candidatos-tse?' + params.toString());
+    if (cargoPedido !== state.cargo) return;
+    if (!r.ok) {
+      $('#listaCand').innerHTML = `<div class="vazio"><div class="ico">📡</div>${esc(r.error || 'Não foi possível carregar.')}</div>`;
+      return;
+    }
+    listState.totalPages = r.totalPaginas || 1;
+    listState.total = r.total || 0;
+    listState.items = append ? listState.items.concat(r.candidatos || []) : (r.candidatos || []);
+    renderCandList(append);
+    $('#btnMais').style.display = (listState.pagina < listState.totalPages) ? 'flex' : 'none';
+    atualizarCandInfo();
+  } finally {
+    carregandoPagina = false;
   }
-  listState.totalPages = r.totalPaginas || 1;
-  listState.items = append ? listState.items.concat(r.candidatos || []) : (r.candidatos || []);
-  renderCandList(false);
-  $('#btnMais').style.display = (listState.pagina < listState.totalPages) ? 'flex' : 'none';
 }
+function atualizarCandInfo() {
+  const cfg = cargoCfg(state.cargo);
+  const el = $('#candInfo');
+  if (!listState.total) { el.textContent = ''; return; }
+  el.textContent = `${listState.total.toLocaleString('pt-BR')} candidatos de ${cfg.nome.toLowerCase()}${state.uf ? ' — ' + state.uf : ''} · mostrando ${listState.items.length.toLocaleString('pt-BR')} (página ${listState.pagina} de ${listState.totalPages})`;
+}
+/* rolagem infinita: perto do fim, busca a próxima página sozinho */
+$('#s-votar').addEventListener('scroll', () => {
+  const scr = $('#s-votar');
+  if (scr.scrollTop + scr.clientHeight < scr.scrollHeight - 350) return;
+  if (listState.pagina >= listState.totalPages || carregandoPagina || !listState.items.length) return;
+  listState.pagina++;
+  carregarCandidatos(true);
+});
 function renderVotar() {
   renderChips();
   renderUfArea();
@@ -541,6 +567,27 @@ function renderMeuVoto() {
     el.addEventListener('click', () => { state.cargo = el.dataset.cargo; listState.pagina = 1; go('votar'); }));
 }
 $('#btnAbrirSite').addEventListener('click', () => window.open(SITE_URL + '/', '_blank'));
+
+/* ===== AJUDA (FAQ — espelho das perguntas do site) ===== */
+const FAQ = [
+  ['O que é simulação?', 'A votação/revogação não tem valor jurídico hoje. Notícias, políticos e PLs são reais.'],
+  ['Como revogo meu voto?', 'No site completo, com código + login, só após a posse. No app você registra o voto; a alteração é feita no site.'],
+  ['Como vejo os candidatos do meu estado?', 'Em Governador, Senador ou Deputado, escolha seu estado no seletor acima da lista. Pode também buscar pelo nome ou número.'],
+  ['Por que a lista de deputado é tão grande?', 'Porque todos os candidatos oficiais do TSE aparecem. Role que o app carrega mais sozinho, ou use a busca para achar pelo nome/número.'],
+  ['Quem pode responder reclamações?', 'Só o político/candidato com identidade verificada (selo), no site completo.'],
+  ['O que é a regra dos 70%?', 'Proposta: 70% dos votos que elegeram = cassação.'],
+];
+function renderAjuda() {
+  const box = $('#faqLista');
+  if (box.dataset.preenchido) return;
+  box.innerHTML = FAQ.map(f => `<div class="aviso-site" style="margin-bottom:10px"><b>${esc(f[0])}</b><p class="muted" style="margin:6px 0 0;font-size:13px">${esc(f[1])}</p></div>`).join('');
+  box.dataset.preenchido = '1';
+}
+$('#btnAjuda').addEventListener('click', () => go('ajuda'));
+$('#btnSobre').addEventListener('click', () => go('sobre'));
+$('#btnSobreSite').addEventListener('click', () => window.open(SITE_URL + '/', '_blank'));
+$('#lnkTermos').addEventListener('click', e => { e.preventDefault(); window.open(SITE_URL + '/termos.html', '_blank'); });
+$('#lnkPriv').addEventListener('click', e => { e.preventDefault(); window.open(SITE_URL + '/privacidade.html', '_blank'); });
 
 /* ===== MENU ===== */
 function renderMenu() {
