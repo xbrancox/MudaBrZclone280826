@@ -606,18 +606,28 @@ function renderMeuVoto() {
 /* compartilhar: no celular usa o menu nativo; no desktop copia para a área
    de transferência — o diálogo nativo do sistema em webview embutida
    (navegador dentro de outro app) pode congelar a página */
+async function copiarTexto(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; } catch (_) { }
+  /* fallback universal (webviews sem permissão de clipboard) */
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch (_) { return false; }
+}
 async function compartilharTexto(txt) {
   const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   if (touch && typeof navigator.share === 'function') {
     try { await navigator.share({ title: 'MudaBrasil', text: txt, url: SITE_URL + '/app/' }); return; }
     catch (e) { if (e && e.name === 'AbortError') return; }
   }
-  try {
-    await navigator.clipboard.writeText(txt);
-    toast('Copiado! Cole para compartilhar 📋', 'ok');
-  } catch (_) {
-    toast('Não foi possível compartilhar', 'err');
-  }
+  const ok = await copiarTexto(txt);
+  toast(ok ? 'Copiado! Cole para compartilhar 📋' : 'Não foi possível compartilhar', ok ? 'ok' : 'err');
 }
 
 /* convite ao app — aparece quando o usuário completa os 5 cargos */
