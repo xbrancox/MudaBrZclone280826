@@ -282,6 +282,8 @@ let carregandoPagina = false;
 async function carregarCandidatos(append) {
   if (carregandoPagina) return;
   carregandoPagina = true;
+  /* lista substituída (troca de cargo/UF, busca, reentrada) = começa do topo */
+  if (!append) $('#s-votar').scrollTop = 0;
   try {
     const cfg = cargoCfg(state.cargo);
     const cargoPedido = state.cargo;
@@ -455,10 +457,15 @@ async function refreshApuracao() {
   } else {
     const cache = store.get('mb_apuracao');
     if (cache) { try { renderApuracao(JSON.parse(cache), true); return; } catch (_) { } }
-    $('#apuLista').innerHTML = `<div class="vazio"><div class="ico">📡</div>Sem conexão e ainda sem apuração salva.<br><span style="font-size:12px">Puxe para atualizar quando voltar.</span></div>`;
+    $('#apuLista').innerHTML = `<div class="vazio"><div class="ico">📡</div>Sem conexão e ainda sem apuração salva.<br><span style="font-size:12px">Toque em Atualizar quando voltar.</span></div>`;
     $('#apuTs').textContent = '';
   }
 }
+$('#btnApuRefresh').addEventListener('click', async () => {
+  const b = $('#btnApuRefresh');
+  b.disabled = true;
+  try { await refreshApuracao(); } finally { b.disabled = false; }
+});
 $('#btnShare').addEventListener('click', async () => {
   const cache = store.get('mb_apuracao');
   if (!cache) { toast('Apuração ainda não carregada', 'err'); return; }
