@@ -369,7 +369,7 @@ if (location.search.indexOf('reset=1') !== -1) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 </script>
-<script src="/app/app.js?v=6"></script>
+<script src="/app/app.js?v=7"></script>
 <script>
 /* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
 setTimeout(function () {
@@ -384,28 +384,6 @@ setTimeout(function () {
   <a href="javascript:location.reload()" style="color:#ffd700">Recarregar</a> · se persistir, abra no Chrome ou Safari.
 </div>
 
-<button id="dbgBtn" title="Log de diagnóstico" style="position:fixed;left:6px;bottom:6px;z-index:70;width:28px;height:28px;border-radius:9px;background:rgba(0,0,0,.5);color:#ffd700;border:1px solid rgba(255,255,255,.15);font-size:14px;line-height:1;opacity:.6">🐞</button>
-<div id="dbgPanel" hidden style="position:fixed;inset:0;z-index:998;background:rgba(0,0,0,.88);padding:16px;display:flex;flex-direction:column;gap:8px">
-  <div style="color:#ffd700;font-weight:800;font-size:14px">LOG DE DIAGNÓSTICO</div>
-  <textarea id="dbgTxt" readonly style="flex:1;background:#111;color:#9fe8a2;border:1px solid #333;border-radius:10px;padding:10px;font:11px/1.5 monospace;white-space:pre-wrap"></textarea>
-  <div style="display:flex;gap:8px">
-    <button id="dbgCopy" style="flex:1;padding:12px;border-radius:10px;border:0;background:#ffd700;color:#141414;font-weight:800">COPIAR</button>
-    <button id="dbgClose" style="flex:1;padding:12px;border-radius:10px;border:1px solid #444;background:transparent;color:#eee;font-weight:700">Fechar</button>
-  </div>
-</div>
-<script>
-document.getElementById('dbgBtn').addEventListener('click', function () {
-  var t = document.getElementById('dbgTxt');
-  t.value = (window.__MBLOG || []).join('\n');
-  document.getElementById('dbgPanel').hidden = false;
-});
-document.getElementById('dbgClose').addEventListener('click', function () { document.getElementById('dbgPanel').hidden = true; });
-document.getElementById('dbgCopy').addEventListener('click', function () {
-  var t = document.getElementById('dbgTxt');
-  t.select();
-  try { navigator.clipboard.writeText(t.value); } catch (_) { }
-  try { document.execCommand('copy'); } catch (_) { }
-});
-</script>
+<!-- diagnóstico: invisível ao usuário — os eventos vão sozinhos para /api/app-log no servidor -->
 </body>
 </html>
