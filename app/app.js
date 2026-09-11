@@ -302,13 +302,28 @@ function atualizarCandInfo() {
   el.textContent = `${listState.total.toLocaleString('pt-BR')} candidatos de ${cfg.nome.toLowerCase()}${state.uf ? ' — ' + state.uf : ''} · mostrando ${listState.items.length.toLocaleString('pt-BR')} (página ${listState.pagina} de ${listState.totalPages})`;
 }
 /* rolagem infinita: perto do fim, busca a próxima página sozinho */
-$('#s-votar').addEventListener('scroll', () => {
-  const scr = $('#s-votar');
-  if (scr.scrollTop + scr.clientHeight < scr.scrollHeight - 350) return;
+function carregarProximaPagina() {
   if (listState.pagina >= listState.totalPages || carregandoPagina || !listState.items.length) return;
   listState.pagina++;
   carregarCandidatos(true);
+}
+$('#s-votar').addEventListener('scroll', () => {
+  const scr = $('#s-votar');
+  if (scr.scrollTop + scr.clientHeight < scr.scrollHeight - 350) return;
+  carregarProximaPagina();
 });
+/* sentinela + IntersectionObserver: cobre rolagem por toque, teclado e leitores de tela */
+(function configurarSentinela() {
+  const scr = $('#s-votar');
+  if (!scr || !('IntersectionObserver' in window)) return;
+  const sent = document.createElement('div');
+  sent.id = 'sentinelaMais';
+  sent.style.height = '1px';
+  $('#btnMais').before(sent);
+  new IntersectionObserver(entradas => {
+    if (entradas.some(e => e.isIntersecting)) carregarProximaPagina();
+  }, { root: scr, rootMargin: '400px' }).observe(sent);
+})();
 function renderVotar() {
   renderChips();
   renderUfArea();
