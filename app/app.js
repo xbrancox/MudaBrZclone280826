@@ -222,21 +222,26 @@ function updateProgress() {
   el.textContent = n + ' de ' + total + ' cargos';
   $('#progBar').style.width = (n / total * 100) + '%';
 }
-/* v21 — barra fixa da cédula na tela votar: mostra escolhas do rascunho e
-   leva à revisão. Some quando não há nada pendente. */
+/* v21 — barra fixa da cédula na tela votar. v24: o botão de revisão só aparece
+   quando TODOS os cargos da sequência têm escolha (revisão é etapa final). */
 function atualizarBarraCedula() {
   const bar = $('#barraCedula');
   if (!bar) return;
   const nr = countRascunho(), nv = countVotos();
-  if (!nr) { bar.style.display = 'none'; return; }
+  const total = cargosVisiveis().length;
+  const completa = !cargoSequencial() && nr > 0;
+  if (!nr && !nv) { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
-  $('#cedulaTxt').innerHTML = `🗳️ Sua cédula: <b>${nr} de ${cargosVisiveis().length}${nv ? ' · ' + nv + ' já registrados' : ''}</b>`;
+  $('#cedulaTxt').innerHTML = `🗳️ Sua cédula: <b>${nr + nv} de ${total}</b>`;
+  const btn = $('#btnRevisarCedula');
+  if (btn) btn.style.display = completa ? '' : 'none';
 }
 
 /* ===== VOTAR ===== */
 /* v22 — a cédula é sempre de 5 cargos: no DF, Deputado Estadual é substituído
    por Deputado Distrital (o DF não tem deputação estadual). Toda contagem e
-   toda lista de cargos passa por aqui. */
+   toda lista de cargos passa por aqui. A ordem do array CARGOS É a sequência
+   da votação (v24): presidente → governador → senador → fed → est/distr. */
 const CARGO_ESTADUAL_DF = 'dep-estadual';
 function cargosVisiveis() {
   return CARGOS.filter(c => {
@@ -245,34 +250,36 @@ function cargosVisiveis() {
     return true;
   });
 }
-/* cargo guardado pode ter sumido da cédula (usuário mudou para DF) → realoca */
-function cargoAtualValido() {
-  if (!cargosVisiveis().some(c => c.id === state.cargo)) state.cargo = 'presidente';
-  return state.cargo;
+/* v24 — a cédula percorre os cargos em SEQUÊNCIA fixa (presidente → governador
+   → senador → dep. federal → dep. estadual/distrital). Durante a montagem o
+   usuário não pula nem volta: a única correção acontece na tela de revisão,
+   no fim. O cargo atual é sempre o primeiro ainda sem escolha. */
+function cargoSequencial() {
+  return cargosVisiveis().find(c => !state.rascunho[c.id] && !state.myVotes[c.id]) || null;
+}
+function cargoDaVez() {
+  const s = cargoSequencial();
+  if (!s) { state.cargo = 'presidente'; return 'presidente'; }  // cédula completa → revisão
+  state.cargo = s.id;
+  return s.id;
 }
 function renderChips() {
   $('#chips').innerHTML = cargosVisiveis().map(c => {
-    const reg = state.myVotes[c.id], ras = state.rascunho[c.id];
-    const marca = reg ? ' <span class="ok">✓</span>' : (ras ? ' <span class="dot-ras"></span>' : '');
-    return `<button class="chip${c.id === state.cargo ? ' active' : ''}" data-cargo="${c.id}">${c.nome}${marca}</button>`;
+    const feito = !!(state.rascunho[c.id] || state.myVotes[c.id]);
+    const marca = feito ? ' <span class="ok">✓</span>' : '';
+    const ativo = c.id === state.cargo && !feito;
+    return `<button class="chip${ativo ? ' active' : ''}${feito ? ' done' : ''}" data-cargo="${c.id}">${c.nome}${marca}</button>`;
   }).join('');
+  /* v24 — durante a votação sequencial os chips são só indicador de posição */
   document.querySelectorAll('#chips .chip').forEach(ch =>
-    ch.addEventListener('click', () => { state.cargo = ch.dataset.cargo; listState.pagina = 1; renderVotar(); }));
+    ch.addEventListener('click', () => toast('A votação segue uma ordem fixa — complete um cargo por vez 🗳️')));
 }
 function cargoCfg(id) { return CARGOS.find(c => c.id === id); }
 function tseCodeAtual() {
   return cargoCfg(state.cargo).tse[0];
 }
-/* v22 — após escolher um candidato, salta sozinho para o próximo cargo vazio
-   da cédula (ordem dos chips). Se todos já têm escolha, vai para a revisão. */
-function proximoCargoDisponivel(depoisDe) {
-  const lista = cargosVisiveis();
-  for (let i = 1; i <= lista.length; i++) {
-    const cfg = lista[(lista.findIndex(c => c.id === depoisDe) + i) % lista.length];
-    if (!state.rascunho[cfg.id] && !state.myVotes[cfg.id]) return cfg.id;
-  }
-  return null;
-}
+/* v24 — após escolher, a cédula avança sozinha para o próximo cargo da
+   sequência (cargoSequencial). Sem pulo: quem já tem escolha fica travado. */
 function renderUfArea() {
   const cfg = cargoCfg(state.cargo);
   const area = $('#ufArea');
@@ -298,16 +305,17 @@ function linksConferir() {
     ${a('https://divulgacandcontas.tse.jus.br/', 'Candidaturas no TSE ↗')}
   </div>`;
 }
+/* v24 — durante a votação sequencial NÃO existe "voto registrado" no meio do
+   caminho: nada vai ao servidor até o fim. O banner só marca a escolha da vez
+   e lembra que a correção acontece na revisão, ao final da cédula. */
 function renderVotadoBanner() {
   const box = $('#votadoBanner');
-  const v = state.myVotes[state.cargo];
   const ras = state.rascunho[state.cargo];
   const cfg = cargoCfg(state.cargo);
-  if (!v && !ras) { box.innerHTML = ''; return; }
-  const nome = (v && v.candidato ? v.candidato.nome : null) || (ras ? ras.nome : 'candidato');
+  if (!ras) { box.innerHTML = ''; return; }
   box.innerHTML = `<div class="aviso-site" style="padding:10px 13px;margin-bottom:10px">
-    <span style="font-size:12.5px">${v ? '✅ Voto registrado' : '🟡 Escolhido para a cédula'} para <b>${esc(cfg.nome)}</b>: <b>${esc(nome)}</b>.<br>
-    <span class="muted">${v ? 'Você pode trocar até revisar e gerar o código — na votação real, a alteração é pelo site.' : 'Confirme em “Revisar cédula” para registrar com seu código único.'}</span></span>
+    <span style="font-size:12.5px">🟡 Escolhido para <b>${esc(cfg.nome)}</b>: <b>${esc(ras.nome)}</b>.<br>
+    <span class="muted">Para trocar, use “Revisar cédula” ao final da votação.</span></span>
     ${linksConferir()}
   </div>`;
 }
@@ -335,12 +343,11 @@ function renderCandList(append, novos) {
   }
   const html = paraRender.map(c => {
     const pid = 'tse-' + c.sq;
-    const votado = state.myVotes[state.cargo];
     const ras = state.rascunho[state.cargo];
-    const escolhido = (ras && ras.politicianId === pid) || (votado && votado.politicianId === pid);
+    const escolhido = ras && ras.politicianId === pid;
     let btn;
     if (escolhido) {
-      btn = `<button class="btn voted" data-escolhido="1">${(ras && ras.politicianId === pid) ? 'Na cédula ●' : 'Registrado ✓'}</button>`;
+      btn = `<button class="btn voted" data-escolhido="1">Na cédula ●</button>`;
     } else {
       btn = `<button class="btn btn-green" data-vote="${esc(pid)}">VOTAR</button>`;
     }
@@ -432,7 +439,7 @@ setInterval(() => {
   if (scr.scrollTop + scr.clientHeight >= scr.scrollHeight - 350) carregarProximaPagina();
 }, 700);
 function renderVotar() {
-  cargoAtualValido();
+  cargoDaVez();
   renderChips();
   renderUfArea();
   renderVotadoBanner();
@@ -458,9 +465,8 @@ $('#btnMais').addEventListener('click', () => { listState.pagina++; carregarCand
 function abrirConfirmacao(c) {
   const cfg = cargoCfg(state.cargo);
   const pid = 'tse-' + c.sq;
-  const trocando = state.rascunho[state.cargo] || state.myVotes[state.cargo];
   openSheet(`
-    <h3 class="titles" style="text-align:center">${trocando ? 'Trocar escolha' : 'Escolher para a cédula'}</h3>
+    <h3 class="titles" style="text-align:center">Escolher para a cédula</h3>
     <div class="confirm-cand">
       ${avatarHTML(c.nomeUrna, c.foto, 46)}
       <div style="flex:1;min-width:0">
@@ -469,8 +475,7 @@ function abrirConfirmacao(c) {
         <div style="font-size:12px;color:var(--blueL);font-weight:800;margin-top:2px">${esc(cfg.nome)}</div>
       </div>
     </div>
-    ${trocando ? `<p class="muted" style="font-size:12.5px;text-align:center">Esta escolha substitui a atual para ${esc(cfg.nome.toLowerCase())} na sua cédula.</p>` : ''}
-    <p class="muted" style="font-size:12.5px;text-align:center">Nada é enviado ainda — revise a cédula completa e gere seu código único.</p>
+    <p class="muted" style="font-size:12.5px;text-align:center">Nada é enviado ainda — ao final você revisa a cédula inteira e troca o que quiser.</p>
     <div style="text-align:center;font-size:12px;margin-top:-4px"><a href="https://divulgacandcontas.tse.jus.br/" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600">Conferir candidatura no TSE ↗</a></div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="shCancel">CANCELAR</button>
@@ -482,27 +487,32 @@ function abrirConfirmacao(c) {
     salvarRascunho();
     vibrate([40, 25, 40]);
     closeSheet();
-    /* v22 — avança sozinho para o próximo cargo ainda sem escolha */
-    const proximo = proximoCargoDisponivel(state.cargo);
-    if (proximo) {
-      state.cargo = proximo; listState.pagina = 1;
+    /* v24 — corrigindo pela revisão: volta direto para a revisão da cédula */
+    if (revisando) {
+      revisando = false;
       renderVotar();
-      toast('Adicionado à cédula ✓ — agora: ' + cargoCfg(proximo).nome, 'ok');
+      abrirRevisao();
+      toast('Escolha atualizada ✓', 'ok');
+      return;
+    }
+    /* v24 — avança sozinho para o próximo cargo da sequência; quando a cédula
+       inteira estiver montada, o destino é a revisão */
+    renderVotar();
+    if (cargoSequencial()) {
+      toast('Adicionado à cédula ✓ — agora: ' + cargoCfg(state.cargo).nome, 'ok');
     } else {
-      renderChips(); renderVotadoBanner(); atualizarBarraCedula();
-      carregarCandidatos(false);
-      toast('Última escolha registrada — revise a cédula completa 🗳️', 'ok');
+      toast('Cédula completa — revise antes de registrar 🗳️', 'ok');
+      abrirRevisao();
     }
   });
 }
 
-/* ---- passo 1: REVISE SUA CÉDULA ---- */
+/* ---- passo 1: REVISE SUA CÉDULA (v24 — único ponto de correção) ---- */
+let revisando = false;   // true enquanto o usuário corrige um cargo pela revisão
 function abrirRevisao() {
   if (!countRascunho()) { toast('Escolha pelo menos um candidato primeiro', 'err'); return; }
   const linhas = cargosVisiveis().map((cfg, i) => {
     const ras = state.rascunho[cfg.id];
-    const reg = state.myVotes[cfg.id];
-    const mesmo = ras && reg && ras.politicianId === reg.politicianId;
     return `<div class="rv-row">
       ${ras
         ? avatarHTML(ras.nome, ras.foto, 40, i)
@@ -510,8 +520,7 @@ function abrirRevisao() {
       <div class="rv-info">
         <b>${esc(cfg.nome)}</b>
         <span>${ras ? esc(ras.nome) + ' <i>· ' + esc(ras.partido) + '-' + esc(ras.uf) + ' · nº ' + esc(ras.numero || '—') + '</i>'
-          : (reg ? 'sem mudança — registrado: ' + esc(reg.candidato ? reg.candidato.nome : 'candidato') : '<em>não escolhido</em>')}</span>
-        ${mesmo ? '<span class="rv-tag">já registrado</span>' : ''}
+          : '<em>não escolhido</em>'}</span>
       </div>
       <button class="rv-btn" data-trocar="${cfg.id}">${ras ? 'trocar' : 'escolher'}</button>
     </div>`;
@@ -530,11 +539,14 @@ function abrirRevisao() {
   document.querySelectorAll('#sheetBody [data-trocar]').forEach(b =>
     b.addEventListener('click', () => {
       closeSheet();
+      /* v24 — a troca só existe aqui: marca o cargo, abre a lista dele e, ao
+         escolher, volta direto para a revisão */
+      revisando = true;
       state.cargo = b.dataset.trocar; listState.pagina = 1;
-      go('votar'); renderVotar();
+      go('votar'); renderChips(); renderUfArea(); renderVotadoBanner(); atualizarBarraCedula(); carregarCandidatos(false);
     }));
   $('#shFecharRev').addEventListener('click', closeSheet);
-  $('#shConfirmarCedula').addEventListener('click', abrirExplicacao);
+  $('#shConfirmarCedula').addEventListener('click', () => { revisando = false; abrirExplicacao(); });
 }
 
 /* ---- passo 2: COMO FUNCIONA O REGISTRO ---- */
@@ -966,8 +978,11 @@ function renderMeuVoto() {
       <button class="btn btn-ghost" id="mvDeNovo" style="width:100%;min-height:38px;font-size:12px;margin-top:8px;color:var(--blueL)">🔄 Votar de novo (demonstração)</button>
     </div>`;
   } else if (countRascunho()) {
+    const completa = !cargoSequencial();
     resumo += `<div class="aviso-site"><b>🗳️ Cédula em montagem: ${countRascunho()} de ${visiveis.length} cargos escolhidos</b>
-      <p class="muted" style="font-size:12.5px;margin:6px 0 0">Abra a aba Votar e toque em “Revisar cédula” para gerar seu código.</p></div>`;
+      <p class="muted" style="font-size:12.5px;margin:6px 0 0">${completa
+        ? 'Abra a aba Votar e toque em “Revisar cédula” para gerar seu código.'
+        : 'A votação segue a ordem: Presidente → Governador → Senador → Deputados. Complete um cargo por vez na aba Votar — o registro acontece só no final.'}</p></div>`;
   }
   if (feitos === visiveis.length) {
     resumo += `<div class="aviso-site" style="border-color:var(--gold);margin-bottom:10px">
@@ -977,7 +992,7 @@ function renderMeuVoto() {
     </div>`;
   } else if (feitos > 0) {
     resumo += `<div class="aviso-site"><b>Faltam ${faltam} cargo${faltam > 1 ? 's' : ''} para completar sua votação</b>
-      <p class="muted" style="font-size:12.5px;margin:6px 0 0">Toque num cargo abaixo para votar.</p></div>`;
+      <p class="muted" style="font-size:12.5px;margin:6px 0 0">A votação segue a ordem Presidente → Governador → Senador → Deputados, um cargo por vez.</p></div>`;
   }
   $('#meusLista').innerHTML = resumo + visiveis.map(cfg => {
     const v = state.myVotes[cfg.id];
