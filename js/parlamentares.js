@@ -1035,7 +1035,11 @@
       const d = await r.json();
       if (d.ok) {
         out.className = 'mb-conferir-result success';
-        out.innerHTML = `✅ <strong>Código de verificação válido!</strong><br>Hash do eleitor: <code>${d.voterHash.slice(0, 24)}...</code><br>Total de votos vinculados: <strong>${d.votos.length}</strong>`;
+        /* votos da cédula do app (cargo_votes) — o servidor já devolve em votosCargo */
+        const cargos = (d.votosCargo || []).map(v =>
+          `<br>· <strong>${v.cargo}</strong>: ${v.nome || v.politicianId}${v.partido ? ' (' + v.partido + ')' : ''}${v.numero ? ' nº ' + v.numero : ''}`
+        ).join('');
+        out.innerHTML = `✅ <strong>Código de verificação válido!</strong><br>Hash do eleitor: <code>${d.voterHash.slice(0, 24)}...</code><br>Total de votos vinculados: <strong>${d.votos.length}</strong>${cargos}`;
       } else {
         out.className = 'mb-conferir-result error';
         out.innerHTML = `❌ <strong>Código não encontrado</strong><br>Verifique se digitou corretamente.`;
