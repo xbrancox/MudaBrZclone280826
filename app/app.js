@@ -104,24 +104,45 @@ async function api(path, opts) {
 }
 
 /* ===== roteador ===== */
-const TELAS = ['votar', 'apuracao', 'radar', 'meuvoto', 'menu', 'ajuda', 'sobre'];
+const TELAS = ['home', 'votar', 'apuracao', 'radar', 'meuvoto', 'menu', 'ajuda', 'sobre'];
 function route() {
-  const h = (location.hash || '#votar').replace('#', '');
-  const tela = TELAS.includes(h) ? h : 'votar';
+  const h = (location.hash || '#home').replace('#', '');
+  const tela = TELAS.includes(h) ? h : 'home';
   TELAS.forEach(t => $('#s-' + t).classList.toggle('active', t === tela));
   /* ajuda/sobre abrem a partir do menu — mantém a aba Menu acesa na navegação */
   const navTela = (tela === 'ajuda' || tela === 'sobre') ? 'menu' : tela;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.go === navTela));
+  if (tela === 'home') renderHome();
   if (tela === 'votar') renderVotar();
   if (tela === 'apuracao') { refreshApuracao(); atualizarApuPrazo(); }
   if (tela === 'radar') carregarRadar();
   if (tela === 'meuvoto') renderMeuVoto();
-  if (tela === 'menu') renderMenu();
+  if (tela === 'menu') { renderMenu(); if (deferredPrompt) mostrarBannerInstall(); }
   if (tela === 'ajuda') renderAjuda();
 }
 function go(tela) { location.hash = '#' + tela; }
 window.addEventListener('hashchange', route);
 document.querySelectorAll('#nav button').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+
+/* ===== HOME (página inicial) ===== */
+function renderHome() {
+  $('#homeNome').textContent = state.name || '—';
+  const el = document.getElementById('homePrazo');
+  if (el) {
+    const d1 = diasAte('2026-10-04'), d2 = diasAte('2026-10-25');
+    let txt;
+    if (d1 > 1) txt = `⏳ Faltam <b>${d1} dias</b> para o 1º turno — 04/10. 2º turno: 25/10.`;
+    else if (d1 === 1) txt = `⏳ O 1º turno é <b>amanhã</b> (04/10)!`;
+    else if (d1 === 0) txt = `🗳️ Hoje é o <b>1º turno</b> da eleição real!`;
+    else if (d2 > 1) txt = `⏳ Faltam <b>${d2} dias</b> para o 2º turno — 25/10.`;
+    else if (d2 === 1) txt = `⏳ O 2º turno é <b>amanhã</b> (25/10)!`;
+    else if (d2 === 0) txt = `🗳️ Hoje é o <b>2º turno</b> da eleição real!`;
+    else txt = `✅ A eleição de 2026 terminou — acompanhe os resultados no TSE.`;
+    el.innerHTML = txt;
+  }
+}
+$('#btnHomeVotar').addEventListener('click', () => go('votar'));
+document.querySelectorAll('#s-home [data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
 
 /* ===== sessão anônima automática (sem tela de login) ===== */
 let sessaoPromise = null;
@@ -272,6 +293,7 @@ function renderCandList(append, novos) {
   box.querySelectorAll('[data-vote]').forEach(b =>
     b.addEventListener('click', () => {
       const c = listState.items.find(x => 'tse-' + x.sq === b.dataset.vote);
+      if (window.__mblog) window.__mblog('clique VOTAR sq=' + b.dataset.vote + (c ? '' : ' SEM-CANDIDATO-na-lista'));
       if (c) abrirConfirmacao(c);
     }));
   box.querySelectorAll('[data-votado]').forEach(b =>
@@ -386,12 +408,33 @@ function abrirConfirmacao(c) {
       state.token = ''; store.del('mb_app_token');
       if (await garantirSessao()) r = await api('/api/voto/cargo', { method: 'POST', body: corpo });
     }
+    if (window.__mblog) window.__mblog('voto ' + state.cargo + ' sq=' + c.sq + ' -> status=' + r.__status + ' ok=' + !!r.ok);
     if (r.ok) {
       vibrate([50, 30, 50]);
       closeSheet();
-      toast('Voto registrado ✓', 'ok');
       await loadMeusVotos();
       renderVotar();
+      /* recibo do voto na tela — antes de qualquer toast que se apaga sozinho */
+      const nome = r.candidato && r.candidato.nome ? r.candidato.nome : c.nomeUrna;
+      const codigo = r.codigo || r.code || '';
+      openSheet(`
+        <h3 class="titles" style="text-align:center">✅ Voto registrado</h3>
+        <div class="confirm-cand">
+          ${avatarHTML(nome, '', 46)}
+          <div style="flex:1;min-width:0">
+            <b style="display:block">${esc(nome)}</b>
+            <span class="muted" style="font-size:12.5px">${esc(c.partido)} · ${esc(c.uf)} · nº ${esc(c.numero || '—')}</span>
+            <div style="font-size:12px;color:var(--blueL);font-weight:800;margin-top:2px">${esc(cfg.nome)}</div>
+          </div>
+        </div>
+        ${codigo ? `<div style="background:var(--card2);border-radius:12px;padding:12px;margin:12px 0;text-align:center">
+          <span class="muted" style="font-size:11.5px;display:block;margin-bottom:4px">Guarde este código — com ele você confere ou revoga no site:</span>
+          <b style="font-family:Montserrat,monospace;font-size:17px;letter-spacing:1px;color:var(--gold)">${esc(codigo)}</b>
+        </div>` : ''}
+        <p class="muted" style="font-size:12.5px;text-align:center">Alteração e revogação apenas no site completo.</p>
+        <div style="text-align:center;font-size:12px;margin-top:6px">${linksConferir()}</div>
+        <div class="sheet-actions"><button class="btn btn-green" id="shOkRecibo">PRONTO</button></div>`);
+      $('#shOkRecibo').addEventListener('click', closeSheet);
     } else if (r.__status === 409) {
       closeSheet();
       const prev = r.previous && r.previous.nome ? ' (' + r.previous.nome + ')' : '';
@@ -745,23 +788,30 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('/app/sw.js', { updateViaCache: 'none' }).catch(() => { });
 }
 let deferredPrompt = null;
+/* banner de instalar: some ao fechar e não volta mais (flag persistente) */
+function mostrarBannerInstall() {
+  if (store.get('mb_install_dismissed')) return;
+  $('#installBanner').classList.add('on');
+}
+function esconderBannerInstall() { $('#installBanner').classList.remove('on'); }
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
-  if ($('#s-menu').classList.contains('active')) $('#installBanner').hidden = false;
+  if ($('#s-menu').classList.contains('active')) mostrarBannerInstall();
 });
 window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
-  $('#installBanner').hidden = true;
+  store.set('mb_install_dismissed', '1');
+  esconderBannerInstall();
   toast('App instalado! 🎉', 'ok');
 });
-$('#btnBannerX').addEventListener('click', () => { $('#installBanner').hidden = true; });
+$('#btnBannerX').addEventListener('click', () => { store.set('mb_install_dismissed', '1'); esconderBannerInstall(); });
 $('#btnBannerInstall').addEventListener('click', instalar);
 $('#btnInstalar').addEventListener('click', instalar);
 function instalar() {
   if (deferredPrompt) {
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.finally(() => { deferredPrompt = null; $('#installBanner').hidden = true; });
+    deferredPrompt.userChoice.finally(() => { deferredPrompt = null; esconderBannerInstall(); });
   } else {
     openSheet(`
       <h3 class="titles" style="text-align:center">Instalar o app</h3>

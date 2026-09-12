@@ -780,8 +780,16 @@ async function handleApi(req, res, url) {
     }
     if (!r.ok) return sendJson(res, 500, { ok: false, error: 'Não foi possível registrar o voto' });
     broadcastApuracao();
+    /* código de conferência/revogação do eleitor — o mesmo para todos os cargos;
+       com ele o dono confere ou revoga os votos no site completo */
+    let codigo = '';
+    try {
+      const codes = db.getVoteCodesForVoter(voter.voterHash);
+      codigo = (codes && codes.length) ? codes[0].code : db.generateVoteCode(voter.voterHash);
+    } catch (_) { }
     return sendJson(res, 201, {
       ok: true,
+      codigo,
       voto: { cargo: cargoApp, politicianId: cand.id, createdAt: r.createdAt },
       candidato: { id: cand.id, nome: cand.nome, partido: cand.partido, uf: cand.uf, numero: cand.numero }
     });

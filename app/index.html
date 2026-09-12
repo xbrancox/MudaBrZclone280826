@@ -214,14 +214,20 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
 /* banner instalar */
 #installBanner{
   position:fixed;left:12px;right:12px;bottom:calc(78px + var(--sab));z-index:55;
-  display:flex;align-items:center;gap:10px;background:var(--card2);border:1px solid rgba(255,215,0,.4);
+  display:none;align-items:center;gap:10px;background:var(--card2);border:1px solid rgba(255,215,0,.4);
   border-radius:14px;padding:11px 13px;box-shadow:0 6px 24px rgba(0,0,0,.4);
 }
+#installBanner.on{display:flex}
 #installBanner b{font-size:13px}
 #installBanner span{font-size:11.5px;color:var(--muted)}
 #installBanner .btn{min-height:36px;padding:5px 14px;font-size:13px;flex:0 0 auto}
 #installBanner .x{color:var(--muted);font-size:18px;padding:6px;flex:0 0 auto}
 
+.logo-grande{
+  width:76px;height:76px;border-radius:22px;background:var(--gold);color:#061a3a;
+  display:flex;align-items:center;justify-content:center;margin:0 auto;
+  font-family:Montserrat,sans-serif;font-weight:800;font-size:34px;
+}
 .vazio{text-align:center;padding:34px 16px;color:var(--muted)}
 .vazio .ico{font-size:34px;margin-bottom:8px}
 .pull-hint{text-align:center;font-size:11.5px;color:var(--muted);height:0;overflow:visible;transition:height .1s}
@@ -238,6 +244,26 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
   </header>
 
   <main>
+    <!-- ================= HOME (página inicial) ================= -->
+    <section class="screen" id="s-home">
+      <div style="text-align:center;padding:18px 6px 4px">
+        <div class="logo-grande">MB</div>
+        <h2 class="mont" style="font-size:22px;font-weight:800;margin:12px 0 2px">MudaBrasil</h2>
+        <p class="muted" style="font-size:13.5px">Voto contínuo e revogável.<br>"Seu voto coloca, seu voto tira."</p>
+      </div>
+      <div id="homePrazo" class="aviso-site" style="padding:10px 13px;margin:14px 0 12px"></div>
+      <button class="btn btn-green" id="btnHomeVotar" style="width:100%;min-height:52px;font-size:16px">🗳️ Começar a votar</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <button class="btn btn-ghost" data-go="apuracao" style="min-height:46px;font-size:13.5px">Apuração</button>
+        <button class="btn btn-ghost" data-go="radar" style="min-height:46px;font-size:13.5px">Radar</button>
+      </div>
+      <div class="aviso-site" style="margin-top:14px">
+        <b>⚖️ Simulação cívica</b>
+        <p class="muted" style="font-size:12.5px;margin:6px 0 0">A votação do app é um exercício de opinião pública, sem valor jurídico. Candidatos são os oficiais do TSE 2026 e as notícias são reais.</p>
+      </div>
+      <p class="muted" style="text-align:center;font-size:12px;margin-top:14px">Sem login. Seu apelido anônimo:<br><b id="homeNome" style="color:var(--gold);font-size:14px"></b></p>
+    </section>
+
     <!-- ================= VOTAR ================= -->
     <section class="screen" id="s-votar">
       <div class="progress-wrap">
@@ -364,7 +390,8 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
   </main>
 
   <nav id="nav">
-    <button data-go="votar" class="active"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg>Votar</button>
+    <button data-go="home"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10v9h11v-9"/></svg>Início</button>
+    <button data-go="votar"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg>Votar</button>
     <button data-go="apuracao"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z"/></svg>Apuração</button>
     <button data-go="radar"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 3v2.5"/></svg>Radar</button>
     <button data-go="meuvoto"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Meu voto</button>
@@ -375,10 +402,10 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
 <!-- sheet / toast / banner -->
 <div id="sheet"><div class="bk"></div><div class="card-sheet"><div class="peg"></div><div id="sheetBody"></div></div></div>
 <div id="toast"></div>
-<div id="installBanner" hidden>
+<div id="installBanner">
   <div style="flex:1"><b>Instale o MudaBrasil</b><br><span>Acesso rápido direto da tela inicial</span></div>
   <button class="btn btn-gold" id="btnBannerInstall">Instalar</button>
-  <button class="x" id="btnBannerX">✕</button>
+  <button class="x" id="btnBannerX" aria-label="Fechar aviso de instalação">✕</button>
 </div>
 
 <script>
@@ -433,7 +460,7 @@ if (location.search.indexOf('reset=1') !== -1) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 </script>
-<script src="/app/app.js?v=18"></script>
+<script src="/app/app.js?v=19"></script>
 <script>
 /* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
 setTimeout(function () {
