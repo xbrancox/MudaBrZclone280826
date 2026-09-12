@@ -1079,10 +1079,20 @@ async function handleApi(req, res, url) {
     if (!rec) return sendJson(res, 404, { ok: false, error: 'Código não encontrado' });
     let vinculados = [];
     try { vinculados = (db.getBallotsByVoter(rec.voterHash) || []).filter(b => !b.revoked); } catch (_) { }
+    /* votos por cargo do app ficam em cargo_votes — incluí-los na conferência */
+    let cargos = [];
+    try {
+      const idx = getTseIndex();
+      cargos = (db.getCargoVotesForVoter(rec.voterHash) || []).map(v => {
+        const cand = idx.get(v.politicianId);
+        return { cargo: v.cargo, nome: cand ? cand.nome : null, numero: cand ? cand.numero : null, partido: cand ? cand.partido : null, createdAt: v.createdAt };
+      });
+    } catch (_) { }
     return sendJson(res, 200, {
       ok: true,
       voterHash: rec.voterHash,
-      votos: vinculados.map(b => ({ id: b.ballotId, politicianId: b.politicianId, createdAt: b.createdAt }))
+      votos: vinculados.map(b => ({ id: b.ballotId, politicianId: b.politicianId, createdAt: b.createdAt })),
+      votosCargo: cargos
     });
   }
 
