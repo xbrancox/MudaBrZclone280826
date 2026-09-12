@@ -767,7 +767,14 @@ async function handleApi(req, res, url) {
     if (!cand) return sendJson(res, 404, { ok: false, error: 'Candidato não encontrado' });
     if (cand.cargoApp !== cargoApp) return sendJson(res, 400, { ok: false, error: 'Candidato não concorre a este cargo' });
 
-    const r = db.castCargoVote(cargoApp, cand.id, voter.voterHash);
+    /* código unificado do eleitor — resolvido ANTES do registro para que a
+       linha já nasça com o codigo (a demonstração alcança esses votos) */
+    let codigo = '';
+    try {
+      codigo = db.getCodigoEleitor(voter.voterHash);
+    } catch (_) { }
+
+    const r = db.castCargoVote(cargoApp, cand.id, voter.voterHash, codigo);
     if (!r.ok && r.duplicate) {
       const prev = idx.get(r.previous.politicianId);
       return sendJson(res, 409, {
@@ -782,12 +789,6 @@ async function handleApi(req, res, url) {
     }
     if (!r.ok) return sendJson(res, 500, { ok: false, error: 'Não foi possível registrar o voto' });
     broadcastApuracao();
-    /* código de conferência/revogação do eleitor — o mesmo para todos os cargos;
-       com ele o dono confere ou revoga os votos no site completo */
-    let codigo = '';
-    try {
-      codigo = db.getCodigoEleitor(voter.voterHash);
-    } catch (_) { }
     return sendJson(res, 201, {
       ok: true,
       codigo,
