@@ -847,7 +847,16 @@ $('#plsList').innerHTML=l.map(p=>`<div class="card"><b style="color:var(--gold)"
 <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn green sm" onclick="toast('Aprovo registrado.')">Aprovo</button><button class="btn red sm" onclick="toast('Não aprovo registrado.')">Não aprovo</button><button class="btn sm" onclick="abrirVotacoesPL('${p.id}','${(p.num||'').replace(/'/g,'')}')">🗳️ Votações</button><a class="btn sm" href="${plOficialUrl(p)}" target="_blank" rel="noopener">Tramitação oficial ↗</a></div></div>`).join('')||'<p class="muted">Nada encontrado.</p>'}
 const DEMO_BAL={'Presidente':'Maria Santos (PT 13)','Governador':'Roberto Lima (MDB 15)','Senador':'BRANCO'};
 function usarDemo(){renderCedula('35001500100212345789',DEMO_BAL)}
-function conferir(){const raw=($('#chk').value||'').replace(/\D/g,'');if(raw.length!==20){toast('Código inválido (20 dígitos).');return}
+const NOMES_CARGO={'presidente':'Presidente','governador':'Governador','senador':'Senador','dep-federal':'Deputado Federal','dep-estadual':'Deputado Estadual','dep-distrital':'Deputado Distrital'};
+async function conferir(){const raw=($('#chk').value||'').replace(/\D/g,'');if(raw.length!==20){toast('Código inválido (20 dígitos).');return}
+/* 1) servidor real: resolve o código e devolve os votos por cargo da cédula do app */
+try{
+ const r=await fetch(API_BASE+'/api/voto/conferir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:raw})});
+ if(r.status===404){$('#chkRes').innerHTML='<div class="card" style="margin-top:14px"><b style="color:var(--red)">❌ Código não encontrado.</b><p class="muted" style="margin:6px 0 0">Confira os 20 dígitos e tente de novo.</p></div>';return}
+ const d=await r.json();
+ if(d&&d.ok&&(d.votosCargo||[]).length){renderCedula(raw,Object.fromEntries(d.votosCargo.map(v=>[(NOMES_CARGO[v.cargo]||v.cargo),(v.nome||'')+(v.partido?' ('+v.partido+')':'')+(v.numero?' nº '+v.numero:'')])));return}
+}catch(e){}
+/* 2) sem backend/local: cai no ballot guardado no aparelho ou na demo */
 const st=LS.get('mb_codigo',null);const bal=(st&&st.code===raw)?st.ballot:DEMO_BAL;renderCedula(raw,bal)}
 function renderCedula(code,bal){$('#chkRes').innerHTML=`<div class="card" style="margin-top:14px"><b style="color:var(--green)"><i class="fa-solid fa-circle-check"></i> Voto localizado</b>
 <div style="margin-top:10px">${Object.keys(bal).map(c=>`<div class="rank"><div><b style="font-size:13px">${c}</b><div class="muted">${bal[c]}</div></div><span class="badge ok">ativo</span></div>`).join('')}</div></div>`}
