@@ -1,24 +1,26 @@
 /* ============================================================
    MudaBrasil APP — lógica (vanilla, sem build)
    Telas: votar · apuração · radar · meu voto · menu (sem login — sessão anônima automática)
-   Regras fixas: sem PLs no app; conferir/revogar só no site;
+   Regras fixas: sem PLs no app; conferir só no site;
    radar resumido; dados ausentes = vazio honesto.
    ============================================================ */
 'use strict';
 
 const API = (window.MudaBrasil && window.MudaBrasil.API_BASE) || '';
-const APP_V = '2.0.0';
+const APP_V = '2.1.0';
 const SITE_URL = (window.MudaBrasil && window.MudaBrasil.SERVIDO_PELO_BACKEND)
   ? location.origin
   : 'https://mudabrasil-redesign-production.up.railway.app';
 
-/* cargos do app → códigos TSE (7=Dep.Estadual, 8=Dep.Distrital) */
+/* cargos do app → códigos TSE (7=Dep.Estadual, 8=Dep.Distrital).
+   A lista visível passa por cargosVisiveis(): no DF, Estadual vira Distrital. */
 const CARGOS = [
   { id: 'presidente',   nome: 'Presidente',       tse: [1], uf: false },
   { id: 'governador',   nome: 'Governador',       tse: [3], uf: true  },
   { id: 'senador',      nome: 'Senador',          tse: [5], uf: true  },
   { id: 'dep-federal',  nome: 'Deputado Federal', tse: [6], uf: true  },
-  { id: 'dep-estadual', nome: 'Deputado Estadual',tse: [7, 8], uf: true }
+  { id: 'dep-estadual', nome: 'Deputado Estadual',tse: [7], uf: true  },
+  { id: 'dep-distrital',nome: 'Deputado Distrital',tse: [8], uf: true }
 ];
 const DK_CORES = ['#2ECC71', '#FFD700', '#4a90d9', '#ff7a6e'];
 const COR_OUTROS = '#a78bfa';
@@ -211,14 +213,14 @@ async function loadMeusVotos(tentouReautenticar) {
   if ($('#s-meuvoto').classList.contains('active')) renderMeuVoto();
   updateProgress();
 }
-function countVotos() { return CARGOS.filter(c => state.myVotes[c.id]).length; }
-function countRascunho() { return CARGOS.filter(c => state.rascunho[c.id]).length; }
+function countVotos() { return cargosVisiveis().filter(c => state.myVotes[c.id]).length; }
+function countRascunho() { return cargosVisiveis().filter(c => state.rascunho[c.id]).length; }
 function updateProgress() {
   const el = $('#progTxt');
   if (!el) return;
-  const n = countVotos();
-  el.textContent = n + ' de 5 cargos';
-  $('#progBar').style.width = (n / 5 * 100) + '%';
+  const n = countVotos(), total = cargosVisiveis().length;
+  el.textContent = n + ' de ' + total + ' cargos';
+  $('#progBar').style.width = (n / total * 100) + '%';
 }
 /* v21 — barra fixa da cédula na tela votar: mostra escolhas do rascunho e
    leva à revisão. Some quando não há nada pendente. */
@@ -228,12 +230,24 @@ function atualizarBarraCedula() {
   const nr = countRascunho(), nv = countVotos();
   if (!nr) { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
-  $('#cedulaTxt').innerHTML = `🗳️ Sua cédula: <b>${nr} de 5${nv ? ' · ' + nv + ' já registrados' : ''}</b>`;
+  $('#cedulaTxt').innerHTML = `🗳️ Sua cédula: <b>${nr} de ${cargosVisiveis().length}${nv ? ' · ' + nv + ' já registrados' : ''}</b>`;
 }
 
 /* ===== VOTAR ===== */
+/* v22 — a cédula é sempre de 5 cargos: no DF, Deputado Estadual é substituído
+   por Deputado Distrital (o DF não tem deputação estadual). Toda contagem e
+   toda lista de cargos passa por aqui. */
+const CARGO_ESTADUAL_DF = 'dep-estadual';
+function cargosVisiveis() {
+  return CARGOS.filter(c => !(state.uf === 'DF' && c.id === 'dep-estadual'));
+}
+/* cargo guardado pode ter sumido da cédula (usuário mudou para DF) → realoca */
+function cargoAtualValido() {
+  if (!cargosVisiveis().some(c => c.id === state.cargo)) state.cargo = 'presidente';
+  return state.cargo;
+}
 function renderChips() {
-  $('#chips').innerHTML = CARGOS.map(c => {
+  $('#chips').innerHTML = cargosVisiveis().map(c => {
     const reg = state.myVotes[c.id], ras = state.rascunho[c.id];
     const marca = reg ? ' <span class="ok">✓</span>' : (ras ? ' <span class="dot-ras"></span>' : '');
     return `<button class="chip${c.id === state.cargo ? ' active' : ''}" data-cargo="${c.id}">${c.nome}${marca}</button>`;
@@ -243,10 +257,17 @@ function renderChips() {
 }
 function cargoCfg(id) { return CARGOS.find(c => c.id === id); }
 function tseCodeAtual() {
-  const cfg = cargoCfg(state.cargo);
-  if (!cfg.uf) return cfg.tse[0];
-  if (cfg.id === 'dep-estadual') return state.uf === 'DF' ? 8 : 7;
-  return cfg.tse[0];
+  return cargoCfg(state.cargo).tse[0];
+}
+/* v22 — após escolher um candidato, salta sozinho para o próximo cargo vazio
+   da cédula (ordem dos chips). Se todos já têm escolha, vai para a revisão. */
+function proximoCargoDisponivel(depoisDe) {
+  const lista = cargosVisiveis();
+  for (let i = 1; i <= lista.length; i++) {
+    const cfg = lista[(lista.findIndex(c => c.id === depoisDe) + i) % lista.length];
+    if (!state.rascunho[cfg.id] && !state.myVotes[cfg.id]) return cfg.id;
+  }
+  return null;
 }
 function renderUfArea() {
   const cfg = cargoCfg(state.cargo);
@@ -265,12 +286,11 @@ function renderUfArea() {
   });
 }
 /* bloco de links "conferir em várias fontes" — o app registra opinião;
-   a conferência de verdade fica no site completo e no TSE */
+   a conferência do código fica no site completo e no TSE */
 function linksConferir() {
   const a = (h, t) => `<a href="${h}" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600;white-space:nowrap">${t}</a>`;
   return `<div style="display:flex;flex-wrap:wrap;gap:5px 16px;font-size:12.5px;margin-top:9px">
     ${a(SITE_URL + '/#conferir-voto', 'Conferir voto no site ↗')}
-    ${a(SITE_URL + '/#revogar-voto', 'Revogar no site ↗')}
     ${a('https://divulgacandcontas.tse.jus.br/', 'Candidaturas no TSE ↗')}
   </div>`;
 }
@@ -408,6 +428,7 @@ setInterval(() => {
   if (scr.scrollTop + scr.clientHeight >= scr.scrollHeight - 350) carregarProximaPagina();
 }, 700);
 function renderVotar() {
+  cargoAtualValido();
   renderChips();
   renderUfArea();
   renderVotadoBanner();
@@ -424,10 +445,10 @@ $('#btnMais').addEventListener('click', () => { listState.pagina++; carregarCand
 
 /* ============================================================
    v21 — FLUXO DA CÉDULA (inspirado no protótipo VotaBrasil)
-   escolher no aparelho (rascunho, troca livre) → REVISE SUA CÉDULA
-   → MANDATO REVOGÁVEL (explicação) → UM código único de 20 dígitos
-   → VOTO REGISTRADO (comprovante salvo no aparelho)
-   → "Votar de novo (demonstração)" enquanto o app é simulação.
+   escolher no aparelho (rascunho, troca livre, avança sozinho para o
+   próximo cargo) → REVISE SUA CÉDULA → COMO FUNCIONA O REGISTRO
+   → UM código único de 20 dígitos → VOTO REGISTRADO (comprovante salvo
+   no aparelho) → "Votar de novo (demonstração)" enquanto o app é simulação.
    Nada vai ao servidor até finalizar a cédula.
    ============================================================ */
 function abrirConfirmacao(c) {
@@ -457,16 +478,24 @@ function abrirConfirmacao(c) {
     salvarRascunho();
     vibrate([40, 25, 40]);
     closeSheet();
-    renderChips(); renderVotadoBanner(); atualizarBarraCedula();
-    carregarCandidatos(false);
-    toast('Adicionado à cédula — falta(m) ' + (CARGOS.length - countRascunho()) + ' cargo(s)', 'ok');
+    /* v22 — avança sozinho para o próximo cargo ainda sem escolha */
+    const proximo = proximoCargoDisponivel(state.cargo);
+    if (proximo) {
+      state.cargo = proximo; listState.pagina = 1;
+      renderVotar();
+      toast('Adicionado à cédula ✓ — agora: ' + cargoCfg(proximo).nome, 'ok');
+    } else {
+      renderChips(); renderVotadoBanner(); atualizarBarraCedula();
+      carregarCandidatos(false);
+      toast('Última escolha registrada — revise a cédula completa 🗳️', 'ok');
+    }
   });
 }
 
 /* ---- passo 1: REVISE SUA CÉDULA ---- */
 function abrirRevisao() {
   if (!countRascunho()) { toast('Escolha pelo menos um candidato primeiro', 'err'); return; }
-  const linhas = CARGOS.map((cfg, i) => {
+  const linhas = cargosVisiveis().map((cfg, i) => {
     const ras = state.rascunho[cfg.id];
     const reg = state.myVotes[cfg.id];
     const mesmo = ras && reg && ras.politicianId === reg.politicianId;
@@ -488,7 +517,7 @@ function abrirRevisao() {
     <p class="muted" style="font-size:12px;text-align:center;margin-bottom:10px">Confira os candidatos antes de gerar seu código único.<br>Toque em “trocar” para mudar qualquer um.</p>
     ${linhas}
     <div class="aviso-site" style="margin:12px 0 0;padding:9px 12px">
-      <span style="font-size:11.5px">⚖️ <b>Simulação de opinião pública</b> — sem valor jurídico. Ao confirmar, você verá a explicação do mandato revogável.</span>
+      <span style="font-size:11.5px">⚖️ <b>Simulação de opinião pública</b> — sem valor jurídico. Ao confirmar, você verá como funciona o registro com código único.</span>
     </div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="shFecharRev">VOLTAR</button>
@@ -504,20 +533,20 @@ function abrirRevisao() {
   $('#shConfirmarCedula').addEventListener('click', abrirExplicacao);
 }
 
-/* ---- passo 2: MANDATO REVOGÁVEL (explicação detalhada) ---- */
+/* ---- passo 2: COMO FUNCIONA O REGISTRO ---- */
 function abrirExplicacao() {
   openSheet(`
-    <h3 class="titles" style="text-align:center">🔄 Mandato revogável</h3>
+    <h3 class="titles" style="text-align:center">🔑 Como funciona seu registro</h3>
     <div class="rv-texto">
-      <p><b>O que é?</b> No voto contínuo, o político só permanece no cargo enquanto tiver a confiança de quem elegeu. <i>"Seu voto coloca, seu voto tira."</i></p>
-      <p><b>Como funciona a revogação?</b> Se o eleito descumprir as promessas de campanha, os eleitores podem revogar o mandato. A regra proposta (<b>R3</b>): quando <b>70% dos votos que elegeram</b> aquele político pedirem a saída, o mandato é cassado e uma nova eleição é convocada.</p>
-      <p><b>E o meu código?</b> Ao finalizar, você recebe <b>um único código de 20 dígitos</b> para TODA a sua cédula. Com ele, no site completo, você confere seus votos e — depois da posse — inicia a revogação de qualquer eleito.</p>
+      <p><b>Código único.</b> Ao confirmar, você recebe <b>um único código de 20 dígitos</b> para TODA a sua cédula — ele vale para todos os cargos que você escolheu.</p>
+      <p><b>Comprovante no aparelho.</b> O comprovante fica gravado neste celular na aba <b>Meu voto</b>, com data e hora, para você conferir quando quiser. Você também pode copiar, compartilhar ou conferir o código no site completo.</p>
+      <p><b>Seus votos contam na Apuração</b> como pesquisa de opinião pública entre os usuários do app.</p>
     </div>
     <div class="aviso-site" style="border-color:var(--gold);margin:12px 0 0">
       <b>⚖️ Hoje vs. votação real</b>
       <p style="font-size:12px;margin:6px 0 0;line-height:1.55">
-        <b>Hoje (demonstração):</b> sua cédula entra na pesquisa de opinião pública do MudaBrasil e conta na Apuração. Você pode refazer quando quiser com “Votar de novo”. Sem login, o comprovante fica gravado neste aparelho.<br>
-        <b>Quando for votação real:</b> haverá login por e-mail ou celular, o comprovante será enviado automaticamente para você, e a revogação passará a valer contra o mandato — não existirá mais o botão de refazer.
+        <b>Hoje (demonstração):</b> sem login, o comprovante fica só neste aparelho e você pode refazer sua cédula quando quiser com “Votar de novo”.<br>
+        <b>Quando for votação real:</b> haverá login por e-mail ou celular e o comprovante será enviado automaticamente para você — e não existirá mais o botão de refazer.
       </p>
     </div>
     <div class="sheet-actions">
@@ -586,7 +615,7 @@ function abrirDemonstracao() {
   openSheet(`
     <h3 class="titles" style="text-align:center">🔄 Votar de novo</h3>
     <p style="font-size:13px;line-height:1.55">Como o app ainda está em <b>demonstração</b>, você pode desfazer sua cédula (${n} voto${n === 1 ? '' : 's'} nesta sessão) e montar outra — sua primeira resposta continua como base da pesquisa de opinião até você recomeçar.</p>
-    <p class="muted" style="font-size:12px;margin-top:8px">⚠️ Isso apaga apenas os SEUS votos desta demonstração. Na votação real este botão não existirá: o voto registrado será permanente até a janela de revogação.</p>
+    <p class="muted" style="font-size:12px;margin-top:8px">⚠️ Isso apaga apenas os SEUS votos desta demonstração. Na votação real este botão não existirá: o voto registrado será permanente.</p>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="shCancelarDemo">MANTER VOTOS</button>
       <button class="btn" id="shZerarDemo" style="background:#c0392b;color:#fff">ZERAR E RECOMEÇAR</button>
@@ -647,10 +676,11 @@ function registrarHistorico(data) {
 }
 function apuStats(data) {
   const votantes = countVotos();
+  const totalCargos = cargosVisiveis().length;
   const tiles = [
     `<div class="stat"><b>${data.totalVotos}</b><span>votos na simulação</span></div>`,
-    `<div class="stat"><b>${votantes}<i>/5</i></b><span>seus cargos votados</span></div>`,
-    `<div class="stat"><b>${data.cargos.filter(c => c.totalVotos > 0).length}<i>/5</i></b><span>cargos com votos</span></div>`
+    `<div class="stat"><b>${votantes}<i>/${totalCargos}</i></b><span>seus cargos votados</span></div>`,
+    `<div class="stat"><b>${data.cargos.filter(c => c.totalVotos > 0).length}<i>/${data.cargos.length}</i></b><span>cargos com votos</span></div>`
   ];
   return `<div class="stats">${tiles.join('')}</div>
     <p class="muted" style="font-size:10.5px;margin:-4px 2px 10px">Toque num candidato do ranking para ver a ficha dele no Radar.</p>`;
@@ -913,8 +943,9 @@ function renderChipsNot() {
 
 /* ===== MEU VOTO ===== */
 function renderMeuVoto() {
-  const feitos = CARGOS.filter(c => state.myVotes[c.id]).length;
-  const faltam = CARGOS.length - feitos;
+  const visiveis = cargosVisiveis();
+  const feitos = visiveis.filter(c => state.myVotes[c.id]).length;
+  const faltam = visiveis.length - feitos;
   let resumo = '';
   /* v21 — comprovante da cédula completa salvo no aparelho */
   if (state.comprovante && state.comprovante.codigo) {
@@ -931,20 +962,20 @@ function renderMeuVoto() {
       <button class="btn btn-ghost" id="mvDeNovo" style="width:100%;min-height:38px;font-size:12px;margin-top:8px;color:var(--blueL)">🔄 Votar de novo (demonstração)</button>
     </div>`;
   } else if (countRascunho()) {
-    resumo += `<div class="aviso-site"><b>🗳️ Cédula em montagem: ${countRascunho()} de 5 cargos escolhidos</b>
+    resumo += `<div class="aviso-site"><b>🗳️ Cédula em montagem: ${countRascunho()} de ${visiveis.length} cargos escolhidos</b>
       <p class="muted" style="font-size:12.5px;margin:6px 0 0">Abra a aba Votar e toque em “Revisar cédula” para gerar seu código.</p></div>`;
   }
-  if (feitos === CARGOS.length) {
+  if (feitos === visiveis.length) {
     resumo += `<div class="aviso-site" style="border-color:var(--gold);margin-bottom:10px">
-      <b>🏆 Você votou em todos os ${CARGOS.length} cargos!</b>
-      <p class="muted" style="font-size:12.5px;margin:6px 0 10px">Sua opinião está registrada — e pode ser revogada a qualquer momento no site. Chame mais gente para pesar a mão:</p>
+      <b>🏆 Você votou em todos os ${visiveis.length} cargos!</b>
+      <p class="muted" style="font-size:12.5px;margin:6px 0 10px">Sua opinião está registrada na simulação. Chame mais gente para votar também:</p>
       <button class="btn btn-gold" id="btnCompartilharApp" style="width:100%">Compartilhar o MudaBrasil ↗</button>
     </div>`;
   } else if (feitos > 0) {
     resumo += `<div class="aviso-site"><b>Faltam ${faltam} cargo${faltam > 1 ? 's' : ''} para completar sua votação</b>
       <p class="muted" style="font-size:12.5px;margin:6px 0 0">Toque num cargo abaixo para votar.</p></div>`;
   }
-  $('#meusLista').innerHTML = resumo + CARGOS.map(cfg => {
+  $('#meusLista').innerHTML = resumo + visiveis.map(cfg => {
     const v = state.myVotes[cfg.id];
     const ras = state.rascunho[cfg.id];
     const cand = v && v.candidato;
@@ -959,7 +990,7 @@ function renderMeuVoto() {
       </div>
       <span class="st" style="color:${v ? 'var(--green)' : (ras ? 'var(--gold)' : 'var(--muted)')}">${v ? '✓' : (ras ? '●' : '—')}</span>
     </div>`;
-  }).join('') + (feitos < CARGOS.length ? `<p class="muted" style="text-align:center;font-size:11.5px;margin-top:6px">Toque num cargo para votar</p>` : '') + linksConferir();
+  }).join('') + (feitos < visiveis.length ? `<p class="muted" style="text-align:center;font-size:11.5px;margin-top:6px">Toque num cargo para votar</p>` : '') + linksConferir();
   document.querySelectorAll('#meusLista [data-cargo]').forEach(el =>
     el.addEventListener('click', () => { state.cargo = el.dataset.cargo; listState.pagina = 1; go('votar'); }));
   $('#btnCompartilharApp')?.addEventListener('click', compartilharApp);
@@ -1010,20 +1041,19 @@ async function compartilharTexto(txt) {
   $('#shFechar').addEventListener('click', closeSheet);
 }
 
-/* convite ao app — aparece quando o usuário completa os 5 cargos */
+/* convite ao app — aparece quando o usuário completa a cédula */
 async function compartilharApp() {
-  await compartilharTexto('Estou pesando a mão no MudaBrasil 🇧🇷 — voto contínuo e revogável nos candidatos. "Seu voto coloca, seu voto tira." Vote também: ' + SITE_URL + '/app/');
+  await compartilharTexto('Estou votando na simulação do MudaBrasil 🇧🇷 — candidatos reais do TSE e apuração aberta. Vote também: ' + SITE_URL + '/app/');
 }
 $('#btnAbrirSite').addEventListener('click', () => window.open(SITE_URL + '/', '_blank'));
 
-/* ===== AJUDA (FAQ — espelho das perguntas do site) ===== */
+/* ===== AJUDA (FAQ) ===== */
 const FAQ = [
-  ['O que é simulação?', 'A votação/revogação não tem valor jurídico hoje. Notícias, políticos e PLs são reais.'],
-  ['Como revogo meu voto?', 'No site completo, com o código único da cédula + login, só após a posse. No app você registra e troca a cédula até gerar o código; depois use “Votar de novo (demonstração)” enquanto for simulação.'],
+  ['O que é simulação?', 'A votação não tem valor jurídico hoje. Notícias, políticos e PLs são reais.'],
+  ['Posso mudar meu voto?', 'No app você troca livremente a cédula até gerar o código; depois use “Votar de novo (demonstração)” enquanto for simulação.'],
   ['Como vejo os candidatos do meu estado?', 'Em Governador, Senador ou Deputado, escolha seu estado no seletor acima da lista. Pode também buscar pelo nome ou número.'],
   ['Por que a lista de deputado é tão grande?', 'Porque todos os candidatos oficiais do TSE aparecem. Role que o app carrega mais sozinho, ou use a busca para achar pelo nome/número.'],
   ['Quem pode responder reclamações?', 'Só o político/candidato com identidade verificada (selo), no site completo.'],
-  ['O que é a regra dos 70%?', 'Proposta: 70% dos votos que elegeram = cassação.'],
 ];
 function renderAjuda() {
   const box = $('#faqLista');

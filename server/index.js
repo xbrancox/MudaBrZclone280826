@@ -186,7 +186,9 @@ const CARGO_APP = {
   governador: { nome: 'Governador', tse: [3] },
   senador: { nome: 'Senador', tse: [5] },
   'dep-federal': { nome: 'Deputado Federal', tse: [6] },
-  'dep-estadual': { nome: 'Deputado Estadual', tse: [7, 8] }
+  'dep-estadual': { nome: 'Deputado Estadual', tse: [7] },
+  /* DF não tem deputação estadual — quem elege são deputados distritais (TSE 8) */
+  'dep-distrital': { nome: 'Deputado Distrital', tse: [8] }
 };
 const TSE_CARGO_TO_APP = {};
 Object.entries(CARGO_APP).forEach(([app, cfg]) => cfg.tse.forEach(c => { TSE_CARGO_TO_APP[c] = app; }));

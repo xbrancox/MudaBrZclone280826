@@ -283,7 +283,7 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
       <div style="text-align:center;padding:18px 6px 4px">
         <div class="logo-grande">MB</div>
         <h2 class="mont" style="font-size:22px;font-weight:800;margin:12px 0 2px">MudaBrasil</h2>
-        <p class="muted" style="font-size:13.5px">Voto contínuo e revogável.<br>"Seu voto coloca, seu voto tira."</p>
+        <p class="muted" style="font-size:13.5px">Pesquisa de opinião com candidatos reais do TSE.<br>Seu voto, seu código, sua conferência.</p>
       </div>
       <div id="homePrazo" class="aviso-site" style="padding:10px 13px;margin:14px 0 12px"></div>
       <button class="btn btn-green" id="btnHomeVotar" style="width:100%;min-height:52px;font-size:16px">🗳️ Começar a votar</button>
@@ -372,8 +372,8 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
     <section class="screen" id="s-meuvoto">
       <h2 class="titles">Meu voto</h2>
       <div class="aviso-site">
-        <b>⚠️ Conferir voto e revogação existem apenas no site completo.</b>
-        <p class="muted" style="font-size:12.5px;margin:6px 0 10px">No app você registra seu voto; conferência do código e revogação ficam na versão completa.</p>
+        <b>⚠️ Conferir o código no site completo.</b>
+        <p class="muted" style="font-size:12.5px;margin:6px 0 10px">No app você registra seu voto e guarda o comprovante neste aparelho; a conferência pública do código fica na versão completa.</p>
         <button class="btn btn-gold" id="btnAbrirSite" style="width:100%">Abrir site completo ↗</button>
       </div>
       <div id="meusLista"></div>
@@ -394,10 +394,10 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
     <section class="screen" id="s-sobre">
       <h2 class="titles">Sobre o MudaBrasil</h2>
       <div class="aviso-site" style="padding:14px">
-        <p style="font-size:13.5px;margin:0 0 8px">Plataforma cívica de <b>voto contínuo e revogável</b> (protótipo demonstrativo, sem valor jurídico). O poder emana do povo — e não acaba no dia da eleição.</p>
-        <p style="color:var(--gold);font-weight:800;margin:0">"Seu voto coloca, seu voto tira."</p>
+        <p style="font-size:13.5px;margin:0 0 8px">Plataforma cívica de <b>participação e pesquisa de opinião</b> (protótipo demonstrativo, sem valor jurídico). O poder emana do povo — e não acaba no dia da eleição.</p>
+        <p style="color:var(--gold);font-weight:800;margin:0">Voto real do TSE, apuração aberta, comprovante seu.</p>
       </div>
-      <p class="muted" style="font-size:12.5px;margin:12px 2px">No app você vota nos 5 cargos do executivo/legislativo de 2026 e acompanha a apuração da comunidade. Recursos completos — conferir voto, revogação, reclamações e apoios, comparação de políticos — ficam no site.</p>
+      <p class="muted" style="font-size:12.5px;margin:12px 2px">No app você vota nos cargos do executivo/legislativo de 2026 (no DF, deputado distrital) e acompanha a apuração da comunidade. Recursos completos — conferir o código, reclamações e apoios, comparação de políticos — ficam no site.</p>
       <button class="menu-item" id="btnSobreSite">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
         Abrir site completo ↗
@@ -512,7 +512,7 @@ if (location.search.indexOf('reset=1') !== -1) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 </script>
-<script src="/app/app.js?v=21"></script>
+<script src="/app/app.js?v=22"></script>
 <script>
 /* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
 setTimeout(function () {
