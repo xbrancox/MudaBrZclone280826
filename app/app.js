@@ -239,7 +239,11 @@ function atualizarBarraCedula() {
    toda lista de cargos passa por aqui. */
 const CARGO_ESTADUAL_DF = 'dep-estadual';
 function cargosVisiveis() {
-  return CARGOS.filter(c => !(state.uf === 'DF' && c.id === 'dep-estadual'));
+  return CARGOS.filter(c => {
+    if (state.uf === 'DF' && c.id === 'dep-estadual') return false;   // DF não tem estadual
+    if (state.uf !== 'DF' && c.id === 'dep-distrital') return false;  // distrital só existe no DF
+    return true;
+  });
 }
 /* cargo guardado pode ter sumido da cédula (usuário mudou para DF) → realoca */
 function cargoAtualValido() {
