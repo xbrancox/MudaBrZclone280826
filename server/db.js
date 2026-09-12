@@ -290,6 +290,9 @@ function init() {
   if (BACKEND === 'sqlite') {
     openSqlite();
     try { db.prepare('ALTER TABLE ballots ADD COLUMN voter_hash TEXT').run(); } catch (_) { }
+    /* v21: código unificado do eleitor gravado em cada voto por cargo
+       (permite zerar a demonstração do próprio eleitor pelo código) */
+    try { db.prepare('ALTER TABLE cargo_votes ADD COLUMN codigo TEXT').run(); } catch (_) { }
     const n = db.prepare('SELECT COUNT(*) AS n FROM ballots').get().n;
     if (n === 0) {
       const legacy = jsonReadFile('ballots');
@@ -924,7 +927,7 @@ function markCodeUsed(code) {
 /* ===== Voto por CARGO (app PWA) — 1 voto por cargo, duplicado bloqueado =====
    UNIQUE(voter_hash, cargo): o mesmo hash nunca registra dois votos no
    mesmo cargo. Sem revogação aqui (existe só no site completo, por código). */
-function castCargoVote(cargo, politicianId, voterHash) {
+function castCargoVote(cargo, politicianId, voterHash, codigo) {
   const now = Date.now();
   if (BACKEND === 'sqlite') {
     openSqlite();
@@ -933,29 +936,86 @@ function castCargoVote(cargo, politicianId, voterHash) {
       return { ok: false, duplicate: true, previous: { politicianId: existing.politician_id, createdAt: existing.created_at } };
     }
     const id = 'cv-' + crypto.randomBytes(8).toString('hex');
-    db.prepare('INSERT INTO cargo_votes (id, cargo, politician_id, voter_hash, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(id, cargo, politicianId, voterHash, now);
+    db.prepare('INSERT INTO cargo_votes (id, cargo, politician_id, voter_hash, created_at, codigo) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, cargo, politicianId, voterHash, now, codigo || null);
     return { ok: true, cargo, politicianId, createdAt: now };
   }
   const all = jsonReadFile('cargo_votes') || {};
   const prev = Object.values(all).find(v => v.voterHash === voterHash && v.cargo === cargo);
   if (prev) return { ok: false, duplicate: true, previous: { politicianId: prev.politicianId, createdAt: prev.createdAt } };
   const id = 'cv-' + crypto.randomBytes(8).toString('hex');
-  all[id] = { id, cargo, politicianId, voterHash, createdAt: now };
+  all[id] = { id, cargo, politicianId, voterHash, createdAt: now, codigo: codigo || null };
   jsonWriteFile('cargo_votes', all);
   return { ok: true, cargo, politicianId, createdAt: now };
+}
+
+/* Código unificado do eleitor (mesmo para todos os cargos). Gera na 1ª vez. */
+function getCodigoEleitor(voterHash) {
+  const codes = getVoteCodesForVoter(voterHash);
+  return (codes && codes.length) ? codes[0].code : generateVoteCode(voterHash);
+}
+
+/* v21 — lote da cédula completa: substitui TODOS os votos por cargo do
+   eleitor de uma vez (permite trocar antes de registrar o código final). */
+function replaceVoterCargoVotes(voterHash, votos, codigo) {
+  const now = Date.now();
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    try { db.exec('BEGIN'); } catch (_) { }
+    try {
+      db.prepare('DELETE FROM cargo_votes WHERE voter_hash = ?').run(voterHash);
+      const ins = db.prepare('INSERT INTO cargo_votes (id, cargo, politician_id, voter_hash, created_at, codigo) VALUES (?, ?, ?, ?, ?, ?)');
+      for (const v of votos) {
+        ins.run('cv-' + crypto.randomBytes(8).toString('hex'), v.cargo, v.politicianId, voterHash, now, codigo || null);
+      }
+      db.exec('COMMIT');
+    } catch (e) {
+      try { db.exec('ROLLBACK'); } catch (_) { }
+      return { ok: false, error: e.message };
+    }
+    return { ok: true, createdAt: now };
+  }
+  const all = jsonReadFile('cargo_votes') || {};
+  for (const k of Object.keys(all)) {
+    if (all[k].voterHash === voterHash) delete all[k];
+  }
+  for (const v of votos) {
+    const id = 'cv-' + crypto.randomBytes(8).toString('hex');
+    all[id] = { id, cargo: v.cargo, politicianId: v.politicianId, voterHash, createdAt: now, codigo: codigo || null };
+  }
+  jsonWriteFile('cargo_votes', all);
+  return { ok: true, createdAt: now };
+}
+
+/* v21 — modo demonstração: zera os votos por cargo daquele código.
+   Só existe enquanto o app é SIMULAÇÃO; remover na votação real. */
+function deleteCargoVotesByCodigo(codigo) {
+  const clean = String(codigo || '').replace(/\s/g, '');
+  if (!clean) return 0;
+  if (BACKEND === 'sqlite') {
+    openSqlite();
+    const r = db.prepare('DELETE FROM cargo_votes WHERE codigo = ?').run(clean);
+    return Number(r.changes) || 0;
+  }
+  const all = jsonReadFile('cargo_votes') || {};
+  let n = 0;
+  for (const k of Object.keys(all)) {
+    if (all[k].codigo === clean) { delete all[k]; n++; }
+  }
+  if (n) jsonWriteFile('cargo_votes', all);
+  return n;
 }
 
 function getCargoVotesForVoter(voterHash) {
   if (BACKEND === 'sqlite') {
     openSqlite();
-    return db.prepare('SELECT cargo, politician_id, created_at FROM cargo_votes WHERE voter_hash = ? ORDER BY created_at').all(voterHash)
-      .map(r => ({ cargo: r.cargo, politicianId: r.politician_id, createdAt: r.created_at }));
+    return db.prepare('SELECT cargo, politician_id, created_at, codigo FROM cargo_votes WHERE voter_hash = ? ORDER BY created_at').all(voterHash)
+      .map(r => ({ cargo: r.cargo, politicianId: r.politician_id, createdAt: r.created_at, codigo: r.codigo || null }));
   }
   return Object.values(jsonReadFile('cargo_votes') || {})
     .filter(v => v.voterHash === voterHash)
     .sort((a, b) => a.createdAt - b.createdAt)
-    .map(v => ({ cargo: v.cargo, politicianId: v.politicianId, createdAt: v.createdAt }));
+    .map(v => ({ cargo: v.cargo, politicianId: v.politicianId, createdAt: v.createdAt, codigo: v.codigo || null }));
 }
 
 function cargoVotesAgg() {
@@ -1082,6 +1142,7 @@ module.exports = {
   upsertPl, getPl, readAllPls, getPlsByFilters, castPlVote, getPlVoteForVoter,
   castVotoPl, plVotesAgg,
   castCargoVote, getCargoVotesForVoter, cargoVotesAgg,
+  getCodigoEleitor, replaceVoterCargoVotes, deleteCargoVotesByCodigo,
   generateVoteCode, getVoteCodesForVoter, verifyVoteCode, markCodeUsed,
   getRevokedStats, dumpAll,
   VOTOS_DB, VOTOS_FILE

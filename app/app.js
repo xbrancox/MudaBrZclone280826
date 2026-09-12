@@ -42,7 +42,9 @@ const store = {
 const state = {
   token: store.get('mb_app_token') || '',
   name: store.get('mb_app_name') || '',
-  myVotes: {},                 // cargo → { politicianId, candidato }
+  myVotes: {},                 // cargo → { politicianId, candidato } (votos registrados no servidor)
+  rascunho: {},                // v21 — cargo → { politicianId, nome, partido, uf, numero } montado no aparelho, ainda não enviado
+  comprovante: null,           // v21 — { codigo, data, cargos } do último registro (espelho local do recibo)
   cargo: 'presidente',
   uf: store.get('mb_app_uf') || '',
   page: 1,
@@ -51,6 +53,15 @@ const state = {
   apuHist: {},                 // id do cargo → [{ts, totalVotos}] das últimas cargas (tendência)
   radarFiltro: ''              // texto atual dos chips de filtro do radar ('' | 'camara' | 'senado' | UF)
 };
+/* v21 — estado persistido do fluxo da cédula */
+try { state.rascunho = JSON.parse(store.get('mb_rascunho') || '{}') || {}; } catch (_) { state.rascunho = {}; }
+try { state.comprovante = JSON.parse(store.get('mb_comprovante') || 'null'); } catch (_) { state.comprovante = null; }
+function salvarRascunho() { store.set('mb_rascunho', JSON.stringify(state.rascunho)); }
+function setComprovante(c) {
+  state.comprovante = c;
+  if (c) store.set('mb_comprovante', JSON.stringify(c)); else store.del('mb_comprovante');
+}
+function formatarCodigo(code) { return String(code || '').replace(/(.{4})/g, '$1 ').trim(); }
 const listState = { q: '', pagina: 1, totalPaginas: 1, items: [] };
 if (window.__mblog) window.__mblog('app.js v4 carregado | token=' + (state.token ? 'sim' : 'não'));
 
@@ -188,23 +199,45 @@ async function loadMeusVotos(tentouReautenticar) {
   if (!r.ok) return;
   state.myVotes = {};
   (r.votos || []).forEach(v => { state.myVotes[v.cargo] = v; });
+  /* comprovante salvo no aparelho: se o servidor divergir (votos zerados na
+     demonstração ou código trocado), sincroniza o espelho local */
+  const nRegistrados = Object.keys(state.myVotes).length;
+  if (state.comprovante && !nRegistrados) setComprovante(null);
+  else if (state.comprovante && r.codigo && state.comprovante.codigo.replace(/\s/g, '') !== r.codigo.replace(/\s/g, '')) {
+    setComprovante(Object.assign({}, state.comprovante, { codigo: r.codigo }));
+  }
   $('#whoName').textContent = state.name;
   if ($('#s-votar').classList.contains('active')) renderVotar();
   if ($('#s-meuvoto').classList.contains('active')) renderMeuVoto();
   updateProgress();
 }
 function countVotos() { return CARGOS.filter(c => state.myVotes[c.id]).length; }
+function countRascunho() { return CARGOS.filter(c => state.rascunho[c.id]).length; }
 function updateProgress() {
+  const el = $('#progTxt');
+  if (!el) return;
   const n = countVotos();
-  $('#progTxt').textContent = n + ' de 5 cargos';
+  el.textContent = n + ' de 5 cargos';
   $('#progBar').style.width = (n / 5 * 100) + '%';
+}
+/* v21 — barra fixa da cédula na tela votar: mostra escolhas do rascunho e
+   leva à revisão. Some quando não há nada pendente. */
+function atualizarBarraCedula() {
+  const bar = $('#barraCedula');
+  if (!bar) return;
+  const nr = countRascunho(), nv = countVotos();
+  if (!nr) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  $('#cedulaTxt').innerHTML = `🗳️ Sua cédula: <b>${nr} de 5${nv ? ' · ' + nv + ' já registrados' : ''}</b>`;
 }
 
 /* ===== VOTAR ===== */
 function renderChips() {
-  $('#chips').innerHTML = CARGOS.map(c =>
-    `<button class="chip${c.id === state.cargo ? ' active' : ''}" data-cargo="${c.id}">${c.nome}${state.myVotes[c.id] ? ' <span class="ok">✓</span>' : ''}</button>`
-  ).join('');
+  $('#chips').innerHTML = CARGOS.map(c => {
+    const reg = state.myVotes[c.id], ras = state.rascunho[c.id];
+    const marca = reg ? ' <span class="ok">✓</span>' : (ras ? ' <span class="dot-ras"></span>' : '');
+    return `<button class="chip${c.id === state.cargo ? ' active' : ''}" data-cargo="${c.id}">${c.nome}${marca}</button>`;
+  }).join('');
   document.querySelectorAll('#chips .chip').forEach(ch =>
     ch.addEventListener('click', () => { state.cargo = ch.dataset.cargo; listState.pagina = 1; renderVotar(); }));
 }
@@ -244,12 +277,13 @@ function linksConferir() {
 function renderVotadoBanner() {
   const box = $('#votadoBanner');
   const v = state.myVotes[state.cargo];
+  const ras = state.rascunho[state.cargo];
   const cfg = cargoCfg(state.cargo);
-  if (!v) { box.innerHTML = ''; return; }
-  const nome = v.candidato ? v.candidato.nome : 'candidato registrado';
+  if (!v && !ras) { box.innerHTML = ''; return; }
+  const nome = (v && v.candidato ? v.candidato.nome : null) || (ras ? ras.nome : 'candidato');
   box.innerHTML = `<div class="aviso-site" style="padding:10px 13px;margin-bottom:10px">
-    <span style="font-size:12.5px">✅ Você já votou para <b>${esc(cfg.nome)}</b>: <b>${esc(nome)}</b>.<br>
-    <span class="muted">Alteração e revogação apenas no site completo.</span></span>
+    <span style="font-size:12.5px">${v ? '✅ Voto registrado' : '🟡 Escolhido para a cédula'} para <b>${esc(cfg.nome)}</b>: <b>${esc(nome)}</b>.<br>
+    <span class="muted">${v ? 'Você pode trocar até revisar e gerar o código — na votação real, a alteração é pelo site.' : 'Confirme em “Revisar cédula” para registrar com seu código único.'}</span></span>
     ${linksConferir()}
   </div>`;
 }
@@ -276,11 +310,16 @@ function renderCandList(append, novos) {
     return;
   }
   const html = paraRender.map(c => {
+    const pid = 'tse-' + c.sq;
     const votado = state.myVotes[state.cargo];
-    const ehMeu = votado && votado.politicianId === ('tse-' + c.sq);
-    const btn = votado
-      ? `<button class="btn voted" data-votado="1">${ehMeu ? 'Meu voto ✓' : 'Votado ✓'}</button>`
-      : `<button class="btn btn-green" data-vote="${esc('tse-' + c.sq)}">VOTAR</button>`;
+    const ras = state.rascunho[state.cargo];
+    const escolhido = (ras && ras.politicianId === pid) || (votado && votado.politicianId === pid);
+    let btn;
+    if (escolhido) {
+      btn = `<button class="btn voted" data-escolhido="1">${(ras && ras.politicianId === pid) ? 'Na cédula ●' : 'Registrado ✓'}</button>`;
+    } else {
+      btn = `<button class="btn btn-green" data-vote="${esc(pid)}">VOTAR</button>`;
+    }
     return `<div class="cand">
       ${avatarHTML(c.nomeUrna, c.foto, 44)}
       <div class="info">
@@ -299,8 +338,8 @@ function renderCandList(append, novos) {
       if (window.__mblog) window.__mblog('clique VOTAR sq=' + b.dataset.vote + (c ? '' : ' SEM-CANDIDATO-na-lista'));
       if (c) abrirConfirmacao(c);
     }));
-  box.querySelectorAll('[data-votado]').forEach(b =>
-    b.addEventListener('click', () => toast('Você já votou neste cargo — altere no site completo', 'err')));
+  box.querySelectorAll('[data-escolhido]').forEach(b =>
+    b.addEventListener('click', () => toast('Essa é a sua escolha nesta cédula — toque em “Revisar cédula” para conferir tudo', 'ok')));
 }
 let buscaTimer = null;
 let carregandoPagina = false;
@@ -373,19 +412,30 @@ function renderVotar() {
   renderUfArea();
   renderVotadoBanner();
   updateProgress();
+  atualizarBarraCedula();
   carregarCandidatos(false);
 }
+$('#btnRevisarCedula').addEventListener('click', abrirRevisao);
 $('#buscaCand').addEventListener('input', e => {
   clearTimeout(buscaTimer);
   buscaTimer = setTimeout(() => { listState.q = e.target.value.trim(); listState.pagina = 1; carregarCandidatos(false); }, 350);
 });
 $('#btnMais').addEventListener('click', () => { listState.pagina++; carregarCandidatos(true); });
 
-/* ===== confirmar voto ===== */
+/* ============================================================
+   v21 — FLUXO DA CÉDULA (inspirado no protótipo VotaBrasil)
+   escolher no aparelho (rascunho, troca livre) → REVISE SUA CÉDULA
+   → MANDATO REVOGÁVEL (explicação) → UM código único de 20 dígitos
+   → VOTO REGISTRADO (comprovante salvo no aparelho)
+   → "Votar de novo (demonstração)" enquanto o app é simulação.
+   Nada vai ao servidor até finalizar a cédula.
+   ============================================================ */
 function abrirConfirmacao(c) {
   const cfg = cargoCfg(state.cargo);
+  const pid = 'tse-' + c.sq;
+  const trocando = state.rascunho[state.cargo] || state.myVotes[state.cargo];
   openSheet(`
-    <h3 class="titles" style="text-align:center">Confirmar voto</h3>
+    <h3 class="titles" style="text-align:center">${trocando ? 'Trocar escolha' : 'Escolher para a cédula'}</h3>
     <div class="confirm-cand">
       ${avatarHTML(c.nomeUrna, c.foto, 46)}
       <div style="flex:1;min-width:0">
@@ -394,61 +444,174 @@ function abrirConfirmacao(c) {
         <div style="font-size:12px;color:var(--blueL);font-weight:800;margin-top:2px">${esc(cfg.nome)}</div>
       </div>
     </div>
-    <p class="muted" style="font-size:12.5px;text-align:center">Um voto por cargo. Depois de confirmar, alterar apenas no site completo.</p>
+    ${trocando ? `<p class="muted" style="font-size:12.5px;text-align:center">Esta escolha substitui a atual para ${esc(cfg.nome.toLowerCase())} na sua cédula.</p>` : ''}
+    <p class="muted" style="font-size:12.5px;text-align:center">Nada é enviado ainda — revise a cédula completa e gere seu código único.</p>
     <div style="text-align:center;font-size:12px;margin-top:-4px"><a href="https://divulgacandcontas.tse.jus.br/" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600">Conferir candidatura no TSE ↗</a></div>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="shCancel">CANCELAR</button>
-      <button class="btn btn-green" id="shConfirm">CONFIRMAR</button>
+      <button class="btn btn-green" id="shEscolher">ESCOLHER ✓</button>
     </div>`);
   $('#shCancel').addEventListener('click', closeSheet);
-  $('#shConfirm').addEventListener('click', async () => {
-    const btn = $('#shConfirm');
-    btn.disabled = true; btn.textContent = 'REGISTRANDO…';
-    const corpo = JSON.stringify({ cargo: state.cargo, politicianId: 'tse-' + c.sq });
-    let r = await api('/api/voto/cargo', { method: 'POST', body: corpo });
+  $('#shEscolher').addEventListener('click', () => {
+    state.rascunho[state.cargo] = { politicianId: pid, nome: c.nomeUrna, partido: c.partido, uf: c.uf, numero: c.numero || '', foto: c.foto || '' };
+    salvarRascunho();
+    vibrate([40, 25, 40]);
+    closeSheet();
+    renderChips(); renderVotadoBanner(); atualizarBarraCedula();
+    carregarCandidatos(false);
+    toast('Adicionado à cédula — falta(m) ' + (CARGOS.length - countRascunho()) + ' cargo(s)', 'ok');
+  });
+}
+
+/* ---- passo 1: REVISE SUA CÉDULA ---- */
+function abrirRevisao() {
+  if (!countRascunho()) { toast('Escolha pelo menos um candidato primeiro', 'err'); return; }
+  const linhas = CARGOS.map((cfg, i) => {
+    const ras = state.rascunho[cfg.id];
+    const reg = state.myVotes[cfg.id];
+    const mesmo = ras && reg && ras.politicianId === reg.politicianId;
+    return `<div class="rv-row">
+      ${ras
+        ? avatarHTML(ras.nome, ras.foto, 40, i)
+        : '<span class="rv-vazio">—</span>'}
+      <div class="rv-info">
+        <b>${esc(cfg.nome)}</b>
+        <span>${ras ? esc(ras.nome) + ' <i>· ' + esc(ras.partido) + '-' + esc(ras.uf) + ' · nº ' + esc(ras.numero || '—') + '</i>'
+          : (reg ? 'sem mudança — registrado: ' + esc(reg.candidato ? reg.candidato.nome : 'candidato') : '<em>não escolhido</em>')}</span>
+        ${mesmo ? '<span class="rv-tag">já registrado</span>' : ''}
+      </div>
+      <button class="rv-btn" data-trocar="${cfg.id}">${ras ? 'trocar' : 'escolher'}</button>
+    </div>`;
+  }).join('');
+  openSheet(`
+    <h3 class="titles" style="text-align:center">🗳️ Revise sua cédula</h3>
+    <p class="muted" style="font-size:12px;text-align:center;margin-bottom:10px">Confira os candidatos antes de gerar seu código único.<br>Toque em “trocar” para mudar qualquer um.</p>
+    ${linhas}
+    <div class="aviso-site" style="margin:12px 0 0;padding:9px 12px">
+      <span style="font-size:11.5px">⚖️ <b>Simulação de opinião pública</b> — sem valor jurídico. Ao confirmar, você verá a explicação do mandato revogável.</span>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="shFecharRev">VOLTAR</button>
+      <button class="btn btn-gold" id="shConfirmarCedula">CONFIRMAR CÉDULA →</button>
+    </div>`);
+  document.querySelectorAll('#sheetBody [data-trocar]').forEach(b =>
+    b.addEventListener('click', () => {
+      closeSheet();
+      state.cargo = b.dataset.trocar; listState.pagina = 1;
+      go('votar'); renderVotar();
+    }));
+  $('#shFecharRev').addEventListener('click', closeSheet);
+  $('#shConfirmarCedula').addEventListener('click', abrirExplicacao);
+}
+
+/* ---- passo 2: MANDATO REVOGÁVEL (explicação detalhada) ---- */
+function abrirExplicacao() {
+  openSheet(`
+    <h3 class="titles" style="text-align:center">🔄 Mandato revogável</h3>
+    <div class="rv-texto">
+      <p><b>O que é?</b> No voto contínuo, o político só permanece no cargo enquanto tiver a confiança de quem elegeu. <i>"Seu voto coloca, seu voto tira."</i></p>
+      <p><b>Como funciona a revogação?</b> Se o eleito descumprir as promessas de campanha, os eleitores podem revogar o mandato. A regra proposta (<b>R3</b>): quando <b>70% dos votos que elegeram</b> aquele político pedirem a saída, o mandato é cassado e uma nova eleição é convocada.</p>
+      <p><b>E o meu código?</b> Ao finalizar, você recebe <b>um único código de 20 dígitos</b> para TODA a sua cédula. Com ele, no site completo, você confere seus votos e — depois da posse — inicia a revogação de qualquer eleito.</p>
+    </div>
+    <div class="aviso-site" style="border-color:var(--gold);margin:12px 0 0">
+      <b>⚖️ Hoje vs. votação real</b>
+      <p style="font-size:12px;margin:6px 0 0;line-height:1.55">
+        <b>Hoje (demonstração):</b> sua cédula entra na pesquisa de opinião pública do MudaBrasil e conta na Apuração. Você pode refazer quando quiser com “Votar de novo”. Sem login, o comprovante fica gravado neste aparelho.<br>
+        <b>Quando for votação real:</b> haverá login por e-mail ou celular, o comprovante será enviado automaticamente para você, e a revogação passará a valer contra o mandato — não existirá mais o botão de refazer.
+      </p>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="shVoltarRev">← VOLTAR</button>
+      <button class="btn btn-gold" id="shGerarCodigo">ENTENDI, GERAR MEU CÓDIGO</button>
+    </div>`);
+  $('#shVoltarRev').addEventListener('click', abrirRevisao);
+  $('#shGerarCodigo').addEventListener('click', finalizarVoto);
+}
+
+/* ---- passo 3: registrar a cédula inteira com UM código ---- */
+async function finalizarVoto() {
+  const btn = $('#shGerarCodigo');
+  if (btn) { btn.disabled = true; btn.textContent = 'GERANDO CÓDIGO…'; }
+  const cargos = {};
+  Object.entries(state.rascunho).forEach(([k, v]) => { cargos[k] = v.politicianId; });
+  const corpo = JSON.stringify({ cargos });
+  let r = await api('/api/voto/cargo-lote', { method: 'POST', body: corpo });
+  if (!r.ok && r.__status === 401) {
+    /* sessão caiu: reautentica em silêncio e repete o envio */
+    state.token = ''; store.del('mb_app_token');
+    if (await garantirSessao()) r = await api('/api/voto/cargo-lote', { method: 'POST', body: corpo });
+  }
+  if (window.__mblog) window.__mblog('cargo-lote -> status=' + r.__status + ' ok=' + !!r.ok);
+  if (!r.ok) {
+    if (btn) { btn.disabled = false; btn.textContent = 'ENTENDI, GERAR MEU CÓDIGO'; }
+    toast(r.error || 'Não foi possível registrar sua cédula', 'err');
+    return;
+  }
+  setComprovante({ codigo: r.codigo || '', data: Date.now(), cargos: JSON.parse(JSON.stringify(state.rascunho)) });
+  state.rascunho = {}; salvarRascunho();
+  vibrate([50, 30, 50, 30, 80]);
+  await loadMeusVotos();
+  abrirComprovante(r.codigo, true);
+}
+
+/* ---- passo 4: VOTO REGISTRADO (comprovante no aparelho) ---- */
+function abrirComprovante(codigo, acabouDeRegistrar) {
+  const fmt = formatarCodigo(codigo);
+  openSheet(`
+    <h3 class="titles" style="text-align:center">✅ Voto registrado</h3>
+    <p class="muted" style="font-size:12.5px;text-align:center">Seu código único de verificação (20 dígitos) — vale para todos os cargos da cédula:</p>
+    <div class="cd">${esc(fmt || '—')}</div>
+    <p class="muted" style="font-size:11.5px;text-align:center;margin-top:2px">📱 Guardado neste aparelho em <b>Meu voto</b> para conferência posterior.${acabouDeRegistrar ? '<br>Com login por e-mail ou celular (votação real), ele também chega enviado para você.' : ''}</p>
+    <button class="btn btn-gold" id="shCopiarCod" style="width:100%;margin-top:12px">📋 COPIAR CÓDIGO</button>
+    <button class="btn btn-ghost" id="shConferirSite" style="width:100%;margin-top:8px">🔍 CONFERIR NO SITE ↗</button>
+    <button class="btn btn-ghost" id="shCompartilharCod" style="width:100%;margin-top:8px">↗ COMPARTILHAR COMPROVANTE</button>
+    <button class="btn btn-ghost" id="shDeNovo" style="width:100%;margin-top:8px;color:var(--blueL)">🔄 Votar de novo (demonstração)</button>
+    <div class="sheet-actions"><button class="btn btn-green" id="shOkComp">PRONTO</button></div>`);
+  $('#shCopiarCod').addEventListener('click', async () => {
+    const ok = await copiarTexto(fmt || codigo);
+    toast(ok ? 'Código copiado! 📋' : 'Copie manualmente: ' + fmt, ok ? 'ok' : 'err');
+  });
+  $('#shConferirSite').addEventListener('click', () => {
+    window.open(SITE_URL + '/#conferir-voto', '_blank');
+  });
+  $('#shCompartilharCod').addEventListener('click', () => compartilharTexto(
+    'Votei (simulação cívica) no MudaBrasil 🇧🇷 — código único da minha cédula: ' + fmt + '. Confira: ' + SITE_URL + '/#conferir-voto'));
+  $('#shDeNovo').addEventListener('click', abrirDemonstracao);
+  $('#shOkComp').addEventListener('click', () => { closeSheet(); renderVotar(); });
+}
+
+/* ---- modo demonstração: zerar a simulação e recomeçar ---- */
+function abrirDemonstracao() {
+  const n = countVotos();
+  openSheet(`
+    <h3 class="titles" style="text-align:center">🔄 Votar de novo</h3>
+    <p style="font-size:13px;line-height:1.55">Como o app ainda está em <b>demonstração</b>, você pode desfazer sua cédula (${n} voto${n === 1 ? '' : 's'} nesta sessão) e montar outra — sua primeira resposta continua como base da pesquisa de opinião até você recomeçar.</p>
+    <p class="muted" style="font-size:12px;margin-top:8px">⚠️ Isso apaga apenas os SEUS votos desta demonstração. Na votação real este botão não existirá: o voto registrado será permanente até a janela de revogação.</p>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="shCancelarDemo">MANTER VOTOS</button>
+      <button class="btn" id="shZerarDemo" style="background:#c0392b;color:#fff">ZERAR E RECOMEÇAR</button>
+    </div>`);
+  $('#shCancelarDemo').addEventListener('click', abrirComprovante.bind(null, (state.comprovante && state.comprovante.codigo) || '', false));
+  $('#shZerarDemo').addEventListener('click', async () => {
+    const btn = $('#shZerarDemo');
+    btn.disabled = true; btn.textContent = 'APAGANDO…';
+    const cod = (state.comprovante && state.comprovante.codigo) || '';
+    let r = await api('/api/voto/demonstracao', { method: 'POST', body: JSON.stringify({ codigo: cod }) });
     if (!r.ok && r.__status === 401) {
-      /* sessão caiu: reautentica em silêncio e repete o voto */
       state.token = ''; store.del('mb_app_token');
-      if (await garantirSessao()) r = await api('/api/voto/cargo', { method: 'POST', body: corpo });
+      if (await garantirSessao()) r = await api('/api/voto/demonstracao', { method: 'POST', body: JSON.stringify({ codigo: cod }) });
     }
-    if (window.__mblog) window.__mblog('voto ' + state.cargo + ' sq=' + c.sq + ' -> status=' + r.__status + ' ok=' + !!r.ok);
-    if (r.ok) {
-      vibrate([50, 30, 50]);
-      closeSheet();
-      await loadMeusVotos();
-      renderVotar();
-      /* recibo do voto na tela — antes de qualquer toast que se apaga sozinho */
-      const nome = r.candidato && r.candidato.nome ? r.candidato.nome : c.nomeUrna;
-      const codigo = r.codigo || r.code || '';
-      openSheet(`
-        <h3 class="titles" style="text-align:center">✅ Voto registrado</h3>
-        <div class="confirm-cand">
-          ${avatarHTML(nome, '', 46)}
-          <div style="flex:1;min-width:0">
-            <b style="display:block">${esc(nome)}</b>
-            <span class="muted" style="font-size:12.5px">${esc(c.partido)} · ${esc(c.uf)} · nº ${esc(c.numero || '—')}</span>
-            <div style="font-size:12px;color:var(--blueL);font-weight:800;margin-top:2px">${esc(cfg.nome)}</div>
-          </div>
-        </div>
-        ${codigo ? `<div style="background:var(--card2);border-radius:12px;padding:12px;margin:12px 0;text-align:center">
-          <span class="muted" style="font-size:11.5px;display:block;margin-bottom:4px">Guarde este código — com ele você confere ou revoga no site:</span>
-          <b style="font-family:Montserrat,monospace;font-size:17px;letter-spacing:1px;color:var(--gold)">${esc(codigo)}</b>
-        </div>` : ''}
-        <p class="muted" style="font-size:12.5px;text-align:center">Alteração e revogação apenas no site completo.</p>
-        <div style="text-align:center;font-size:12px;margin-top:6px">${linksConferir()}</div>
-        <div class="sheet-actions"><button class="btn btn-green" id="shOkRecibo">PRONTO</button></div>`);
-      $('#shOkRecibo').addEventListener('click', closeSheet);
-    } else if (r.__status === 409) {
-      closeSheet();
-      const prev = r.previous && r.previous.nome ? ' (' + r.previous.nome + ')' : '';
-      toast('Você já votou para ' + cfg.nome + prev, 'err');
-      vibrate(120);
-      await loadMeusVotos();
-      renderVotar();
-    } else {
-      btn.disabled = false; btn.textContent = 'CONFIRMAR';
-      toast(r.error || 'Não foi possível registrar o voto', 'err');
+    if (!r.ok) {
+      btn.disabled = false; btn.textContent = 'ZERAR E RECOMEÇAR';
+      toast(r.error || 'Não foi possível zerar agora', 'err');
+      return;
     }
+    setComprovante(null);
+    state.rascunho = {}; salvarRascunho();
+    await loadMeusVotos();
+    closeSheet();
+    go('votar'); renderVotar();
+    toast('Simulação zerada — monte sua nova cédula 🗳️', 'ok');
   });
 }
 
@@ -753,32 +916,61 @@ function renderMeuVoto() {
   const feitos = CARGOS.filter(c => state.myVotes[c.id]).length;
   const faltam = CARGOS.length - feitos;
   let resumo = '';
+  /* v21 — comprovante da cédula completa salvo no aparelho */
+  if (state.comprovante && state.comprovante.codigo) {
+    const cp = state.comprovante;
+    resumo += `<div class="card" style="border-color:var(--gold)">
+      <b style="font-size:13.5px">🧾 Comprovante guardado neste aparelho</b>
+      <p class="muted" style="font-size:11.5px;margin:4px 0 8px">Código único de ${Object.keys(cp.cargos || {}).length || feitos} cargo(s) · registrado em ${new Date(cp.data).toLocaleDateString('pt-BR')} ${hora(cp.data)}</p>
+      <div class="cd" style="font-size:15px">${esc(formatarCodigo(cp.codigo))}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-gold" id="mvCopiar" style="flex:1;min-height:40px;font-size:12.5px">📋 Copiar</button>
+        <button class="btn btn-ghost" id="mvConferir" style="flex:1;min-height:40px;font-size:12.5px">🔍 Conferir ↗</button>
+        <button class="btn btn-ghost" id="mvCompartilhar" style="flex:1;min-height:40px;font-size:12.5px">↗ Compartilhar</button>
+      </div>
+      <button class="btn btn-ghost" id="mvDeNovo" style="width:100%;min-height:38px;font-size:12px;margin-top:8px;color:var(--blueL)">🔄 Votar de novo (demonstração)</button>
+    </div>`;
+  } else if (countRascunho()) {
+    resumo += `<div class="aviso-site"><b>🗳️ Cédula em montagem: ${countRascunho()} de 5 cargos escolhidos</b>
+      <p class="muted" style="font-size:12.5px;margin:6px 0 0">Abra a aba Votar e toque em “Revisar cédula” para gerar seu código.</p></div>`;
+  }
   if (feitos === CARGOS.length) {
-    resumo = `<div class="aviso-site" style="border-color:var(--gold)">
+    resumo += `<div class="aviso-site" style="border-color:var(--gold);margin-bottom:10px">
       <b>🏆 Você votou em todos os ${CARGOS.length} cargos!</b>
       <p class="muted" style="font-size:12.5px;margin:6px 0 10px">Sua opinião está registrada — e pode ser revogada a qualquer momento no site. Chame mais gente para pesar a mão:</p>
       <button class="btn btn-gold" id="btnCompartilharApp" style="width:100%">Compartilhar o MudaBrasil ↗</button>
     </div>`;
   } else if (feitos > 0) {
-    resumo = `<div class="aviso-site"><b>Faltam ${faltam} cargo${faltam > 1 ? 's' : ''} para completar sua votação</b>
+    resumo += `<div class="aviso-site"><b>Faltam ${faltam} cargo${faltam > 1 ? 's' : ''} para completar sua votação</b>
       <p class="muted" style="font-size:12.5px;margin:6px 0 0">Toque num cargo abaixo para votar.</p></div>`;
   }
   $('#meusLista').innerHTML = resumo + CARGOS.map(cfg => {
     const v = state.myVotes[cfg.id];
+    const ras = state.rascunho[cfg.id];
     const cand = v && v.candidato;
     return `<div class="meu-item" data-cargo="${cfg.id}" style="cursor:pointer">
       <div class="cg">
         <b>${esc(cfg.nome)}</b>
         ${v
           ? `<span>✓ ${esc(cand ? cand.nome : 'voto registrado')}${cand ? ' · ' + esc(cand.partido) + '-' + esc(cand.uf) + ' · nº ' + esc(cand.numero) : ''}</span>`
-          : '<span class="muted">Você ainda não votou neste cargo</span>'}
+          : ras
+            ? `<span style="color:var(--gold)">● na cédula: ${esc(ras.nome)} <i class="muted">(ainda não registrado)</i></span>`
+            : '<span class="muted">Você ainda não votou neste cargo</span>'}
       </div>
-      <span class="st" style="color:${v ? 'var(--green)' : 'var(--muted)'}">${v ? '✓' : '—'}</span>
+      <span class="st" style="color:${v ? 'var(--green)' : (ras ? 'var(--gold)' : 'var(--muted)')}">${v ? '✓' : (ras ? '●' : '—')}</span>
     </div>`;
   }).join('') + (feitos < CARGOS.length ? `<p class="muted" style="text-align:center;font-size:11.5px;margin-top:6px">Toque num cargo para votar</p>` : '') + linksConferir();
   document.querySelectorAll('#meusLista [data-cargo]').forEach(el =>
     el.addEventListener('click', () => { state.cargo = el.dataset.cargo; listState.pagina = 1; go('votar'); }));
   $('#btnCompartilharApp')?.addEventListener('click', compartilharApp);
+  $('#mvCopiar')?.addEventListener('click', async () => {
+    const ok = await copiarTexto(formatarCodigo(state.comprovante.codigo));
+    toast(ok ? 'Código copiado! 📋' : 'Selecione e copie o código na tela', ok ? 'ok' : 'err');
+  });
+  $('#mvConferir')?.addEventListener('click', () => window.open(SITE_URL + '/#conferir-voto', '_blank'));
+  $('#mvCompartilhar')?.addEventListener('click', () => compartilharTexto(
+    'Votei (simulação cívica) no MudaBrasil 🇧🇷 — código único da minha cédula: ' + formatarCodigo(state.comprovante.codigo) + '. Confira: ' + SITE_URL + '/#conferir-voto'));
+  $('#mvDeNovo')?.addEventListener('click', abrirDemonstracao);
 }
 
 /* compartilhar: no celular usa o menu nativo; no desktop copia para a área
@@ -827,7 +1019,7 @@ $('#btnAbrirSite').addEventListener('click', () => window.open(SITE_URL + '/', '
 /* ===== AJUDA (FAQ — espelho das perguntas do site) ===== */
 const FAQ = [
   ['O que é simulação?', 'A votação/revogação não tem valor jurídico hoje. Notícias, políticos e PLs são reais.'],
-  ['Como revogo meu voto?', 'No site completo, com código + login, só após a posse. No app você registra o voto; a alteração é feita no site.'],
+  ['Como revogo meu voto?', 'No site completo, com o código único da cédula + login, só após a posse. No app você registra e troca a cédula até gerar o código; depois use “Votar de novo (demonstração)” enquanto for simulação.'],
   ['Como vejo os candidatos do meu estado?', 'Em Governador, Senador ou Deputado, escolha seu estado no seletor acima da lista. Pode também buscar pelo nome ou número.'],
   ['Por que a lista de deputado é tão grande?', 'Porque todos os candidatos oficiais do TSE aparecem. Role que o app carrega mais sozinho, ou use a busca para achar pelo nome/número.'],
   ['Quem pode responder reclamações?', 'Só o político/candidato com identidade verificada (selo), no site completo.'],

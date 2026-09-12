@@ -784,8 +784,7 @@ async function handleApi(req, res, url) {
        com ele o dono confere ou revoga os votos no site completo */
     let codigo = '';
     try {
-      const codes = db.getVoteCodesForVoter(voter.voterHash);
-      codigo = (codes && codes.length) ? codes[0].code : db.generateVoteCode(voter.voterHash);
+      codigo = db.getCodigoEleitor(voter.voterHash);
     } catch (_) { }
     return sendJson(res, 201, {
       ok: true,
@@ -795,12 +794,80 @@ async function handleApi(req, res, url) {
     });
   }
 
+  /* ===== v21 — cédula completa em lote (app PWA) =====
+     O usuário monta a cédula no aparelho (com trocas livres), revisa, lê a
+     explicação de revogação e só então registra TUDO de uma vez com UM único
+     código de 20 dígitos para toda a votação. Substitui os votos anteriores
+     do mesmo eleitor (permite "votar de novo" na demonstração). */
+  if (p === '/api/voto/cargo-lote' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const token = body.sessionToken || (req.headers.authorization || '').replace('Bearer ', '');
+    const voter = auth.getVoterFromToken(token);
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Entre para votar' });
+    if (!checkCargoLimit(ip)) return sendJson(res, 429, { ok: false, error: 'Muitas requisições. Aguarde um instante.' });
+
+    const cargos = body.cargos && typeof body.cargos === 'object' ? body.cargos : null;
+    if (!cargos) return sendJson(res, 400, { ok: false, error: 'Envie a cédula em { cargos: { cargo: politicianId } }' });
+    const keys = Object.keys(cargos);
+    if (!keys.length || keys.length > Object.keys(CARGO_APP).length) {
+      return sendJson(res, 400, { ok: false, error: 'Cédula inválida' });
+    }
+    const idx = getTseIndex();
+    const validados = [];
+    for (const cargoApp of keys) {
+      const cfg = CARGO_APP[cargoApp];
+      if (!cfg) return sendJson(res, 400, { ok: false, error: 'Cargo inválido: ' + cargoApp });
+      const cand = idx.get(String(cargos[cargoApp] || '').trim());
+      if (!cand) return sendJson(res, 404, { ok: false, error: 'Candidato não encontrado (' + cfg.nome + ')' });
+      if (cand.cargoApp !== cargoApp) return sendJson(res, 400, { ok: false, error: 'Candidato não concorre a ' + cfg.nome });
+      validados.push({ cargo: cargoApp, politicianId: cand.id, candidato: { id: cand.id, nome: cand.nome, partido: cand.partido, uf: cand.uf, numero: cand.numero } });
+    }
+    let codigo = '';
+    try {
+      codigo = db.getCodigoEleitor(voter.voterHash);
+    } catch (_) { }
+    const r = db.replaceVoterCargoVotes(voter.voterHash, validados.map(v => ({ cargo: v.cargo, politicianId: v.politicianId })), codigo);
+    if (!r.ok) return sendJson(res, 500, { ok: false, error: 'Não foi possível registrar a cédula' });
+    broadcastApuracao();
+    return sendJson(res, 201, {
+      ok: true,
+      codigo,
+      formatado: codigo ? codigo.replace(/(.{4})/g, '$1 ').trim() : '',
+      votos: validados
+    });
+  }
+
+  /* ===== v21 — modo demonstração (SIMULAÇÃO) =====
+     Enquanto o app é exercício de opinião pública, o eleitor pode zerar os
+     próprios votos por cargo e recomeçar a simulação. ⚠️ Remover/inativar
+     este endpoint quando a votação se tornar real. */
+  if (p === '/api/voto/demonstracao' && req.method === 'POST') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return sendJson(res, 400, { ok: false, error: e.message }); }
+    const token = body.sessionToken || (req.headers.authorization || '').replace('Bearer ', '');
+    const voter = auth.getVoterFromToken(token);
+    if (!voter) return sendJson(res, 401, { ok: false, error: 'Entre para votar' });
+    if (!checkCargoLimit(ip)) return sendJson(res, 429, { ok: false, error: 'Muitas requisições. Aguarde um instante.' });
+    const code = String(body.codigo || '').replace(/[\s-]/g, '');
+    if (!code) return sendJson(res, 400, { ok: false, error: 'Informe o código do comprovante' });
+    const rec = db.verifyVoteCode(code);
+    if (!rec || rec.voterHash !== voter.voterHash) {
+      return sendJson(res, 403, { ok: false, error: 'Este código não pertence à sua sessão' });
+    }
+    const removidos = db.deleteCargoVotesByCodigo(code);
+    broadcastApuracao();
+    return sendJson(res, 200, { ok: true, removidos });
+  }
+
   if (p === '/api/voto/cargo/meus' && req.method === 'GET') {
     const token = q.sessionToken || (req.headers.authorization || '').replace('Bearer ', '');
     const voter = auth.getVoterFromToken(token);
     if (!voter) return sendJson(res, 401, { ok: false, error: 'Não autenticado' });
     const idx = getTseIndex();
+    let codigo = '';
     const votos = (db.getCargoVotesForVoter(voter.voterHash) || []).map(v => {
+      if (v.codigo) codigo = v.codigo;
       const c = idx.get(v.politicianId);
       return {
         cargo: v.cargo,
@@ -809,7 +876,7 @@ async function handleApi(req, res, url) {
         candidato: c ? { id: c.id, nome: c.nome, partido: c.partido, uf: c.uf, numero: c.numero } : null
       };
     });
-    return sendJson(res, 200, { ok: true, votos });
+    return sendJson(res, 200, { ok: true, votos, codigo });
   }
 
   if (p === '/api/apuracao' && req.method === 'GET') {

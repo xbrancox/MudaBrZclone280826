@@ -168,6 +168,20 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
 .not-meta b{font-weight:800;letter-spacing:.02em}
 .radar-card .cargo-tag{font-size:10.5px;font-weight:700;color:var(--blueL)}
 
+/* ===== v21 — fluxo da cédula ===== */
+.chip .dot-ras{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gold);vertical-align:1px;margin-left:2px}
+.cd{font-family:'Courier New',monospace;font-size:19px;font-weight:700;letter-spacing:2px;color:var(--gold);text-shadow:0 0 12px rgba(255,215,0,.25);text-align:center;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 8px;margin:12px 0 4px;word-break:break-all}
+.rv-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.rv-info{flex:1;min-width:0}
+.rv-info b{display:block;font-size:11px;color:var(--blueL);text-transform:uppercase;letter-spacing:.4px}
+.rv-info span{display:block;font-size:13px;line-height:1.35}
+.rv-info span i{font-style:normal;color:var(--muted);font-size:11.5px}
+.rv-info span em{font-style:normal;color:var(--muted)}
+.rv-tag{display:inline-block;font-size:9.5px;font-weight:700;color:var(--green);background:rgba(46,204,113,.15);border-radius:99px;padding:1px 7px;margin-top:2px}
+.rv-vazio{width:40px;height:40px;border-radius:50%;background:var(--card2);border:1px dashed var(--line);color:var(--muted);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.rv-btn{flex:0 0 auto;background:var(--card2);border:1px solid var(--line);color:var(--gold);font-weight:700;font-size:12px;border-radius:9px;padding:7px 12px;min-height:36px}
+.rv-texto p{font-size:13px;line-height:1.55;margin:0 0 10px}
+
 /* meu voto */
 .meu-item{display:flex;align-items:center;gap:11px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
 .meu-item .cg{flex:1;min-width:0}
@@ -305,6 +319,12 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
       <div id="votadoBanner"></div>
       <div id="listaCand"></div>
       <button class="btn btn-ghost" id="btnMais" style="display:none;margin:4px auto 0;max-width:220px">Carregar mais</button>
+      <div style="height:76px"></div>
+      <!-- v21 — barra fixa da cédula (aparece quando há escolhas pendentes) -->
+      <div id="barraCedula" style="position:sticky;bottom:8px;display:none;z-index:5;background:rgba(6,26,58,.97);border:1px solid var(--gold);border-radius:14px;padding:10px 12px;align-items:center;gap:10px;box-shadow:0 -6px 18px rgba(0,0,0,.35)">
+        <span id="cedulaTxt" style="flex:1;font-size:12.5px;color:#e8f0fe"></span>
+        <button class="btn btn-gold" id="btnRevisarCedula" style="min-height:40px;padding:8px 14px;font-size:13px;flex:0 0 auto">Revisar cédula →</button>
+      </div>
     </section>
 
     <!-- ================= APURAÇÃO ================= -->
@@ -492,7 +512,7 @@ if (location.search.indexOf('reset=1') !== -1) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 </script>
-<script src="/app/app.js?v=20"></script>
+<script src="/app/app.js?v=21"></script>
 <script>
 /* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
 setTimeout(function () {
