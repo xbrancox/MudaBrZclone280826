@@ -146,6 +146,26 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
 
 /* radar */
 .radar-card{display:flex;align-items:center;gap:11px;padding:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;width:100%;text-align:left;animation:fade .15s}
+/* v20 — apuração e radar */
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center}
+.stat b{font-family:Montserrat,sans-serif;font-size:19px;font-weight:800;color:var(--gold);display:block;line-height:1.1}
+.stat b i{font-style:normal;font-size:12px;color:var(--muted)}
+.stat span{font-size:10.5px;color:var(--muted);display:block;margin-top:3px}
+.pline[data-pol]{cursor:pointer;border-radius:8px;transition:background .12s}
+.pline[data-pol]:active{background:var(--card2)}
+.tend{font-size:10.5px;font-weight:800;vertical-align:middle;margin-left:4px;padding:2px 7px;border-radius:99px}
+.tend.up{color:#eafff3;background:rgba(46,204,113,.25)}
+.tend.down{color:#ffe9e6;background:rgba(231,76,60,.25)}
+.selo-mini{display:inline-flex;width:15px;height:15px;border-radius:50%;background:var(--green);color:#04121f;font-size:10px;font-weight:900;align-items:center;justify-content:center;vertical-align:-2px}
+.badge-num{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:10px;font-weight:700;color:var(--blueL);margin-left:4px}
+.mini-linha{font-size:12.5px;padding:7px 0;border-bottom:1px dashed var(--line)}
+#chipsRadar{margin-bottom:10px}
+.not-card{display:block;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin-bottom:9px;text-decoration:none;color:inherit;animation:fade .15s}
+.not-card h3{font-size:14.5px;font-weight:700;line-height:1.35;margin:5px 0 4px;color:var(--txt)}
+.not-card p{font-size:12.5px;color:var(--muted);line-height:1.45;margin:0 0 6px}
+.not-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--blueL)}
+.not-meta b{font-weight:800;letter-spacing:.02em}
 .radar-card .cargo-tag{font-size:10.5px;font-weight:700;color:var(--blueL)}
 
 /* meu voto */
@@ -254,8 +274,10 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
       <div id="homePrazo" class="aviso-site" style="padding:10px 13px;margin:14px 0 12px"></div>
       <button class="btn btn-green" id="btnHomeVotar" style="width:100%;min-height:52px;font-size:16px">🗳️ Começar a votar</button>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-        <button class="btn btn-ghost" data-go="apuracao" style="min-height:46px;font-size:13.5px">Apuração</button>
-        <button class="btn btn-ghost" data-go="radar" style="min-height:46px;font-size:13.5px">Radar</button>
+        <button class="btn btn-ghost" data-go="apuracao" style="min-height:46px;font-size:13.5px">📊 Apuração</button>
+        <button class="btn btn-ghost" data-go="radar" style="min-height:46px;font-size:13.5px">🛰️ Radar</button>
+        <button class="btn btn-ghost" data-go="noticias" style="min-height:46px;font-size:13.5px">📰 Notícias</button>
+        <button class="btn btn-ghost" data-go="meuvoto" style="min-height:46px;font-size:13.5px">🏅 Meu voto</button>
       </div>
       <div class="aviso-site" style="margin-top:14px">
         <b>⚖️ Simulação cívica</b>
@@ -306,14 +328,23 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
       <div id="apuLista"></div>
     </section>
 
+    <!-- ================= NOTÍCIAS ================= -->
+    <section class="screen" id="s-noticias">
+      <h2 class="titles">Notícias políticas</h2>
+      <p class="muted" style="font-size:12.5px;margin:-6px 0 12px">Manchetes reais de fontes confiáveis, atualizadas a cada 10 minutos.<br><span id="notTs" style="font-size:11px"></span></p>
+      <div class="chips" id="chipsNot"></div>
+      <div id="listaNot"></div>
+    </section>
+
     <!-- ================= RADAR ================= -->
     <section class="screen" id="s-radar">
       <h2 class="titles">Radar político</h2>
       <p class="muted" style="font-size:12.5px;margin:-6px 0 12px">Resumo de deputados federais e senadores em mandato. <a href="/#radar" target="_blank" rel="noopener" style="color:var(--gold);font-weight:600">Detalhes completos no site ↗</a></p>
       <div class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="buscaRadar" type="search" placeholder="Nome ou UF (ex.: SP)" autocomplete="off">
+        <input id="buscaRadar" type="search" placeholder="Nome, partido ou UF (ex.: SP)" autocomplete="off">
       </div>
+      <div class="chips" id="chipsRadar"></div>
       <div id="listaRadar"></div>
     </section>
 
@@ -394,6 +425,7 @@ select.ufer{background:var(--card);border:1px solid var(--line);border-radius:12
     <button data-go="votar"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg>Votar</button>
     <button data-go="apuracao"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9h-9z"/></svg>Apuração</button>
     <button data-go="radar"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 3v2.5"/></svg>Radar</button>
+    <button data-go="noticias"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M18 8h3v9a2 2 0 0 1-2 2H6"/><path d="M6.5 9h8M6.5 12.5h8M6.5 16h5"/></svg>Notícias</button>
     <button data-go="meuvoto"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Meu voto</button>
     <button data-go="menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Menu</button>
   </nav>
@@ -460,7 +492,7 @@ if (location.search.indexOf('reset=1') !== -1) {
   history.replaceState(null, '', location.pathname + location.hash);
 }
 </script>
-<script src="/app/app.js?v=19"></script>
+<script src="/app/app.js?v=20"></script>
 <script>
 /* rede de segurança: se o app.js morrer antes do boot, avisa em vez de deixar o botão ENTRAR morto */
 setTimeout(function () {

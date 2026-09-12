@@ -47,7 +47,9 @@ const state = {
   uf: store.get('mb_app_uf') || '',
   page: 1,
   totalPages: 1,
-  apuTimer: null
+  apuTimer: null,
+  apuHist: {},                 // id do cargo → [{ts, totalVotos}] das últimas cargas (tendência)
+  radarFiltro: ''              // texto atual dos chips de filtro do radar ('' | 'camara' | 'senado' | UF)
 };
 const listState = { q: '', pagina: 1, totalPaginas: 1, items: [] };
 if (window.__mblog) window.__mblog('app.js v4 carregado | token=' + (state.token ? 'sim' : 'não'));
@@ -104,7 +106,7 @@ async function api(path, opts) {
 }
 
 /* ===== roteador ===== */
-const TELAS = ['home', 'votar', 'apuracao', 'radar', 'meuvoto', 'menu', 'ajuda', 'sobre'];
+const TELAS = ['home', 'votar', 'apuracao', 'noticias', 'radar', 'meuvoto', 'menu', 'ajuda', 'sobre'];
 function route() {
   const h = (location.hash || '#home').replace('#', '');
   const tela = TELAS.includes(h) ? h : 'home';
@@ -115,6 +117,7 @@ function route() {
   if (tela === 'home') renderHome();
   if (tela === 'votar') renderVotar();
   if (tela === 'apuracao') { refreshApuracao(); atualizarApuPrazo(); }
+  if (tela === 'noticias') carregarNoticias();
   if (tela === 'radar') carregarRadar();
   if (tela === 'meuvoto') renderMeuVoto();
   if (tela === 'menu') { renderMenu(); if (deferredPrompt) mostrarBannerInstall(); }
@@ -461,19 +464,48 @@ function donutSVG(parts) {
   });
   return `<svg class="donut" viewBox="0 0 140 140" role="img" aria-label="Resultado"><circle class="track" cx="70" cy="70" r="55"/>${segs}</svg>`;
 }
+/* tendência: compara total de votos do cargo com a amostra anterior (30s) */
+function tendenciaDe(id, total) {
+  const hist = state.apuHist[id] || [];
+  const prev = hist.length >= 2 ? hist[hist.length - 2].totalVotos : null;
+  if (prev == null || total === prev) return '';
+  return total > prev ? '↑ subindo' : '↓ caindo';
+}
+function registrarHistorico(data) {
+  const ts = Date.now();
+  data.cargos.forEach(c => {
+    const h = state.apuHist[c.id] || (state.apuHist[c.id] = []);
+    const ult = h[h.length - 1];
+    if (!ult || ult.totalVotos !== c.totalVotos || ts - ult.ts > 5 * 60 * 1000) {
+      h.push({ ts, totalVotos: c.totalVotos });
+      if (h.length > 40) h.shift();
+    }
+  });
+}
+function apuStats(data) {
+  const votantes = countVotos();
+  const tiles = [
+    `<div class="stat"><b>${data.totalVotos}</b><span>votos na simulação</span></div>`,
+    `<div class="stat"><b>${votantes}<i>/5</i></b><span>seus cargos votados</span></div>`,
+    `<div class="stat"><b>${data.cargos.filter(c => c.totalVotos > 0).length}<i>/5</i></b><span>cargos com votos</span></div>`
+  ];
+  return `<div class="stats">${tiles.join('')}</div>
+    <p class="muted" style="font-size:10.5px;margin:-4px 2px 10px">Toque num candidato do ranking para ver a ficha dele no Radar.</p>`;
+}
 function apuCard(cg) {
   if (!cg.totalVotos) {
     return `<div class="apu"><div class="topo"><h3>${esc(cg.nome)}</h3><span class="total">0 votos</span></div>
-      <p class="muted" style="font-size:12.5px">Nenhum voto registrado para este cargo ainda.</p></div>`;
+      <p class="muted" style="font-size:12.5px">Nenhum voto registrado para este cargo ainda. ${cg.id !== 'presidente' ? '<a href="#votar" style="color:var(--gold);font-weight:600">Seja o primeiro →</a>' : '<a href="#votar" style="color:var(--gold);font-weight:600">Seja o primeiro →</a>'}</p></div>`;
   }
   const parts = cg.top3.map((t, i) => ({ pct: t.pct, cor: DK_CORES[i] }));
   if (cg.outros.votos) parts.push({ pct: cg.outros.pct, cor: COR_OUTROS });
-  const linha = (t, i) => `<div class="pline${i === 0 ? ' lider' : ''}"><span class="pos">${i + 1}º</span><span class="nm">${esc(t.nome)} <span class="vt">· ${esc(t.partido)}-${esc(t.uf)}</span></span><span class="pc">${t.pct}% <span class="vt">(${t.votos})</span></span></div>`;
+  const tend = tendenciaDe(cg.id, cg.totalVotos);
+  const linha = (t, i) => `<button class="pline${i === 0 ? ' lider' : ''}" data-pol="${esc(t.politicianId)}" data-nome="${esc(t.nome)}" data-partido="${esc(t.partido)}" data-uf="${esc(t.uf)}" title="Ver ficha no Radar"><span class="pos">${i + 1}º</span><span class="nm">${esc(t.nome)} <span class="vt">· ${esc(t.partido)}-${esc(t.uf)}</span></span><span class="pc">${t.pct}% <span class="vt">(${t.votos})</span></span></button>`;
   const outrosLinha = cg.outros.votos
     ? `<div class="pline"><span class="pos">+</span><span class="nm">Outros <span class="vt">(${cg.outros.quantidade} candidatos)</span></span><span class="pc">${cg.outros.pct}% <span class="vt">(${cg.outros.votos})</span></span></div>`
     : '';
   return `<div class="apu">
-    <div class="topo"><h3>${esc(cg.nome)}</h3><span class="total">${cg.totalVotos} votos</span></div>
+    <div class="topo"><h3>${esc(cg.nome)}${tend ? ` <span class="tend ${tend === '↑ subindo' ? 'up' : 'down'}">${tend}</span>` : ''}</h3><span class="total">${cg.totalVotos} votos</span></div>
     <div class="grid">
       ${donutSVG(parts)}
       <div class="placer">
@@ -484,7 +516,15 @@ function apuCard(cg) {
   </div>`;
 }
 function renderApuracao(data, offline) {
-  $('#apuLista').innerHTML = data.cargos.map(apuCard).join('');
+  $('#apuLista').innerHTML = apuStats(data) + data.cargos.map(apuCard).join('');
+  /* toque num candidato da apuração → ficha dele no Radar */
+  document.querySelectorAll('#apuLista .pline[data-pol]').forEach(b => {
+    const nomeCargo = (b.closest('.apu') || {}).querySelector ? ((b.closest('.apu').querySelector('h3') || {}).textContent || '').replace(/↑ subindo|↓ caindo/, '').trim() : '';
+    b.addEventListener('click', () => abrirMiniPerfil({
+      id: b.dataset.pol, name: b.dataset.nome, party: b.dataset.partido,
+      state: b.dataset.uf, position: nomeCargo, photo: null
+    }));
+  });
   const ts = data.__ts || Date.now();
   $('#apuTs').textContent = offline
     ? 'última atualização ' + hora(ts) + ' (offline)'
@@ -495,6 +535,7 @@ async function refreshApuracao() {
   const r = await api('/api/apuracao');
   if (r.ok) {
     const payload = Object.assign({}, r, { __ts: Date.now() });
+    registrarHistorico(payload);
     store.set('mb_apuracao', JSON.stringify(payload));
     renderApuracao(payload, false);
   } else {
@@ -548,23 +589,43 @@ $('#buscaRadar').addEventListener('input', e => {
   clearTimeout(radarTimer);
   radarTimer = setTimeout(() => carregarRadar(), 350);
 });
+function renderChipsRadar() {
+  const box = $('#chipsRadar');
+  if (!box) return;
+  const chips = [{ id: '', rot: 'Todos' }, { id: 'camara', rot: 'Deputados' }, { id: 'senado', rot: 'Senadores' }];
+  if (state.uf) chips.push({ id: 'uf:' + state.uf, rot: 'Meu estado · ' + state.uf });
+  box.innerHTML = chips.map(c =>
+    `<button class="chip${state.radarFiltro === c.id ? ' active' : ''}" data-rf="${esc(c.id)}">${esc(c.rot)}</button>`).join('');
+  box.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => {
+    state.radarFiltro = ch.dataset.rf;
+    renderChipsRadar();
+    carregarRadar();
+  }));
+}
 async function carregarRadar() {
   const box = $('#listaRadar');
   const q = $('#buscaRadar').value.trim();
+  renderChipsRadar();
   box.innerHTML = Array(5).fill('<div class="radar-card"><span class="sk" style="width:44px;height:44px;border-radius:50%"></span><div style="flex:1"><span class="sk" style="display:block;width:55%;height:14px;margin-bottom:6px"></span><span class="sk" style="display:block;width:35%;height:11px"></span></div></div>').join('');
-  const params = new URLSearchParams({ porPagina: '50' });
-  if (/^(ac|al|ap|am|ba|ce|df|es|go|ma|mt|ms|mg|pa|pb|pr|pe|pi|rj|rn|rs|ro|rr|sc|sp|se|to)$/i.test(q)) params.set('uf', q.toUpperCase());
-  else if (q) params.set('busca', q);
+  const params = new URLSearchParams({ porPagina: '80' });
+  let buscaEfetiva = q;
+  if (/^(ac|al|ap|am|ba|ce|df|es|go|ma|mt|ms|mg|pa|pb|pr|pe|pi|rj|rn|rs|ro|rr|sc|sp|se|to)$/i.test(q)) { params.set('uf', q.toUpperCase()); buscaEfetiva = ''; }
+  else if (state.radarFiltro.startsWith('uf:') && !q) params.set('uf', state.radarFiltro.slice(3));
+  if (buscaEfetiva) params.set('busca', buscaEfetiva);
   const r = await api('/api/candidatos?' + params.toString());
   if (r.__status !== 200) { box.innerHTML = `<div class="vazio"><div class="ico">📡</div>${esc(r.error || 'Não foi possível carregar o radar.')}</div>`; return; }
-  const lista = r.candidatos || [];
-  if (!lista.length) { box.innerHTML = `<div class="vazio"><div class="ico">🔍</div>${q ? 'Nada encontrado para “' + esc(q) + '”.' : 'Nenhum parlamentar carregado agora.'}</div>`; return; }
-  box.innerHTML = lista.map(p => `
+  let lista = r.candidatos || [];
+  /* filtro por casa — o servidor não tem esse parâmetro, filtramos aqui */
+  if (state.radarFiltro === 'camara') lista = lista.filter(p => /^camara-/.test(p.id));
+  else if (state.radarFiltro === 'senado') lista = lista.filter(p => /^senado-/.test(p.id));
+  const totalCarregado = lista.length;
+  if (!lista.length) { box.innerHTML = `<div class="vazio"><div class="ico">🔍</div>${q || state.radarFiltro ? 'Nada encontrado para esse filtro — tente outro nome, UF ou partido.' : 'Nenhum parlamentar carregado agora.'}</div>`; return; }
+  box.innerHTML = `<p class="muted" style="font-size:11.5px;margin:0 2px 8px">${totalCarregado} parlamentar${totalCarregado > 1 ? 'es' : ''} no filtro · toque para ver a ficha</p>` + lista.map(p => `
     <button class="radar-card" data-pid="${esc(p.id)}">
       ${avatarHTML(p.name, p.photo, 44)}
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}</div>
-        <div class="muted" style="font-size:12px">${esc(p.party)} · ${esc(p.state || '—')} <span class="cargo-tag">· ${esc(p.position)}</span></div>
+        <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.name)}${p.verificado ? ' <span class="selo-mini" title="Verificado no MudaBrasil">✔</span>' : ''}</div>
+        <div class="muted" style="font-size:12px">${esc(p.party)} · ${esc(p.state || '—')} <span class="cargo-tag">· ${esc(p.position)}</span>${p.billsAuthored != null ? ` <span class="badge-num">${p.billsAuthored} projetos</span>` : ''}${p.attendanceRate != null ? ` <span class="badge-num">${Math.round(p.attendanceRate)}% presença</span>` : ''}</div>
       </div>
       <span class="muted" style="font-size:16px">›</span>
     </button>`).join('');
@@ -574,11 +635,31 @@ async function carregarRadar() {
 function numTxt(v) { return v == null ? '—' : String(v); }
 async function abrirMiniPerfil(p) {
   if (!p) return;
+  /* ficha de candidato do TSE (vindo da apuração): sem dados parlamentares,
+     mas com atalho para a candidatura oficial — vazio honesto */
+  const ehTse = /^tse-/.test(String(p.id || ''));
+  if (ehTse) {
+    openSheet(`
+      <div style="display:flex;align-items:center;gap:12px">
+        ${avatarHTML(p.name, null, 52)}
+        <div style="flex:1;min-width:0">
+          <b style="display:block;font-size:16px">${esc(p.name)}</b>
+          <span class="muted" style="font-size:12.5px">${esc(p.party || '')}${p.state ? ' · ' + esc(p.state) : ''}${p.position ? ' · ' + esc(p.position) : ''}</span>
+        </div>
+      </div>
+      <div class="aviso-site" style="margin:14px 0 8px">
+        <b>Candidato do snapshot oficial do TSE 2026.</b>
+        <p class="muted" style="font-size:12px;margin:6px 0 0">Projetos e votações só existem para quem já está em mandato (Deputados e Senadores). Ficha de campanha completa no site do TSE.</p>
+      </div>
+      <div class="links-off"><a href="https://divulgacandcontas.tse.jus.br/" target="_blank" rel="noopener">Bens e contas no TSE ↗</a></div>
+      <p class="muted" style="font-size:11px;margin-top:12px;text-align:center">Resumo do app — ficha completa no site.</p>`);
+    return;
+  }
   openSheet(`
     <div style="display:flex;align-items:center;gap:12px">
       ${avatarHTML(p.name, p.photo, 52)}
       <div style="flex:1;min-width:0">
-        <b style="display:block;font-size:16px">${esc(p.name)}</b>
+        <b style="display:block;font-size:16px">${esc(p.name)}${p.verificado ? ' <span class="selo-mini" title="Verificado no MudaBrasil">✔</span>' : ''}</b>
         <span class="muted" style="font-size:12.5px">${esc(p.party)} · ${esc(p.state || '—')} · ${esc(p.position)}</span>
       </div>
     </div>
@@ -587,6 +668,9 @@ async function abrirMiniPerfil(p) {
       <div class="num-box"><b id="mpVot">…</b><span>votações<br>registradas</span></div>
       <a class="num-box" id="mpDesp" style="text-decoration:none;color:inherit"><b>💰</b><span>despesas<br>(site oficial)</span></a>
     </div>
+    ${p.email ? `<div class="mini-linha">✉️ <a href="mailto:${esc(p.email)}" style="color:var(--gold);word-break:break-all">${esc(p.email)}</a></div>` : ''}
+    ${p.legislatura ? `<div class="mini-linha muted">📅 Legislatura atual: ${esc(p.legislatura)}º</div>` : ''}
+    ${p.education ? `<div class="mini-linha muted">🎓 ${esc(p.education)}</div>` : ''}
     <div id="mpNota" class="muted" style="font-size:11.5px"></div>
     <div class="links-off" id="mpLinks"></div>
     <p class="muted" style="font-size:11px;margin-top:12px;text-align:center">Resumo do app — ficha completa no site.</p>`);
@@ -630,6 +714,38 @@ async function abrirMiniPerfil(p) {
     $('#mpDesp').outerHTML = '<div class="num-box"><b>—</b><span>sem dados<br>oficiais</span></div>';
   }
   $('#mpLinks').innerHTML = links.slice(0, 2).map(l => `<a href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a>`).join('');
+}
+
+/* ===== NOTÍCIAS (manchetes reais dos feeds do servidor) ===== */
+let notFiltro = store.get('mb_not_uf') || '';
+async function carregarNoticias() {
+  renderChipsNot();
+  const box = $('#listaNot');
+  box.innerHTML = Array(4).fill('<div class="not-card"><span class="sk" style="display:block;width:30%;height:11px;margin-bottom:8px"></span><span class="sk" style="display:block;width:90%;height:15px;margin-bottom:6px"></span><span class="sk" style="display:block;width:60%;height:11px"></span></div>').join('');
+  const r = await api('/api/noticias' + (notFiltro ? '?uf=' + encodeURIComponent(notFiltro) : ''));
+  if (!r.ok && r.__status !== 200) { box.innerHTML = `<div class="vazio"><div class="ico">📡</div>${esc(r.error || 'Não foi possível carregar as notícias.')}</div>`; return; }
+  const lista = r.noticias || [];
+  $('#notTs').textContent = lista.length ? 'última coleta às ' + new Date(r.geradoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+  if (!lista.length) { box.innerHTML = '<div class="vazio"><div class="ico">🗞️</div>Nenhuma manchete carregada agora — tente novamente em instantes.</div>'; return; }
+  box.innerHTML = lista.slice(0, 40).map(n => `
+    <a class="not-card" href="${esc(n.l)}" target="_blank" rel="noopener">
+      <div class="not-meta"><b>${esc(n.fonte || '')}</b>${n.uf && n.uf !== 'BR' ? `<span class="badge-num">${esc(n.uf)}</span>` : ''}<span class="muted">${n.dt ? hora(new Date(n.dt).getTime()) : ''}</span></div>
+      <h3>${esc(n.t)}</h3>
+      ${n.res ? `<p>${esc(n.res)}</p>` : ''}
+      <span class="muted" style="font-size:11px">Ler na fonte ↗</span>
+    </a>`).join('');
+}
+function renderChipsNot() {
+  const chips = [{ id: '', rot: 'Nacionais' }];
+  if (state.uf) chips.push({ id: state.uf, rot: 'Minha UF · ' + state.uf });
+  chips.push({ id: 'SP', rot: 'SP' }, { id: 'RJ', rot: 'RJ' }, { id: 'MG', rot: 'MG' }, { id: 'BA', rot: 'BA' }, { id: 'RS', rot: 'RS' }, { id: 'PR', rot: 'PR' });
+  $('#chipsNot').innerHTML = chips.map(c =>
+    `<button class="chip${notFiltro === c.id ? ' active' : ''}" data-nf="${esc(c.id)}">${esc(c.rot)}</button>`).join('');
+  document.querySelectorAll('#chipsNot .chip').forEach(ch => ch.addEventListener('click', () => {
+    notFiltro = ch.dataset.nf;
+    store.set('mb_not_uf', notFiltro);
+    carregarNoticias();
+  }));
 }
 
 /* ===== MEU VOTO ===== */
