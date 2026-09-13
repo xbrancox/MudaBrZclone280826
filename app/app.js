@@ -446,6 +446,9 @@ function renderVotar() {
   updateProgress();
   atualizarBarraCedula();
   carregarCandidatos(false);
+  /* v25 — cédula completa e ainda não registrada: a revisão abre
+     imediatamente ao entrar na tela (ex.: app fechado antes de confirmar) */
+  if (!cargoSequencial() && countRascunho() && !state.comprovante) abrirRevisao();
 }
 $('#btnRevisarCedula').addEventListener('click', abrirRevisao);
 $('#buscaCand').addEventListener('input', e => {
@@ -555,7 +558,7 @@ function abrirExplicacao() {
     <h3 class="titles" style="text-align:center">🔑 Como funciona seu registro</h3>
     <div class="rv-texto">
       <p><b>Código único.</b> Ao confirmar, você recebe <b>um único código de 20 dígitos</b> para TODA a sua cédula — ele vale para todos os cargos que você escolheu.</p>
-      <p><b>Comprovante no aparelho.</b> O comprovante fica gravado neste celular na aba <b>Meu voto</b>, com data e hora, para você conferir quando quiser. Você também pode copiar, compartilhar ou conferir o código no site completo.</p>
+      <p><b>Comprovante no aparelho.</b> O comprovante fica gravado neste celular na aba <b>Meu voto</b>, com data e hora, para você conferir quando quiser. Você pode copiar o código ou conferi-lo no site completo — mas <b>não compartilhe</b>: comprovante em mãos de terceiros abre caminho para venda de votos.</p>
       <p><b>Seus votos contam na Apuração</b> como pesquisa de opinião pública entre os usuários do app.</p>
     </div>
     <div class="aviso-site" style="border-color:var(--gold);margin:12px 0 0">
@@ -609,7 +612,7 @@ function abrirComprovante(codigo, acabouDeRegistrar) {
     <p class="muted" style="font-size:11.5px;text-align:center;margin-top:2px">📱 Guardado neste aparelho em <b>Meu voto</b> para conferência posterior.${acabouDeRegistrar ? '<br>Com login por e-mail ou celular (votação real), ele também chega enviado para você.' : ''}</p>
     <button class="btn btn-gold" id="shCopiarCod" style="width:100%;margin-top:12px">📋 COPIAR CÓDIGO</button>
     <button class="btn btn-ghost" id="shConferirSite" style="width:100%;margin-top:8px">🔍 CONFERIR NO SITE ↗</button>
-    <button class="btn btn-ghost" id="shCompartilharCod" style="width:100%;margin-top:8px">↗ COMPARTILHAR COMPROVANTE</button>
+    <p class="muted" style="font-size:11px;text-align:center;margin-top:10px;line-height:1.5">🔒 Este código é pessoal e intransferível — não o compartilhe. Comprovante em mãos de terceiros abre caminho para venda de votos.</p>
     <button class="btn btn-ghost" id="shDeNovo" style="width:100%;margin-top:8px;color:var(--blueL)">🔄 Votar de novo (demonstração)</button>
     <div class="sheet-actions"><button class="btn btn-green" id="shOkComp">PRONTO</button></div>`);
   $('#shCopiarCod').addEventListener('click', async () => {
@@ -619,8 +622,6 @@ function abrirComprovante(codigo, acabouDeRegistrar) {
   $('#shConferirSite').addEventListener('click', () => {
     window.open(SITE_URL + '/#conferir-voto', '_blank');
   });
-  $('#shCompartilharCod').addEventListener('click', () => compartilharTexto(
-    'Votei (simulação cívica) no MudaBrasil 🇧🇷 — código único da minha cédula: ' + fmt + '. Confira: ' + SITE_URL + '/#conferir-voto'));
   $('#shDeNovo').addEventListener('click', abrirDemonstracao);
   $('#shOkComp').addEventListener('click', () => { closeSheet(); renderVotar(); });
 }
@@ -630,8 +631,12 @@ function abrirDemonstracao() {
   const n = countVotos();
   openSheet(`
     <h3 class="titles" style="text-align:center">🔄 Votar de novo</h3>
-    <p style="font-size:13px;line-height:1.55">Como o app ainda está em <b>demonstração</b>, você pode desfazer sua cédula (${n} voto${n === 1 ? '' : 's'} nesta sessão) e montar outra — sua primeira resposta continua como base da pesquisa de opinião até você recomeçar.</p>
-    <p class="muted" style="font-size:12px;margin-top:8px">⚠️ Isso apaga apenas os SEUS votos desta demonstração. Na votação real este botão não existirá: o voto registrado será permanente.</p>
+    <div class="rv-texto">
+      <p><b>Como é hoje:</b> o MudaBrasil funciona como uma <b>pesquisa de opinião</b> — sem login, sem valor jurídico. Suas respostas são livres e podem ser <b>mudadas ou apagadas a qualquer momento</b>, neste botão.</p>
+      <p><b>Como será se implantado como votação real:</b> haverá identificação do eleitor, cada voto ficará registrado de forma <b>permanente</b> e este botão de refazer deixará de existir — ninguém poderá apagar o próprio voto nem o dos outros.</p>
+      <p><b>O que este botão faz agora:</b> zera a sua votação anterior (${n} voto${n === 1 ? '' : 's'} nesta sessão) e abre uma cédula nova, em branco, para recomeçar.</p>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:8px">⚠️ Apaga apenas os SEUS votos desta demonstração — nada muda na apuração dos demais participantes.</p>
     <div class="sheet-actions">
       <button class="btn btn-ghost" id="shCancelarDemo">MANTER VOTOS</button>
       <button class="btn" id="shZerarDemo" style="background:#c0392b;color:#fff">ZERAR E RECOMEÇAR</button>
@@ -973,8 +978,8 @@ function renderMeuVoto() {
       <div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn btn-gold" id="mvCopiar" style="flex:1;min-height:40px;font-size:12.5px">📋 Copiar</button>
         <button class="btn btn-ghost" id="mvConferir" style="flex:1;min-height:40px;font-size:12.5px">🔍 Conferir ↗</button>
-        <button class="btn btn-ghost" id="mvCompartilhar" style="flex:1;min-height:40px;font-size:12.5px">↗ Compartilhar</button>
       </div>
+      <p class="muted" style="font-size:10.5px;text-align:center;margin-top:6px">🔒 Código pessoal — não compartilhe (evita venda de votos).</p>
       <button class="btn btn-ghost" id="mvDeNovo" style="width:100%;min-height:38px;font-size:12px;margin-top:8px;color:var(--blueL)">🔄 Votar de novo (demonstração)</button>
     </div>`;
   } else if (countRascunho()) {
@@ -1018,8 +1023,6 @@ function renderMeuVoto() {
     toast(ok ? 'Código copiado! 📋' : 'Selecione e copie o código na tela', ok ? 'ok' : 'err');
   });
   $('#mvConferir')?.addEventListener('click', () => window.open(SITE_URL + '/#conferir-voto', '_blank'));
-  $('#mvCompartilhar')?.addEventListener('click', () => compartilharTexto(
-    'Votei (simulação cívica) no MudaBrasil 🇧🇷 — código único da minha cédula: ' + formatarCodigo(state.comprovante.codigo) + '. Confira: ' + SITE_URL + '/#conferir-voto'));
   $('#mvDeNovo')?.addEventListener('click', abrirDemonstracao);
 }
 
