@@ -229,12 +229,15 @@ function atualizarBarraCedula() {
   if (!bar) return;
   const nr = countRascunho(), nv = countVotos();
   const total = cargosVisiveis().length;
+  /* v26 — durante a montagem sequencial a barra fica escondida: o app já
+     avança sozinho e, no fim, a revisão abre automaticamente. A barra só serve
+     como porta de entrada quando existe cédula completa pendente (reentrada). */
   const completa = !cargoSequencial() && nr > 0;
-  if (!nr && !nv) { bar.style.display = 'none'; return; }
+  if (!completa || state.comprovante) { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
   $('#cedulaTxt').innerHTML = `🗳️ Sua cédula: <b>${nr + nv} de ${total}</b>`;
   const btn = $('#btnRevisarCedula');
-  if (btn) btn.style.display = completa ? '' : 'none';
+  if (btn) btn.style.display = '';
 }
 
 /* ===== VOTAR ===== */
@@ -498,13 +501,12 @@ function abrirConfirmacao(c) {
       toast('Escolha atualizada ✓', 'ok');
       return;
     }
-    /* v24 — avança sozinho para o próximo cargo da sequência; quando a cédula
-       inteira estiver montada, o destino é a revisão */
+    /* v26 — avança sozinho para o próximo cargo; ao escolher o último, a tela
+       "Revise sua cédula" abre na hora, sem toast nem passo intermediário */
     renderVotar();
     if (cargoSequencial()) {
       toast('Adicionado à cédula ✓ — agora: ' + cargoCfg(state.cargo).nome, 'ok');
     } else {
-      toast('Cédula completa — revise antes de registrar 🗳️', 'ok');
       abrirRevisao();
     }
   });
